@@ -74,7 +74,7 @@ class GoInteropTest {
             )
             val resp = PairflowResponder(
                 RelayClient(http, base, session, RelayClient.ROLE_RESPONDER, pollIntervalMillis = 20),
-                dev.privateSeed, dev.publicKey, devEnc, salt,
+                dev.publicKey, devEnc, salt,
             )
             var a = ""; var b = ""
             val ti = Thread { a = init.handshake() }

@@ -100,7 +100,7 @@ class NetworkClientsTest {
         val initRelay = RelayClient(http, base, session, RelayClient.ROLE_INITIATOR, pollIntervalMillis = 10)
         val respRelay = RelayClient(http, base, session, RelayClient.ROLE_RESPONDER, pollIntervalMillis = 10)
         val initiator = PairflowInitiator(initRelay, user.privateSeed, user.publicKey, salt, 1_724_700_000L, 7_776_000L)
-        val responder = PairflowResponder(respRelay, dev.privateSeed, dev.publicKey, devEnc, salt)
+        val responder = PairflowResponder(respRelay, dev.publicKey, devEnc, salt)
 
         var sasInit = ""; var sasResp = ""
         val ti = Thread { sasInit = initiator.handshake() }
