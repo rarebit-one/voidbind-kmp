@@ -31,6 +31,30 @@ platform APIs, no third-party deps:
 - **`DeviceKeyStore`** — `expect class` for the hardware signing key (Secure
   Enclave on iOS, StrongBox on Android; software-only on the JVM, for tests).
 
+### Network clients (`net/`)
+
+The wire types above plus an `HttpTransport` seam (a platform supplies the engine;
+`JdkHttpTransport` backs JVM/Android and the tests) drive the live voidbind-go
+services:
+
+- **`RelayClient`** — the dumb pairing relay (`POST /v1/sessions`, `PUT`/`GET`
+  `/v1/sessions/{id}/{role}/{type}`); `fetch` polls the peer slot.
+- **`PairflowInitiator` / `PairflowResponder`** — the commit-before-reveal
+  handshake with the human gate (`handshake()` returns the SAS and signs nothing;
+  `authorise` / `receive` move the cert). The X25519 cert **seal** is behind a
+  `CertSealer` seam and is the one deferred piece (see below); the handshake + SAS
+  need none.
+- **`WebLoginClient`** — the QR web-login: device side (`fetchChallenge`,
+  `approve` with a `WebLogin.signAssertion` assertion) and browser side
+  (`createLogin`, `poll`).
+
+These are **proven against a live voidbind-go** in `GoInteropTest` (JVM): two
+Kotlin sides pair through the real Go relay (SAS matches), and a Kotlin device
+approves a login on the real Go RP, which verifies the Kotlin-signed cert and
+assertion and mints a token. That test builds + runs the `voidbind` CLI, so it is
+skipped (not failed) when `go`/the voidbind-go checkout is absent — CI keeps the
+in-JVM mock coverage in `NetworkClientsTest`.
+
 Crypto backends (Ed25519, the pairing hash) are reached through interface seams so
 the encodings stay backend-free and portable.
 

@@ -24,8 +24,13 @@ object Labels {
     /** Algorithm prefix for device encryption keys (X25519). */
     const val ALG_X25519 = "x25519"
 
-    /** Cert token payload version currently emitted/accepted. */
-    const val CERT_VERSION = 1
+    /**
+     * Cert token payload version currently emitted/accepted. v2 (ADR-0049) binds
+     * the device X25519 encryption key (denc). MUST be 2 to interop with
+     * voidbind-go: its `enrolment.CertUser` (called first by `rp.Verify`) requires
+     * v==2, so a v1 cert is refused by every Go relying party.
+     */
+    const val CERT_VERSION = 2
 
     /** Recovery secret size in bytes (256-bit). */
     const val RECOVERY_SECRET_LEN = 32
