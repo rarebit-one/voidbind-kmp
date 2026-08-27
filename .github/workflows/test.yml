@@ -9,7 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  # JVM tests (the pure domain + the software Ed25519 engine) and the Android
+  # library compile. ubuntu-latest ships the Android SDK, so the StrongBox-sealed
+  # `actual` is type-checked against the real android.security.keystore APIs here.
+  jvm-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,5 +20,20 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: gradle jvmTest
-        run: ./gradlew jvmTest --no-daemon --stacktrace
+      - name: gradle jvmTest + android compile
+        run: ./gradlew jvmTest compileReleaseKotlinAndroid --no-daemon --stacktrace
+
+  # The Secure-Enclave `actual` is Kotlin/Native; only a macOS runner has the
+  # toolchain that compiles the iOS targets.
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: gradle iOS compile
+        run: >-
+          ./gradlew compileKotlinIosArm64 compileKotlinIosSimulatorArm64
+          --no-daemon --stacktrace

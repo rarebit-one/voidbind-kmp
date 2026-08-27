@@ -1,44 +1,48 @@
 package one.rarebit.voidbind
 
 /**
- * iOS `actual` for [DeviceKeyStore] — the production target this library exists for.
+ * iOS `actual` for [DeviceKeyStore] — **hardware-backed**.
  *
- * SCAFFOLD STATUS: the Secure Enclave binding is stubbed. The real implementation
- * uses the Security framework via cinterop:
- *   - `SecKeyCreateRandomKey` with attributes
- *     `kSecAttrTokenID = kSecAttrTokenIDSecureEnclave`,
- *     `kSecAttrKeyType = kSecAttrKeyTypeECSECPrimeRandom` (P-256 on the Enclave;
- *     Ed25519 is emulated at a higher layer where a raw Ed25519 Enclave key is not
- *     available — mirror voidbind-go's device-key policy here),
- *     `kSecAttrIsPermanent = true`, access control
- *     `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` + `.privateKeyUsage`.
- *   - The private key is non-extractable; signing calls `SecKeyCreateSignature`.
- *   - `getOrCreate` looks up the key by [alias] (`kSecAttrApplicationTag`) and
- *     provisions on first use.
- *
- * Building/testing the iOS targets requires the Kotlin/Native toolchain and (for
- * the cinterop above) Xcode; that is intentionally out of scope for the JVM-verified
- * build in this environment. This stub keeps the target's shape honest and compiles
- * without cinterop, and throws loudly if invoked so it can never be mistaken for a
- * working Enclave binding.
+ * The device signing key is a software Ed25519 seed ([Ed25519Engine]) sealed at
+ * rest by a **Secure-Enclave P-256 key** (the Enclave cannot hold Ed25519). The
+ * Secure Enclave + Keychain work is done by the app-provided [SecureEnclaveSealer]
+ * (Swift/CryptoKit); this class owns the Ed25519 signing and the store contract.
+ * The seed is unsealed only transiently — behind the Enclave's biometric gate —
+ * to produce one signature, then zeroized. See
+ * docs/adr/0001-hardware-keystore-mechanism.md.
  */
-actual class DeviceKeyStore private constructor(private val rawPublicKey: ByteArray) {
+actual class DeviceKeyStore private constructor(
+    private val alias: String,
+    private val publicKeyBytes: ByteArray,
+) {
 
     actual val isHardwareBacked: Boolean = true
 
-    actual fun publicKey(): KeyRef = KeyRef.ed25519(rawPublicKey)
+    actual fun publicKey(): KeyRef = KeyRef.ed25519(publicKeyBytes)
 
-    actual fun sign(message: ByteArray): ByteArray =
-        throw NotImplementedError(
-            "Secure Enclave signing not yet wired — implement via Security.framework " +
-                "SecKeyCreateSignature (cinterop). See class KDoc."
-        )
+    actual fun sign(message: ByteArray): ByteArray {
+        // Unseal is Enclave-gated (biometric); the seed is used once and wiped.
+        val seed = VoidbindIos.requireSealer().unsealSeed(alias)
+        try {
+            return Ed25519Engine.sign(seed, message)
+        } finally {
+            seed.fill(0)
+        }
+    }
 
     actual companion object {
-        actual fun getOrCreate(alias: String): DeviceKeyStore =
-            throw NotImplementedError(
-                "Secure Enclave key provisioning not yet wired for alias='$alias' — " +
-                    "implement via SecKeyCreateRandomKey (cinterop). See class KDoc."
-            )
+        actual fun getOrCreate(alias: String): DeviceKeyStore {
+            val sealer = VoidbindIos.requireSealer()
+            if (sealer.sealExists(alias)) {
+                return DeviceKeyStore(alias, sealer.loadPublicKey(alias))
+            }
+            val generated = Ed25519Engine.generate()
+            try {
+                sealer.provision(alias, generated.publicKey, generated.privateSeed)
+            } finally {
+                generated.privateSeed.fill(0)
+            }
+            return DeviceKeyStore(alias, generated.publicKey)
+        }
     }
 }
