@@ -12,24 +12,23 @@ This is the runbook, plus the map of what still has to be built to reach the ful
 |---|---|
 | Crypto decision (ADR-0001) | ✅ resolved + recorded |
 | `Ed25519Engine` (software, multiplatform) | ✅ done, JVM round-trip tested |
+| Pairing/cert wire reconciled to voidbind-go **v2** | ✅ done + merged (dual-key commit, 7-digit SAS) |
 | `DeviceKeyStore` JVM actual (software) | ✅ done |
 | `DeviceKeyStore` Android actual (StrongBox-sealed) | ✅ compiles; **needs a device to prove non-extractability** |
-| `DeviceKeyStore` iOS actual (SE-sealed) | ✅ compiles; **needs the Swift `SecureEnclaveSealer` impl + a device** |
-| Swift `SecureEnclaveSealer` implementation | ⏳ TODO (in the iOS app) |
-| Android app shell (Compose) | ⏳ TODO |
-| iOS app shell (SwiftUI) | ⏳ TODO |
-| Live web QR-login vs All Thing / heyarr | ⏳ TODO — **blocked on the pairing reconciliation below** |
+| `DeviceKeyStore` iOS actual (SE-sealed) | ✅ compiles; **needs a device** |
+| Swift `SecureEnclaveSealer` implementation | ✅ written (`iosApp/Voidbind/SecureEnclaveSealer.swift`); **needs Xcode + a device** |
+| `UserIdentity` / `Enrolment` / `LoginQr` / flow coordinators (commonMain) | ✅ done, unit-tested + cross-language proven vs live voidbind-go |
+| `Voidbind.xcframework` export | ✅ done (`assembleVoidbindXCFramework`) |
+| Android app shell (Compose) | 🚧 in progress (peer session — `androidApp/`) |
+| iOS app shell (SwiftUI) | 🚧 scaffold (`iosApp/`); full screen set on-device |
+| Live web QR-login vs All Thing / heyarr | ⏳ device test (below) |
 
-### Prerequisite for live interop: reconcile the pairing/cert wire to voidbind-go v2
-
-`src/commonMain/.../Pairing.kt` still encodes the **v1** transcript
-(`heyarr/pairing/v1/{commit,sas}`, single-key commit, a bespoke SAS fold), while
-voidbind-go is now **v2** dual-key (`heyarr/pairing/commit/v2`, the commitment
-binds both the signing key and the X25519 encryption key — ADR-0049 §41). The
-hardware key and signing are unaffected, but a real QR-login/pairing against a
-live backend will not interoperate until `Pairing.kt` (and `Cert.kt`'s cert
-fields) are brought byte-identical to voidbind-go v2. Do this before wiring the
-app's pairing flow to a real All Thing / heyarr.
+The commonMain "device brain" (identity derivation, self-enrolment, the
+`LoginApproval` / `DevicePairing` / `DeviceAuthorization` coordinators, the QR
+wire) is done and **cross-language proven against a live voidbind-go**
+(`CoordinatorGoInteropTest`: a coordinator-driven login on the real Go RP + the
+pairing coordinators through the real Go relay). What remains is genuinely
+device-bound: the Secure Enclave / StrongBox properties and the biometric gate.
 
 ## What you need
 
@@ -63,20 +62,49 @@ app's pairing flow to a real All Thing / heyarr.
 
 **iOS**
 1. Provision with `DeviceKeyStore.getOrCreate("device")` after
-   `VoidbindIos.init(sealer)`.
+   `VoidbindIos.shared.doInit(sealer:)` (the app builds `VoidbindEngine()`, which
+   injects the Swift `SecureEnclaveSealer`).
 2. The Secure-Enclave P-256 key is created with `kSecAttrTokenIDSecureEnclave` +
    access control `.privateKeyUsage`/`.biometryCurrentSet` — the private key is
    non-extractable by construction (Apple never returns SE key material).
 3. Call `sign(...)`: iOS must present Face/Touch ID (the SE unseal), and only then
    return a signature. Cancel the prompt — signing must fail, not proceed.
 
-## Test 2 — pair + web QR-login with the hardware key
+## Test 2 — onboarding: create / restore an identity on-device
 
-_(After the pairing reconciliation and the app shells exist.)_
-1. All Thing shows a login QR encoding a challenge + session id.
-2. The app scans it, `sign()`s the challenge with the **hardware** device key
-   (biometric prompt fires), and posts the signature + the device cert.
-3. All Thing verifies the signature offline against the pinned device/user key
-   (voidbind-go/rp) and issues a short-lived session token.
-4. Assert: no private key ever leaves the phone; a cancelled biometric prompt
-   yields no login; a signature from a different device is refused.
+Drives `UserIdentity` + `Enrolment` through the app engine (`OnboardingView` on
+iOS; the Android onboarding screens).
+1. **Create**: tap "Create a new identity". The app calls `UserIdentity.create()`,
+   provisions the device key (biometric fires on first `DeviceKeyStore.getOrCreate`),
+   and `Enrolment.selfEnrol`s. Assert the recovery secret is shown **once**
+   (`heyarr1…`), and that force-quitting before saving it does not silently persist it.
+2. **Restore**: reinstall the app (or use a second device), tap "Restore", type the
+   secret. Assert the reconstructed `userId` **equals** the original (recovery
+   restores the SAME pinned identity, offline), and that a single mistyped character
+   is rejected loudly (the bech32m checksum) rather than yielding a different identity.
+
+## Test 3 — web QR-login with the hardware key (via `LoginApproval`)
+
+The RP backend already exists — run `cmd/voidbind login-serve --pin <userId>` (or
+a deployed All Thing) and pin the identity from Test 2.
+1. The RP shows a `voidbind:login?rp=&id=` QR. The app's Scan screen calls
+   `VoidbindQr.parse` → `LoginApproval.begin(qr)`; the approval sheet shows the
+   audience (RP origin) + a live expiry countdown.
+2. Tap Approve → `LoginApproval.approve` calls `DeviceKeyStore.sign`, so the
+   **biometric prompt fires** (the SE/StrongBox unseal); the assertion posts.
+3. The RP verifies it offline (voidbind-go/rp) and mints a short-lived token.
+4. Assert: no private key leaves the phone; a **cancelled** biometric prompt yields
+   no login; an **unpinned** device is refused (401); an expired challenge is refused.
+
+## Test 4 — add a second device (pairing, `DeviceAuthorization` ↔ `DevicePairing`)
+
+Two devices (or one device + the `voidbind pair-*` CLI as the counterpart).
+1. On the **existing** device: `DeviceAuthorization.invite(relayBase)` renders the
+   pairing QR. The **new** device scans it → `DevicePairing.begin(inviteQr)`; both
+   screens run the handshake and show a **7-digit SAS**.
+2. Confirm the two numbers match (the human gate). The existing device
+   `authorise`s (signs + seals the cert to the new device's X25519 key); the new
+   device `confirm`s (unseals + verifies).
+3. Assert: the SAS matches only when the two devices are the real pair; a
+   mismatched/rushed SAS yields no enrolment; the delivered cert verifies against
+   the user key and binds the new device.
