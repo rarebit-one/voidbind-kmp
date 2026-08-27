@@ -87,6 +87,27 @@ secret") drives:
 - **`Enrolment.selfEnrol`** — the first device self-signs its enrolment cert with
   the user key (the bootstrap case; a *second* device instead pairs over the relay).
 
+### App-flow coordinators (`flow/`)
+
+The thin, testable "brain" each app screen binds to — a `begin → show the human a
+SAS/audience → confirm` shape around the human gate, wrapping the network clients
+above. UI (Compose / SwiftUI) stays a thin view over these; run them off the main
+thread (they block on the relay / network).
+
+- **`LoginApproval`** — approve a browser web-login. `begin(qr)` fetches the
+  challenge and returns what the approval sheet shows (rp, audience, expiry);
+  `approve(request)` signs it with the device key (biometric-gated) and submits.
+- **`DevicePairing`** — the NEW device joining. `begin(inviteQr)` runs the
+  handshake and returns the SAS; `confirm(handshake)` (after the human matches the
+  SAS) unseals + verifies the delivered cert and returns the token to persist.
+- **`DeviceAuthorization`** — the EXISTING device adding a new one (mirror of
+  `DevicePairing`). `invite(relayBase)` renders the invite QR; `handshake` returns
+  the SAS; `authorise` signs + seals + delivers the cert.
+
+These are proven against each other AND, in `CoordinatorGoInteropTest`, against a
+**live voidbind-go** (a coordinator-driven login on the real Go RP; the two
+pairing coordinators through the real Go relay).
+
 Crypto backends (Ed25519, the pairing hash) are reached through interface seams so
 the encodings stay backend-free and portable.
 

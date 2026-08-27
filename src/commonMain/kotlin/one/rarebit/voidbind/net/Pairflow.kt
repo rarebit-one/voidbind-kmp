@@ -117,11 +117,14 @@ class PairflowInitiator(
 
 class PairflowResponder(
     private val relay: RelayClient,
-    private val deviceSignSeed: ByteArray,
     private val deviceSignPub: ByteArray,
     private val deviceEncPub: ByteArray,
     private val salt: ByteArray,
 ) {
+    // The responder SIGNS NOTHING during pairing — it commits + reveals its public
+    // keys and receives a cert the initiator signs. So no device signing SEED is
+    // taken here: a hardware DeviceKeyStore never exposes one, and this flow does
+    // not need it. Possession of the device key is proven later (at login/use).
     private var initSign: ByteArray = ByteArray(0)
     private var handshook = false
 
