@@ -25,20 +25,18 @@ import one.rarebit.voidbind.crypto.MiniJson
  * `{"wrapped":"<b64url>","cipher":"<b64url>"}` — a space key sealed to the
  * responder's X25519 key plus the cert token encrypted under it.
  *
- * SCOPE (this PR): the handshake + SAS + the cert-message TRANSPORT are complete
- * and wire-compatible. The X25519 SEAL/UNSEAL crypto ([CertSealer]) is the one
- * deferred piece — porting voidbind-go/encryption (ephemeral-static ECDH seal +
- * XChaCha20-Poly1305) byte-for-byte is its own change. Supply a [CertSealer] to
- * run authorise/receive; the handshake needs none.
+ * The X25519 SEAL/UNSEAL crypto ([CertSealer]) is implemented by
+ * [VoidbindCertSealer] (voidbind-go/encryption, byte-for-byte, KAT-verified) and
+ * is the default; a caller may inject an alternative for testing.
  */
 
 /** The X25519-sealed enrolment cert as it crosses the relay. */
 class SealedCert(val wrapped: ByteArray, val cipher: ByteArray)
 
 /**
- * Seals/opens the enrolment cert to a device's X25519 encryption key. DEFERRED:
- * the byte-compatible implementation (voidbind-go/encryption `Seal` +
- * `EncryptChange`) is a follow-up; the handshake + SAS do not need it.
+ * Seals/opens the enrolment cert to a device's X25519 encryption key. The
+ * production implementation is [VoidbindCertSealer] (ephemeral-static ECDH seal +
+ * XChaCha20-Poly1305, byte-identical to voidbind-go/encryption).
  */
 interface CertSealer {
     fun seal(certToken: String, recipientEncPub: ByteArray): SealedCert
@@ -96,7 +94,7 @@ class PairflowInitiator(
     }
 
     /** After the human confirms the SAS: sign the cert, seal it, hand it over. */
-    fun authorise(sealer: CertSealer) {
+    fun authorise(sealer: CertSealer = VoidbindCertSealer) {
         check(handshook) { "pairflow: authorise before a successful handshake" }
         val cert = Cert(
             version = Labels.CERT_VERSION,
@@ -152,7 +150,7 @@ class PairflowResponder(
     }
 
     /** After the human confirms: receive the sealed cert, unseal + verify it. */
-    fun receive(sealer: CertSealer, deviceEncPriv: ByteArray): String {
+    fun receive(deviceEncPriv: ByteArray, sealer: CertSealer = VoidbindCertSealer): String {
         check(handshook) { "pairflow: receive before a successful handshake" }
         val obj = MiniJson.parseObject(relay.fetch("cert").decodeToString())
         val sealed = SealedCert(
