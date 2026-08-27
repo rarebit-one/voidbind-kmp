@@ -25,6 +25,8 @@ platform APIs, no third-party deps:
 - **`Cert`** — enrolment cert token `base64url(json).base64url(sig)`, payload
   `{v, usr, dev, denc, iat, exp}`, signed by the user identity Ed25519 key.
 - **`Pairing`** — short-authentication-string derivation with **commit-before-reveal**.
+- **`Invite`** — the pairing QR `voidbind:pair?v=2&relay=&session=&salt=<hex>`;
+  `encode` is byte-identical to voidbind-go's `pairflow.EncodeInvite`.
 - **`KeyRef`** — `ed25519:<hex>` / `x25519:<hex>` key rendering.
 - **`DeviceKeyStore`** — `expect class` for the hardware signing key (Secure
   Enclave on iOS, StrongBox on Android; software-only on the JVM, for tests).
