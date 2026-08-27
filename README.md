@@ -27,6 +27,10 @@ platform APIs, no third-party deps:
 - **`Pairing`** — short-authentication-string derivation with **commit-before-reveal**.
 - **`Invite`** — the pairing QR `voidbind:pair?v=2&relay=&session=&salt=<hex>`;
   `encode` is byte-identical to voidbind-go's `pairflow.EncodeInvite`.
+- **`LoginQr` / `VoidbindQr`** — the web-login QR `voidbind:login?rp=&id=`
+  (byte-identical to voidbind-go's `weblogin.EncodeLogin`), and a single
+  `VoidbindQr.parse` the Scan screen calls to dispatch a scanned code to the
+  login-approval or pairing flow.
 - **`KeyRef`** — `ed25519:<hex>` / `x25519:<hex>` key rendering.
 - **`DeviceKeyStore`** — `expect class` for the hardware signing key (Secure
   Enclave on iOS, StrongBox on Android; software-only on the JVM, for tests).
@@ -61,6 +65,27 @@ approves a login on the real Go RP, which verifies the Kotlin-signed cert and
 assertion and mints a token. That test builds + runs the `voidbind` CLI, so it is
 skipped (not failed) when `go`/the voidbind-go checkout is absent — CI keeps the
 in-JVM mock coverage in `NetworkClientsTest`.
+
+### Identity & enrolment
+
+The app-facing spine that turns a recovery secret into a usable identity — the
+part an onboarding screen ("Create a new identity" / "Restore from recovery
+secret") drives:
+
+- **`UserIdentity`** — `create()` mints a fresh identity (returns the
+  `RecoverySecret` to back up once); `restore(secret)` reconstructs it, failing
+  **loud** on a mistyped secret. The user key is derived byte-identically to
+  voidbind-go's `recovery.DeriveUserSeed`
+  (`HKDF-SHA256(secret, info="heyarr/recovery/v1/user-identity-ed25519-seed")`),
+  and its **public half** is recovered with a pure-Kotlin Ed25519
+  (`crypto.Ed25519Group`, a TweetNaCl port) **because neither the JDK nor Apple
+  will derive an Ed25519 public key from a seed** — proven against a
+  live-voidbind-go KAT and cross-validated against Go stdlib + OpenSSL.
+- **`DeviceIdentity`** — this device's key material: the hardware Ed25519 signing
+  key (a public key + a `sign` function, from `DeviceKeyStore`) and its X25519
+  encryption keypair (`generateEncryptionKey()`; sealed at rest by the app).
+- **`Enrolment.selfEnrol`** — the first device self-signs its enrolment cert with
+  the user key (the bootstrap case; a *second* device instead pairs over the relay).
 
 Crypto backends (Ed25519, the pairing hash) are reached through interface seams so
 the encodings stay backend-free and portable.
