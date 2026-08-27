@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
+
 plugins {
     // Kotlin 2.3.x: cryptography-kotlin 0.6.0 (the release that adds Ed25519 +
     // X25519 across JDK/CryptoKit/OpenSSL) ships 2.3.x metadata, so the project
@@ -49,8 +51,20 @@ kotlin {
     // iOS — Secure-Enclave-P256 ECIES seal over a software Ed25519 key. Building
     // the Native targets needs the Kotlin/Native toolchain (auto-downloaded); the
     // Secure Enclave `actual` uses the Security framework via the K/N platform libs.
-    iosArm64()
-    iosSimulatorArm64()
+    //
+    // The iOS SwiftUI app links this as a single **XCFramework** named `Voidbind`
+    // (device arm64 + simulator arm64 slices). `./gradlew assembleVoidbindXCFramework`
+    // produces `build/XCFrameworks/{debug,release}/Voidbind.xcframework`; the Swift
+    // app imports `Voidbind` and provides the `SecureEnclaveSealer` via
+    // `VoidbindIos.init(...)`. Dynamic (default) is fine — the framework carries the
+    // cryptography-kotlin/CryptoKit backend with it.
+    val xcf = XCFramework("Voidbind")
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "Voidbind"
+            xcf.add(this)
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {

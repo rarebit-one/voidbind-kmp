@@ -118,21 +118,34 @@ see [`CLAUDE.md`](CLAUDE.md); changing them silently breaks wire compatibility.
 ## Build
 
 Requires **JDK 21**. Uses the Gradle wrapper (self-downloads Gradle 8.9 +
-Kotlin 2.0.21); no Android SDK required (there is no `androidTarget` yet).
+Kotlin 2.3.20). The Android target needs an Android SDK (`ANDROID_HOME` /
+`local.properties`); the iOS targets need the Kotlin/Native toolchain (auto-downloaded on macOS).
 
 ```sh
 ./gradlew jvmTest                          # compile + run common + JVM tests
-./gradlew compileKotlinJvm                 # JVM compile only
-./gradlew compileKotlinIosSimulatorArm64   # iOS compile (Kotlin/Native)
+./gradlew compileReleaseKotlinAndroid      # Android compile
+./gradlew compileKotlinIosArm64            # iOS device compile (Kotlin/Native)
+./gradlew assembleVoidbindXCFramework      # → build/XCFrameworks/{debug,release}/Voidbind.xcframework
 ```
+
+### The iOS `Voidbind.xcframework`
+
+The SwiftUI app links the library as a single **XCFramework** named `Voidbind`
+(device `ios-arm64` + `ios-arm64-simulator` slices). Build it with
+`./gradlew assembleVoidbindReleaseXCFramework`, drag `Voidbind.xcframework` into
+the Xcode app target (Embed & Sign), then `import Voidbind` — every type here is
+exported (`UserIdentity`, `DeviceIdentity`, `Enrolment`, `LoginQr`/`VoidbindQr`,
+`LoginApproval`/`DevicePairing`/`DeviceAuthorization`, `SecureEnclaveSealer`,
+`VoidbindIos`). The app implements the `SecureEnclaveSealer` protocol in Swift
+(CryptoKit/Security) and injects it once via `VoidbindIos.shared.doInit(sealer:)`.
 
 ## Targets
 
 | Target | State |
 |---|---|
-| `jvm()` | primary — buildable **and** testable (software keystore) |
-| `iosArm64()`, `iosSimulatorArm64()` | compile; Secure Enclave `actual` is a documented stub |
-| Android | not yet added (needs the Android Gradle Plugin + SDK) |
+| `jvm()` | dev/test — buildable **and** testable (software keystore) |
+| `androidTarget()` | StrongBox/TEE-sealed Ed25519 seed; builds on the Android SDK |
+| `iosArm64()`, `iosSimulatorArm64()` | compile + export the `Voidbind.xcframework`; the Secure Enclave `actual` needs the app-provided Swift `SecureEnclaveSealer` |
 
 ## Layout
 
