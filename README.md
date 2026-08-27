@@ -1,2 +1,60 @@
 # voidbind-kmp
-Voidbind — KMP device authenticator (device keystore, pairing, recovery); one wire contract with voidbind-go
+
+Voidbind — the **Kotlin Multiplatform device authenticator**: hardware-backed
+device keys, commit-before-reveal pairing, and account recovery, sharing **one
+wire contract** with [`voidbind-go`](https://github.com/rarebit-one/voidbind-go).
+
+Voidbind is a device-authentication protocol extracted from **heyarr**.
+`voidbind-go` holds the wire contract (the source of truth); this repo is the
+on-device side for **iOS / Android** (plus a JVM target for dev/test), and its
+reason to exist is keeping the device signing key **non-extractable in the secure
+element** (Secure Enclave / StrongBox).
+
+## Status
+
+Scaffold. The pure-Kotlin domain + JVM target build and test; iOS targets compile;
+the iOS Secure Enclave binding and an Android target are stubbed/pending (see
+[`CLAUDE.md`](CLAUDE.md)).
+
+## What's here
+
+Pure-Kotlin (`commonMain`) re-implementations of the voidbind-go wire types — no
+platform APIs, no third-party deps:
+
+- **`RecoverySecret`** — 256-bit account secret as **bech32m** (HRP `heyarr`).
+- **`Cert`** — enrolment cert token `base64url(json).base64url(sig)`, payload
+  `{v, usr, dev, denc, iat, exp}`, signed by the user identity Ed25519 key.
+- **`Pairing`** — short-authentication-string derivation with **commit-before-reveal**.
+- **`KeyRef`** — `ed25519:<hex>` / `x25519:<hex>` key rendering.
+- **`DeviceKeyStore`** — `expect class` for the hardware signing key (Secure
+  Enclave on iOS, StrongBox on Android; software-only on the JVM, for tests).
+
+Crypto backends (Ed25519, the pairing hash) are reached through interface seams so
+the encodings stay backend-free and portable.
+
+Identity/signing = **Ed25519**; device encryption = **X25519**. Certain constants
+(the HKDF label, the `heyarr` HRP, the pairing labels) are **identity-defining** —
+see [`CLAUDE.md`](CLAUDE.md); changing them silently breaks wire compatibility.
+
+## Build
+
+Requires **JDK 21**. Uses the Gradle wrapper (self-downloads Gradle 8.9 +
+Kotlin 2.0.21); no Android SDK required (there is no `androidTarget` yet).
+
+```sh
+./gradlew jvmTest                          # compile + run common + JVM tests
+./gradlew compileKotlinJvm                 # JVM compile only
+./gradlew compileKotlinIosSimulatorArm64   # iOS compile (Kotlin/Native)
+```
+
+## Targets
+
+| Target | State |
+|---|---|
+| `jvm()` | primary — buildable **and** testable (software keystore) |
+| `iosArm64()`, `iosSimulatorArm64()` | compile; Secure Enclave `actual` is a documented stub |
+| Android | not yet added (needs the Android Gradle Plugin + SDK) |
+
+## Layout
+
+See [`CLAUDE.md`](CLAUDE.md) for the full source map and the wire-contract rules.
