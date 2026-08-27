@@ -66,6 +66,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
     implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("androidx.biometric:biometric:1.1.0")
+    // A modern fragment so FragmentActivity (needed by BiometricPrompt) extends the
+    // androidx.activity.ComponentActivity that activity-compose's setContent requires
+    // (biometric 1.1.0 alone pulls an older fragment).
+    implementation("androidx.fragment:fragment:1.8.3")
 
     // QR scanning: CameraX preview + analysis, ML Kit barcode decoding.
     val cameraX = "1.3.4"
@@ -76,4 +80,7 @@ dependencies {
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
     // QR generation (invite codes this device displays) — ML Kit only decodes.
     implementation("com.google.zxing:core:3.5.3")
+
+    // The device engine's HttpTransport actual (relay + RP calls).
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
