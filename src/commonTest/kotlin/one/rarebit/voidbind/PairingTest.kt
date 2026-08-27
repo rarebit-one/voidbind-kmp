@@ -1,75 +1,79 @@
 package one.rarebit.voidbind
 
+import one.rarebit.voidbind.crypto.Hex
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Deterministic non-cryptographic hash for exercising the pairing transcript
- * logic. Real callers pass SHA-256; determinism is all these tests need.
+ * Golden vectors CAPTURED FROM voidbind-go's v2 pairing (`pairing.Commit` /
+ * `pairing.Derive`) with fixed inputs — signing = 0x11×32, enc = 0x12×32 for the
+ * initiator; signing = 0x21×32, enc = 0x22×32 for the responder; salt = 0x33×32.
+ * These prove the Kotlin port is byte-identical to the Go side, which is the
+ * whole point: a SAS or commitment that differs by one byte does not interoperate.
  */
-private val testHash = Pairing.HashFunction { input ->
-    val out = ByteArray(32)
-    var h = -0x61c8864680b583ebL
-    for (b in input) {
-        h = h xor (b.toLong() and 0xFF)
-        h *= 0x100000001b3L
-    }
-    for (i in out.indices) {
-        h = h xor (i.toLong() * 0x2545F4914F6CDD1DL)
-        h *= 0x100000001b3L
-        out[i] = (h ushr ((i % 8) * 8)).toByte()
-    }
-    out
-}
-
 class PairingTest {
 
-    private val idA = KeyRef.ed25519(ByteArray(32) { (it + 1).toByte() })
-    private val idB = KeyRef.ed25519(ByteArray(32) { (it * 5 + 2).toByte() })
-    private val nonceA = ByteArray(16) { (it * 3 + 1).toByte() }
-    private val nonceB = ByteArray(16) { (it * 7 + 9).toByte() }
+    private fun rep(b: Int) = ByteArray(32) { b.toByte() }
 
-    private fun transcript() = Pairing.Transcript(idA, idB, nonceA, nonceB)
+    private val iSign = rep(0x11)
+    private val iEnc = rep(0x12)
+    private val rSign = rep(0x21)
+    private val rEnc = rep(0x22)
+    private val salt = rep(0x33)
+
+    private val goldenInitCommit = "6df14752bdcc1e58d6a5eae2e7741c93b8729838cf94167b4095d881753ccf91"
+    private val goldenRespCommit = "585754a70d9cf615c61fe4de37523f939749d39ce0f7d4b11baf777dc1cf7dcf"
+    private val goldenSas = "8591300"
+    private val goldenInitCommitEmptyEnc = "7bacd4d00d224212ae5094ae0f9fbcd10790dae5ed26295996b6a3830772545c"
+    private val goldenSasEmptyEnc = "2393931"
 
     @Test
-    fun sasDerivationIsDeterministic() {
-        val sas1 = Pairing.deriveSas(transcript(), testHash)
-        val sas2 = Pairing.deriveSas(transcript(), testHash)
-        assertEquals(sas1, sas2)
-        assertEquals(6, sas1.digits.length)
-        assertTrue(sas1.digits.all { it in '0'..'9' }, "digits only: ${sas1.digits}")
+    fun commitMatchesVoidbindGo() {
+        assertEquals(goldenInitCommit, Hex.encode(Pairing.commit(iSign, iEnc)))
+        assertEquals(goldenRespCommit, Hex.encode(Pairing.commit(rSign, rEnc)))
     }
 
     @Test
-    fun bothSidesDeriveTheSameSas() {
-        // Two independent Transcript instances with identical content → same SAS.
-        val a = Pairing.Transcript(idA, idB, nonceA.copyOf(), nonceB.copyOf())
-        val b = Pairing.Transcript(idA, idB, nonceA.copyOf(), nonceB.copyOf())
-        assertEquals(Pairing.deriveSas(a, testHash), Pairing.deriveSas(b, testHash))
+    fun sasMatchesVoidbindGo() {
+        val sas = Pairing.deriveSas(Pairing.Keys(iSign, iEnc), Pairing.Keys(rSign, rEnc), salt)
+        assertEquals(goldenSas, sas)
+        assertEquals(Pairing.DIGITS, sas.length)
     }
 
     @Test
-    fun differentNoncesChangeTheSas() {
-        val base = Pairing.deriveSas(transcript(), testHash)
-        val tweaked = Pairing.Transcript(idA, idB, nonceA, ByteArray(16) { (it * 7 + 10).toByte() })
-        assertFalse(base == Pairing.deriveSas(tweaked, testHash))
+    fun emptyEncryptionKeyIsBoundByItsAbsence() {
+        assertEquals(goldenInitCommitEmptyEnc, Hex.encode(Pairing.commit(iSign)))
+        val sas = Pairing.deriveSas(Pairing.Keys(iSign), Pairing.Keys(rSign), salt)
+        assertEquals(goldenSasEmptyEnc, sas)
     }
 
     @Test
-    fun commitBeforeRevealVerifies() {
-        val commitA = Pairing.commit(Pairing.Role.INITIATOR, nonceA, testHash)
-        // Peer later reveals nonceA; recompute against the held commitment.
-        assertTrue(Pairing.verifyReveal(Pairing.Role.INITIATOR, nonceA, commitA, testHash))
-        // A different nonce (or a role mismatch) must be rejected.
-        assertFalse(Pairing.verifyReveal(Pairing.Role.INITIATOR, nonceB, commitA, testHash))
-        assertFalse(Pairing.verifyReveal(Pairing.Role.RESPONDER, nonceA, commitA, testHash))
+    fun openAcceptsTheCommittedKeysAndRejectsAnyChange() {
+        val c = Pairing.commit(iSign, iEnc)
+        assertTrue(Pairing.opens(c, iSign, iEnc), "the committed keys open the commitment")
+        assertFalse(Pairing.opens(c, rSign, iEnc), "a swapped signing key does not open it")
+        assertFalse(Pairing.opens(c, iSign, rEnc), "a swapped encryption key does not open it (v2)")
+        assertFalse(Pairing.opens(c, iSign), "dropping the encryption key does not open it")
     }
 
     @Test
-    fun digitCountIsConfigurable() {
-        assertEquals(4, Pairing.deriveSas(transcript(), testHash, digitCount = 4).digits.length)
-        assertEquals(8, Pairing.deriveSas(transcript(), testHash, digitCount = 8).digits.length)
+    fun substitutingEitherKeyChangesTheSas() {
+        val honest = Pairing.deriveSas(Pairing.Keys(iSign, iEnc), Pairing.Keys(rSign, rEnc), salt)
+        val swappedSign = Pairing.deriveSas(Pairing.Keys(rSign, iEnc), Pairing.Keys(rSign, rEnc), salt)
+        val swappedEnc = Pairing.deriveSas(Pairing.Keys(iSign, rEnc), Pairing.Keys(rSign, rEnc), salt)
+        assertFalse(honest == swappedSign, "substituting the initiator's signing key changes the SAS")
+        assertFalse(honest == swappedEnc, "substituting the initiator's encryption key changes the SAS (v2)")
+    }
+
+    @Test
+    fun refusesMalformedInput() {
+        assertFailsWith<IllegalArgumentException> { Pairing.commit(ByteArray(20)) }
+        assertFailsWith<IllegalArgumentException> {
+            Pairing.deriveSas(Pairing.Keys(iSign, iEnc), Pairing.Keys(rSign, rEnc), ByteArray(8))
+        }
+        assertFailsWith<IllegalArgumentException> { Pairing.opens(ByteArray(10), iSign, iEnc) }
     }
 }
