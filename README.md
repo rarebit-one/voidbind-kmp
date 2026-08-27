@@ -41,9 +41,16 @@ services:
   `/v1/sessions/{id}/{role}/{type}`); `fetch` polls the peer slot.
 - **`PairflowInitiator` / `PairflowResponder`** — the commit-before-reveal
   handshake with the human gate (`handshake()` returns the SAS and signs nothing;
-  `authorise` / `receive` move the cert). The X25519 cert **seal** is behind a
-  `CertSealer` seam and is the one deferred piece (see below); the handshake + SAS
-  need none.
+  `authorise` / `receive` move the cert). The X25519 cert **seal** is
+  `VoidbindCertSealer` (the default), completing the sealed cert delivery.
+- **`VoidbindCertSealer` / `crypto.VoidbindEncryption`** — the ephemeral-static
+  X25519 ECDH seal + XChaCha20-Poly1305, byte-identical to voidbind-go/encryption
+  (`Seal`/`Unwrap`/`EncryptChange`/`DecryptChange`). Pure-Kotlin X25519 (a
+  TweetNaCl port, so `unwrap` can derive the recipient public key the JDK X25519
+  provider will not) + a hand-written HChaCha20 over cryptography-kotlin's IETF
+  ChaCha20-Poly1305 and HKDF. Pinned by RFC vectors and a **live-voidbind-go
+  KAT** (`CertSealerCryptoTest.goSealKat`: Kotlin unwraps + decrypts a blob that
+  Go sealed, to the exact bytes).
 - **`WebLoginClient`** — the QR web-login: device side (`fetchChallenge`,
   `approve` with a `WebLogin.signAssertion` assertion) and browser side
   (`createLogin`, `poll`).
