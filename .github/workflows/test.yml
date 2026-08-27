@@ -23,6 +23,21 @@ jobs:
       - name: gradle jvmTest + android compile
         run: ./gradlew jvmTest compileReleaseKotlinAndroid --no-daemon --stacktrace
 
+  # The first-party Android authenticator app (Compose UI). Device behaviour
+  # (StrongBox non-extractability, biometric gating) is device-tested per
+  # docs/DEVICE-TESTING.md, not here — this job proves the app module compiles and
+  # assembles, so a broken UI/build cannot merge. ubuntu-latest ships the Android SDK.
+  android-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: gradle assemble app (debug)
+        run: ./gradlew :androidApp:assembleDebug --no-daemon --stacktrace
+
   # The Secure-Enclave `actual` is Kotlin/Native; only a macOS runner has the
   # toolchain that compiles the iOS targets.
   ios:

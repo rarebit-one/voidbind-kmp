@@ -1,0 +1,109 @@
+package one.rarebit.voidbind.app.ui.screens
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import one.rarebit.voidbind.app.ui.components.AppTopBar
+import one.rarebit.voidbind.app.ui.components.PrimaryButton
+import one.rarebit.voidbind.app.ui.components.ScreenPadding
+import one.rarebit.voidbind.app.ui.components.SecureScreen
+import one.rarebit.voidbind.app.ui.components.VSpace
+import one.rarebit.voidbind.app.ui.theme.VbColors
+
+/**
+ * Restore an identity from a recovery secret. The library refuses a mistyped
+ * secret at the bech32m checksum (UserIdentity.restore throws), which surfaces here
+ * as an inline error — nothing is provisioned until it parses.
+ */
+@Composable
+fun RestoreScreen(
+    onBack: () -> Unit,
+    onRestore: suspend (String) -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SecureScreen()
+    val scope = rememberCoroutineScope()
+    var secret by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        AppTopBar(title = "Restore identity", onBack = onBack)
+        Column(Modifier.padding(ScreenPadding).padding(bottom = 24.dp)) {
+            Text(
+                "Enter your recovery secret",
+                style = MaterialTheme.typography.headlineMedium,
+                color = VbColors.TextPrimary,
+            )
+            VSpace(8)
+            Text(
+                "This rebuilds your identity on this device offline. No server is involved. A single wrong character is refused.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = VbColors.TextSecondary,
+            )
+            VSpace(20)
+            OutlinedTextField(
+                value = secret,
+                onValueChange = { secret = it; error = null },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Recovery secret") },
+                placeholder = { Text("heyarr1…") },
+                isError = error != null,
+                textStyle = TextStyle(fontFamily = FontFamily.Monospace),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                minLines = 3,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = VbColors.Mint,
+                    unfocusedBorderColor = VbColors.Outline,
+                    cursorColor = VbColors.Mint,
+                    focusedLabelColor = VbColors.Mint,
+                ),
+            )
+            if (error != null) {
+                VSpace(8)
+                Text(error!!, style = MaterialTheme.typography.bodyMedium, color = VbColors.Coral)
+            }
+            VSpace(20)
+            PrimaryButton(
+                text = if (busy) "Restoring…" else "Restore identity",
+                onClick = {
+                    if (busy) return@PrimaryButton
+                    busy = true
+                    error = null
+                    scope.launch {
+                        try {
+                            onRestore(secret.trim())
+                            onDone()
+                        } catch (e: Throwable) {
+                            error = e.message ?: "That recovery secret could not be read."
+                        } finally {
+                            busy = false
+                        }
+                    }
+                },
+                enabled = secret.isNotBlank() && !busy,
+                fill = VbColors.Mint,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
