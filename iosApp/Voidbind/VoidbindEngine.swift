@@ -88,6 +88,23 @@ public final class VoidbindEngine {
         VoidbindQr.companion.parse(uri: uri)
     }
 
+    // MARK: - Convenience builders (provision the SE device key, then build)
+
+    /// Build a login-approval coordinator. Provisions the device key (biometric).
+    public func makeLoginApproval(cert: String) -> LoginApproval {
+        loginApproval(cert: cert, device: deviceIdentity())
+    }
+
+    /// Build the pairing (responder) coordinator for a new device joining an account.
+    public func makeDevicePairing() -> DevicePairing {
+        devicePairing(device: deviceIdentity())
+    }
+
+    /// Build the authorising (initiator) coordinator; needs the user identity (recovery secret).
+    public func makeDeviceAuthorization(identity: UserIdentity) -> DeviceAuthorization {
+        deviceAuthorization(identity: identity)
+    }
+
     // MARK: - X25519 encryption keypair persistence (Keychain, this-device-only)
 
     private func loadOrCreateEncryptionKey() -> DeviceIdentity.EncryptionKey {

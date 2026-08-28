@@ -65,14 +65,48 @@ not the app target itself.
 |---|---|
 | `Voidbind/SecureEnclaveSealer.swift` | `EnclaveSealer` — implements the KMP `SecureEnclaveSealer` protocol (SE P-256 key + ECIES seal/unseal of the Ed25519 seed, biometric-gated; Keychain persistence). Named `EnclaveSealer` so it doesn't clash with the protocol. |
 | `Voidbind/URLSessionHttpTransport.swift` | The KMP `HttpTransport` actual over `URLSession` (blocking, per the contract). |
-| `Voidbind/VoidbindEngine.swift` | Wiring — the iOS mirror of Android's `DeviceVoidbindEngine`: `UserIdentity` create/restore, `DeviceIdentity` provisioning, `Enrolment`, the three coordinators. |
-| `Voidbind/VoidbindApp.swift` | `@main` app; builds the engine (injects the sealer) once. |
-| `Voidbind/OnboardingView.swift` | A demonstrative screen proving the create/restore → enrol wiring. |
-| `Smoke/RuntimeSmoke.swift` | A **runtime** smoke — runs the identity path from Swift in the iOS Simulator and checks the results (bridging, `@Throws`, the derivation KAT). |
+| `Voidbind/VoidbindEngine.swift` | Wiring — the iOS mirror of Android's `DeviceVoidbindEngine`: `UserIdentity` create/restore, `DeviceIdentity` provisioning, `Enrolment`, the three coordinators (+ `make*` convenience builders). |
+| `Voidbind/VoidbindApp.swift` | `@main` app; builds the `AppModel` (which builds the engine + injects the sealer) once, shows `RootView`. |
+| `Voidbind/AppModel.swift` | Root app state: enrolled identity (persisted), trusted sites, sign-out. |
+| `Voidbind/RootView.swift` | Onboarding until enrolled, then Home. |
+| `Voidbind/Theme.swift` | The dark-first / teal design language: palette, fonts, card / button / pill treatments. |
+| `Voidbind/UIHelpers.swift` | QR code rendering (CoreImage) + identity-fingerprint formatting. |
 
-The full screen set from Jaryl's mockups (home, QR scanner, web-login approval
-sheet, pair connect/verify, recovery backup, settings) is fleshed out on-device;
-each view binds to a `VoidbindEngine` coordinator exactly as `OnboardingView` does.
+### Screens (the eight mockups)
+
+| File | Screen |
+|---|---|
+| `Voidbind/OnboardingView.swift` | Onboarding — create / restore / add-this-device, over the create/restore → enrol wiring. |
+| `Voidbind/RecoveryBackupView.swift` | Recovery backup — the bech32m secret, shown once. |
+| `Voidbind/HomeView.swift` | Home — identity fingerprint, Secure-Enclave card, trusted sites, Scan FAB. |
+| `Voidbind/ScanView.swift` | QR scanner — dispatches login vs pair (AVFoundation camera; manual-entry fallback in the Simulator). |
+| `Voidbind/WebLoginApprovalView.swift` | Web-login approval sheet — audience + live expiry countdown + Approve-with-Face-ID. |
+| `Voidbind/PairView.swift` | Pairing — CONNECT (invite QR) and VERIFY (7-digit SAS), both sides. |
+| `Voidbind/SettingsView.swift` | Settings — identity, add-a-device (recovery-secret gated), security posture, sign out. |
+| `Smoke/RuntimeSmoke.swift` | A **runtime** smoke — runs the identity path from Swift in the iOS Simulator and checks the results (bridging, `@Throws`, the derivation KAT). Not part of the app target. |
+
+Each screen is a thin View over a `VoidbindEngine` coordinator, exactly as
+`OnboardingView` is; the engine work runs off the main thread (the KMP transport +
+Secure Enclave are blocking) and publishes back on the main actor.
+
+## Preview harness — screenshot any screen headless
+
+`Voidbind/PreviewHarness.swift` (**DEBUG only**, not in the shipping `RootView`
+path) renders a single screen with representative sample data, selected by the
+`VOIDBIND_PREVIEW_SCREEN` launch environment variable — so every screen can be
+built + screenshotted in the Simulator with no device, camera, Secure Enclave, or
+network:
+
+```sh
+DEV=<booted arm64 simulator udid>
+for s in onboarding recovery home scan login pair-connect pair-verify settings; do
+  xcrun simctl terminate "$DEV" one.rarebit.voidbind 2>/dev/null
+  SIMCTL_CHILD_VOIDBIND_PREVIEW_SCREEN=$s xcrun simctl launch "$DEV" one.rarebit.voidbind
+  sleep 2; xcrun simctl io "$DEV" screenshot "$s.png"
+done
+```
+
+All eight verified rendering on the iOS 26.2 Simulator (Xcode 26.2).
 
 ## Runtime smoke (no device, no UI, no network)
 
