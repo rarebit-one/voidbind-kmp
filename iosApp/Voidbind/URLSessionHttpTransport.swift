@@ -10,9 +10,9 @@ import Voidbind
 /// background `DispatchQueue`), exactly as the Android side runs them on
 /// `Dispatchers.IO`.
 ///
-/// > ⚠️ NOT COMPILED IN CI — links the exported `Voidbind.xcframework`; runs on a
-/// > device/simulator only. Reviewed scaffold.
-public final class URLSessionHttpTransport: NSObject, VoidbindHttpTransport {
+/// > Type-checked against the exported `Voidbind.xcframework`; runs on a
+/// > device/simulator.
+public final class URLSessionHttpTransport: NSObject, HttpTransport {
 
     private let session: URLSession
     private let timeout: TimeInterval
@@ -25,15 +25,15 @@ public final class URLSessionHttpTransport: NSObject, VoidbindHttpTransport {
         self.session = URLSession(configuration: config)
     }
 
-    public func get(url: String) -> VoidbindHttpResponse {
+    public func get(url: String) -> HttpResponse {
         perform(url: url, method: "GET", body: nil, contentType: nil)
     }
 
-    public func post(url: String, body: VoidbindKotlinByteArray?, contentType: String?) -> VoidbindHttpResponse {
+    public func post(url: String, body: KotlinByteArray?, contentType: String?) -> HttpResponse {
         perform(url: url, method: "POST", body: body?.toData(), contentType: contentType)
     }
 
-    public func put(url: String, body: VoidbindKotlinByteArray, contentType: String?) -> VoidbindHttpResponse {
+    public func put(url: String, body: KotlinByteArray, contentType: String?) -> HttpResponse {
         perform(url: url, method: "PUT", body: body.toData(), contentType: contentType)
     }
 
@@ -43,9 +43,9 @@ public final class URLSessionHttpTransport: NSObject, VoidbindHttpTransport {
 
     // MARK: -
 
-    private func perform(url: String, method: String, body: Data?, contentType: String?) -> VoidbindHttpResponse {
+    private func perform(url: String, method: String, body: Data?, contentType: String?) -> HttpResponse {
         guard let u = URL(string: url) else {
-            return VoidbindHttpResponse(status: 0, body: Data().toKotlinByteArray())
+            return HttpResponse(status: 0, body: Data().toKotlinByteArray())
         }
         var request = URLRequest(url: u, timeoutInterval: timeout)
         request.httpMethod = method
@@ -62,6 +62,6 @@ public final class URLSessionHttpTransport: NSObject, VoidbindHttpTransport {
         }
         task.resume()
         semaphore.wait()
-        return VoidbindHttpResponse(status: status, body: payload.toKotlinByteArray())
+        return HttpResponse(status: status, body: payload.toKotlinByteArray())
     }
 }

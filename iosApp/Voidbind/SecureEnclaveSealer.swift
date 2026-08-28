@@ -12,6 +12,9 @@ import Voidbind
 /// memory only transiently while the Kotlin `DeviceKeyStore.sign` uses it, then is
 /// zeroized on the Kotlin side.
 ///
+/// Named `EnclaveSealer` (not `SecureEnclaveSealer`) because the latter is the
+/// Kotlin protocol this conforms to.
+///
 /// Storage layout (all in the Keychain, per `alias`):
 ///  - the SE P-256 private key — a `SecKey` with `kSecAttrTokenIDSecureEnclave`,
 ///    access control `.privateKeyUsage` + `.biometryCurrentSet`, application tag
@@ -19,11 +22,10 @@ import Voidbind
 ///  - the sealed seed ciphertext — a generic-password item `voidbind.<alias>.sealed`.
 ///  - the Ed25519 public key (RAW 32 bytes, not secret) — `voidbind.<alias>.pub`.
 ///
-/// > ⚠️ NOT COMPILED IN CI. The KMP library is verified in CI; this Swift links the
-/// > exported `Voidbind.xcframework` and can only be exercised on a **real iPhone
-/// > with a Secure Enclave** (see docs/DEVICE-TESTING.md). Treat it as reviewed
-/// > scaffold until a device run confirms it.
-public final class SecureEnclaveSealer: NSObject, VoidbindSecureEnclaveSealer {
+/// > Type-checked against the exported `Voidbind.xcframework` (simulator slice);
+/// > the Secure Enclave + biometric behaviour still needs a **real iPhone** (see
+/// > docs/DEVICE-TESTING.md).
+public final class EnclaveSealer: NSObject, SecureEnclaveSealer {
 
     private let eciesAlgorithm: SecKeyAlgorithm = .eciesEncryptionCofactorX963SHA256AESGCM
     private let reason: String
@@ -33,23 +35,23 @@ public final class SecureEnclaveSealer: NSObject, VoidbindSecureEnclaveSealer {
         self.reason = reason
     }
 
-    // MARK: - VoidbindSecureEnclaveSealer
+    // MARK: - SecureEnclaveSealer
 
     public func sealExists(alias: String) -> Bool {
         (try? loadSealedCiphertext(alias)) != nil && (try? loadSecureEnclaveKey(alias)) != nil
     }
 
-    public func loadPublicKey(alias: String) -> VoidbindKotlinByteArray {
+    public func loadPublicKey(alias: String) -> KotlinByteArray {
         guard let pub = try? loadPersisted(tag: pubTag(alias)) else {
-            fatalError("SecureEnclaveSealer: no public key for alias '\(alias)' — provision first")
+            fatalError("EnclaveSealer: no public key for alias '\(alias)' — provision first")
         }
         return pub.toKotlinByteArray()
     }
 
     public func provision(
         alias: String,
-        ed25519PublicKey: VoidbindKotlinByteArray,
-        ed25519Seed: VoidbindKotlinByteArray
+        ed25519PublicKey: KotlinByteArray,
+        ed25519Seed: KotlinByteArray
     ) {
         do {
             let seKey = try createSecureEnclaveKey(alias)
@@ -71,11 +73,11 @@ public final class SecureEnclaveSealer: NSObject, VoidbindSecureEnclaveSealer {
             try persist(ciphertext, tag: sealedTag(alias))
             try persist(ed25519PublicKey.toData(), tag: pubTag(alias))
         } catch {
-            fatalError("SecureEnclaveSealer.provision('\(alias)') failed: \(error)")
+            fatalError("EnclaveSealer.provision('\(alias)') failed: \(error)")
         }
     }
 
-    public func unsealSeed(alias: String) -> VoidbindKotlinByteArray {
+    public func unsealSeed(alias: String) -> KotlinByteArray {
         do {
             let seKey = try loadSecureEnclaveKey(alias) // triggers the Enclave + biometric on use
             let ciphertext = try loadSealedCiphertext(alias)
@@ -91,7 +93,7 @@ public final class SecureEnclaveSealer: NSObject, VoidbindSecureEnclaveSealer {
             seed.resetBytes(in: 0..<seed.count)
             return out
         } catch {
-            fatalError("SecureEnclaveSealer.unsealSeed('\(alias)') failed: \(error)")
+            fatalError("EnclaveSealer.unsealSeed('\(alias)') failed: \(error)")
         }
     }
 
@@ -125,12 +127,14 @@ public final class SecureEnclaveSealer: NSObject, VoidbindSecureEnclaveSealer {
     }
 
     private func loadSecureEnclaveKey(_ alias: String) throws -> SecKey {
+        let context = LAContext()
+        context.localizedReason = reason
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: seKeyTag(alias),
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
             kSecReturnRef as String: true,
-            kSecUseOperationPrompt as String: reason,
+            kSecUseAuthenticationContext as String: context,
         ]
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
@@ -192,8 +196,8 @@ public final class SecureEnclaveSealer: NSObject, VoidbindSecureEnclaveSealer {
 
 extension Data {
     /// Copy into a fresh `KotlinByteArray` (values are signed 8-bit, matching Kotlin `Byte`).
-    func toKotlinByteArray() -> VoidbindKotlinByteArray {
-        let out = VoidbindKotlinByteArray(size: Int32(count))
+    func toKotlinByteArray() -> KotlinByteArray {
+        let out = KotlinByteArray(size: Int32(count))
         for (i, b) in enumerated() {
             out.set(index: Int32(i), value: Int8(bitPattern: b))
         }
@@ -201,7 +205,7 @@ extension Data {
     }
 }
 
-extension VoidbindKotlinByteArray {
+extension KotlinByteArray {
     /// Copy out into `Data` (reinterpreting each signed Kotlin `Byte` as an unsigned octet).
     func toData() -> Data {
         var data = Data(count: Int(size))

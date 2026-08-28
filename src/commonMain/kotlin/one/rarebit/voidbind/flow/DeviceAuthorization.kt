@@ -43,6 +43,7 @@ class DeviceAuthorization(
      * Open a relay session and render the invite QR. A fresh random [salt] is drawn
      * per pairing (freshness for the SAS); pass one only to pin it in a test.
      */
+    @Throws(Exception::class)
     fun invite(relayBase: String, salt: ByteArray = randomSalt()): Invitation {
         val session = RelayClient.createSession(http, relayBase)
         val relay = RelayClient(http, relayBase, session, RelayClient.ROLE_INITIATOR, pollIntervalMillis)
@@ -58,9 +59,11 @@ class DeviceAuthorization(
     }
 
     /** Run the handshake once the new device joins; return the SAS to compare. */
+    @Throws(Exception::class)
     fun handshake(invitation: Invitation): String = invitation.initiator.handshake()
 
     /** After the human confirms the SAS: sign, seal, and deliver the cert. */
+    @Throws(Exception::class)
     fun authorise(invitation: Invitation) = invitation.initiator.authorise()
 
     private companion object {
