@@ -1,108 +1,191 @@
 import SwiftUI
 import Voidbind
 
-/// Drives onboarding against the ``VoidbindEngine``: create a new identity (show
-/// the recovery secret to back up, then self-enrol this device) or restore from a
-/// written-down secret. Coordinator/identity calls run OFF the main thread (the
-/// KMP transport is blocking); results publish back on the main actor.
+/// Drives onboarding against the ``VoidbindEngine``: create a new identity, restore
+/// from a written-down secret, or add this device to an existing account (pairing).
+/// Coordinator/identity calls run OFF the main thread (the KMP transport + Secure
+/// Enclave are blocking); results publish back on the main actor.
 @MainActor
 final class OnboardingViewModel: ObservableObject {
 
     enum Phase: Equatable {
         case choosing
-        case showRecoverySecret(String)   // back this up
-        case enrolled(userId: String)
+        case backUpSecret(secret: String, userId: String, cert: String)
+        case restoring
         case failed(String)
     }
 
     @Published var phase: Phase = .choosing
     @Published var busy = false
+    @Published var secretInput = ""
 
     private let engine: VoidbindEngine
+    /// Set by the host once the model exists (see ``OnboardingHost``).
+    var onEnrolled: (_ userId: String, _ cert: String) -> Void = { _, _ in }
 
-    init(engine: VoidbindEngine) { self.engine = engine }
-
-    /// Create a brand-new identity, self-enrol this device, and surface the recovery
-    /// secret for the user to store once.
-    func createIdentity() {
-        run {
-            let identity = self.engine.createIdentity()
-            let device = self.engine.deviceIdentity()          // provisions the SE key (biometric)
-            _ = self.engine.enrolFirstDevice(identity: identity, device: device)
-            return .showRecoverySecret(identity.recovery.format())
-        }
+    init(engine: VoidbindEngine) {
+        self.engine = engine
     }
 
-    /// Restore an identity from the recovery secret, then self-enrol this device.
-    func restoreIdentity(_ secret: String) {
-        run {
-            do {
-                let identity = try self.engine.restoreIdentity(secret)
-                let device = self.engine.deviceIdentity()
-                _ = self.engine.enrolFirstDevice(identity: identity, device: device)
-                return .enrolled(userId: identity.userId.render())
-            } catch {
-                return .failed("That recovery secret didn’t check out — re-read it and try again.")
+    /// Mint a new identity + self-enrol this device, then surface the recovery
+    /// secret to back up once before landing on Home.
+    func createIdentity() {
+        busy = true
+        Task.detached(priority: .userInitiated) {
+            let identity = self.engine.createIdentity()
+            let device = self.engine.deviceIdentity()             // provisions the SE key (biometric)
+            let cert = self.engine.enrolFirstDevice(identity: identity, device: device)
+            let secret = identity.recovery.format()
+            let userId = identity.userId.render()
+            await MainActor.run {
+                self.busy = false
+                self.phase = .backUpSecret(secret: secret, userId: userId, cert: cert)
             }
         }
     }
 
-    private func run(_ work: @escaping () -> Phase) {
+    /// Restore an identity from the recovery secret, self-enrol this device, and go
+    /// straight to Home (the secret is already backed up, by definition).
+    func restoreIdentity() {
+        let secret = secretInput
         busy = true
         Task.detached(priority: .userInitiated) {
-            let next = work()
-            await MainActor.run {
-                self.phase = next
-                self.busy = false
+            do {
+                let identity = try self.engine.restoreIdentity(secret)
+                let device = self.engine.deviceIdentity()
+                let cert = self.engine.enrolFirstDevice(identity: identity, device: device)
+                let userId = identity.userId.render()
+                await MainActor.run {
+                    self.busy = false
+                    self.onEnrolled(userId, cert)
+                }
+            } catch {
+                await MainActor.run {
+                    self.busy = false
+                    self.phase = .failed("That recovery secret didn’t check out — re-read it and try again.")
+                }
             }
         }
     }
 }
 
-/// A minimal onboarding screen — the scaffold that proves the create/restore →
-/// enrol wiring. The full dark-first/teal design from Jaryl's mockups is applied
-/// in the on-device session; the bindings to ``OnboardingViewModel`` stay.
+/// The onboarding screen set (create / restore / add-device), dark-first + teal.
 struct OnboardingView: View {
     @ObservedObject var model: OnboardingViewModel
-    @State private var secretInput = ""
+    /// Non-nil in the live app (to scan a pairing invite); nil in previews.
+    var engine: VoidbindEngine? = nil
+    @State private var showAddDevice = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            Text("Voidbind").font(.largeTitle.bold())
-
+        Group {
             switch model.phase {
-            case .choosing:
-                Button("Create a new identity") { model.createIdentity() }
-                    .buttonStyle(.borderedProminent)
-                Divider().padding(.vertical, 8)
-                TextField("Recovery secret (heyarr1…)", text: $secretInput)
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                Button("Restore from recovery secret") { model.restoreIdentity(secretInput) }
-                    .disabled(secretInput.isEmpty)
-
-            case .showRecoverySecret(let secret):
-                Text("Write this down and keep it safe. It is the only way to recover your account.")
-                    .font(.callout).multilineTextAlignment(.center)
-                Text(secret).font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled).padding().background(.quaternary).cornerRadius(8)
-                Button("I’ve saved it") { model.phase = .enrolled(userId: "") }
-
-            case .enrolled(let userId):
-                Image(systemName: "checkmark.seal.fill").font(.system(size: 44)).foregroundStyle(.green)
-                Text("This device is enrolled.").font(.headline)
-                if !userId.isEmpty {
-                    Text(userId).font(.caption.monospaced()).foregroundStyle(.secondary)
+            case .choosing: chooser
+            case .restoring: restore
+            case .backUpSecret(let secret, let userId, let cert):
+                RecoveryBackupView(secret: secret, userId: userId) {
+                    model.onEnrolled(userId, cert)
                 }
-
-            case .failed(let message):
-                Text(message).foregroundStyle(.red).multilineTextAlignment(.center)
-                Button("Try again") { model.phase = .choosing }
+            case .failed(let message): failure(message)
             }
-
-            if model.busy { ProgressView() }
         }
-        .padding()
+        .vbScreen()
+        .sheet(isPresented: $showAddDevice) {
+            // Adding this device to an existing account = scan the existing
+            // device's invite QR, which dispatches into the pairing (join) flow.
+            if let engine {
+                NavigationStack { ScanView(engine: engine) }
+            }
+        }
+    }
+
+    // MARK: - Chooser (the primary onboarding screen)
+
+    private var chooser: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle().fill(VB.teal.opacity(0.14)).frame(width: 92, height: 92)
+                    Image(systemName: "key.horizontal.fill")
+                        .font(.system(size: 38, weight: .semibold))
+                        .foregroundStyle(VB.teal)
+                }
+                Text("Voidbind").font(VB.rounded(34, .bold))
+                Text("Your identity is a key you hold — no account, no password, no server.")
+                    .font(VB.rounded(15))
+                    .foregroundStyle(VB.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+            Spacer()
+            VStack(spacing: 12) {
+                Button { model.createIdentity() } label: {
+                    Label("Create a new identity", systemImage: "sparkles")
+                }
+                .buttonStyle(VBPrimaryButtonStyle())
+
+                Button { model.phase = .restoring } label: {
+                    Label("Restore from recovery secret", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(VBSecondaryButtonStyle())
+
+                Button { showAddDevice = true } label: {
+                    Label("Add this device to an account", systemImage: "qrcode.viewfinder")
+                }
+                .buttonStyle(VBSecondaryButtonStyle())
+            }
+            .padding(.horizontal, 22)
+
+            if model.busy { ProgressView().tint(VB.teal).padding(.top, 18) }
+            Spacer().frame(height: 24)
+        }
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Restore
+
+    private var restore: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            backButton { model.phase = .choosing }
+            Text("Restore your identity").font(VB.rounded(26, .bold))
+            Text("Type the recovery secret you wrote down. It rebuilds the same identity, offline — a single wrong character is rejected, never guessed.")
+                .font(VB.rounded(15)).foregroundStyle(VB.textSecondary)
+
+            TextField("", text: $model.secretInput, prompt: Text("heyarr1…").foregroundColor(VB.textFaint))
+                .font(VB.mono(15))
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .padding(14)
+                .background(VB.surface2, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(VB.hairline, lineWidth: 1))
+
+            Button { model.restoreIdentity() } label: { Text("Restore") }
+                .buttonStyle(VBPrimaryButtonStyle(enabled: !model.secretInput.isEmpty))
+                .disabled(model.secretInput.isEmpty || model.busy)
+
+            if model.busy { HStack { Spacer(); ProgressView().tint(VB.teal); Spacer() } }
+            Spacer()
+        }
+        .padding(22)
+    }
+
+    private func failure(_ message: String) -> some View {
+        VStack(spacing: 18) {
+            Spacer()
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 40)).foregroundStyle(VB.danger)
+            Text(message).font(VB.rounded(16)).foregroundStyle(VB.textSecondary)
+                .multilineTextAlignment(.center).padding(.horizontal, 30)
+            Button { model.phase = .restoring } label: { Text("Try again") }
+                .buttonStyle(VBSecondaryButtonStyle()).padding(.horizontal, 40)
+            Spacer()
+        }
+    }
+
+    private func backButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(VB.textSecondary)
+        }
     }
 }
