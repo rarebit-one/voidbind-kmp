@@ -56,6 +56,11 @@ class PreviewVoidbindEngine(
         return SampleData.pairInvite
     }
 
+    override suspend fun awaitPairHandshake(): PairSession {
+        delay(1500) // stand in for the new device joining the relay + handshake
+        return SampleData.pairSession
+    }
+
     override suspend fun joinPairInvite(code: ScannedCode.PairInvite): PairSession {
         delay(500)
         return SampleData.pairSession

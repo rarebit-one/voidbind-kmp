@@ -54,6 +54,15 @@ interface VoidbindEngine {
     /** As the existing device: mint a pairing invite to display as a QR. */
     suspend fun startPairInvite(): PairInviteDisplay
 
+    /**
+     * As the existing device, after [startPairInvite] rendered the invite: block
+     * until the new device joins the relay, run the commit-before-reveal handshake,
+     * and return the 7-digit SAS to compare. Signs nothing — the human gate on the
+     * VERIFY screen precedes [confirmPairing], which authorises. Blocking (polls the
+     * relay); throws if the invite expires unjoined.
+     */
+    suspend fun awaitPairHandshake(): PairSession
+
     /** As the new device: join a scanned invite and run the handshake to the SAS. */
     suspend fun joinPairInvite(code: ScannedCode.PairInvite): PairSession
 
