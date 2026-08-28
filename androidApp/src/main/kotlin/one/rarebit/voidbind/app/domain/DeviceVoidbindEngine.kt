@@ -36,8 +36,9 @@ import java.net.URI
  * NOTE (device-tested, not CI): StrongBox non-extractability and the biometric gate
  * exist only on real hardware (docs/DEVICE-TESTING.md). This engine compiles and is
  * architecturally wired; its runtime behaviour is proven on a physical device, not
- * on an emulator or in CI. The initiator (existing-device) SAS→authorise progression
- * on the Pair·Connect screen is not yet driven from the UI — a documented follow-up.
+ * on an emulator or in CI. Both pairing directions are now UI-driven: the responder
+ * (join → VERIFY → confirm) and the initiator (invite → [awaitPairHandshake] →
+ * VERIFY → authorise).
  */
 class DeviceVoidbindEngine(
     private val store: IdentityStore,
@@ -144,6 +145,21 @@ class DeviceVoidbindEngine(
             inviteId = "INV · ${invitation.relaySession.uppercase().take(8).chunked(4).joinToString(" ")}",
             qrPayload = invitation.inviteQr,
             expiresInSeconds = 300,
+        )
+    }
+
+    override suspend fun awaitPairHandshake(): PairSession = withContext(Dispatchers.IO) {
+        val (authorization, invitation) = pendingAuthorization ?: error("no pairing invite in progress")
+        // Blocks (polls the relay) until the new device joins and both sides
+        // commit → reveal → open; returns the SAS. Signs nothing yet — the human
+        // matches this against the new device's screen, then confirmPairing()
+        // authorises. handshake() flips the initiator's `handshook` flag so the
+        // subsequent authorise() on the SAME invitation is valid.
+        val sas = authorization.handshake(invitation)
+        PairSession(
+            thisDeviceName = defaultDeviceName(),
+            peerDeviceName = "New device",
+            securityCode = formatSas(sas),
         )
     }
 

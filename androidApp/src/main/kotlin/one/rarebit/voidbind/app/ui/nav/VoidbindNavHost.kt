@@ -221,6 +221,21 @@ fun VoidbindNavHost(viewModel: AppViewModel) {
                 if (inv == null) {
                     LaunchedEffect(Unit) { goHome() }
                 } else {
+                    // The initiator shows the invite AND, concurrently, blocks on the
+                    // relay handshake (its commit must be posted for the new device's
+                    // fetch to complete). When the new device joins and the SAS is
+                    // derived, advance to VERIFY; a timeout/expiry returns home. The
+                    // effect is cancelled if the user leaves this screen first.
+                    LaunchedEffect(inv) {
+                        runCatching { engine.awaitPairHandshake() }
+                            .onSuccess { session ->
+                                pairSession = session
+                                nav.navigate(Routes.PAIR_VERIFY) {
+                                    popUpTo(Routes.PAIR_CONNECT) { inclusive = true }
+                                }
+                            }
+                            .onFailure { if (route == Routes.PAIR_CONNECT) goHome() }
+                    }
                     PairConnectScreen(
                         invite = inv,
                         onBack = { nav.popBackStack() },
