@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Voidbind holds a hardware-sealed device key and identity state. Nothing is
+     eligible for cloud backup or device-to-device transfer: the whole point is
+     that keys never leave this device. Exclude everything. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Two interlocking rings in the brand's mint + blue — a placeholder for the
+         Voidbind knot mark, sized inside the adaptive-icon safe zone. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#5FE7C7"
+        android:strokeWidth="7"
+        android:pathData="M46,54 m-18,0 a18,18 0 1,0 36,0 a18,18 0 1,0 -36,0" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#3E9BFF"
+        android:strokeWidth="7"
+        android:pathData="M62,54 m-18,0 a18,18 0 1,0 36,0 a18,18 0 1,0 -36,0" />
+</vector>
