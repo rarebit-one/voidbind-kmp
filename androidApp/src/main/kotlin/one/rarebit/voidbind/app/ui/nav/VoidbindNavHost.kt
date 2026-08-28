@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,7 +77,23 @@ fun VoidbindNavHost(viewModel: AppViewModel) {
     val route = backStack?.destination?.route
     val showBottomBar = route == Routes.HOME || route == Routes.SETTINGS
 
-    val start = if (identityState is IdentityState.Active) Routes.HOME else Routes.ONBOARDING
+    // The start destination MUST be stable for the NavHost's lifetime. Compose keys the
+    // nav graph on `startDestination`, so recomputing it from live identity state — which
+    // flips to Active mid create-flow (createIdentity provisions the identity before the
+    // user acknowledges the recovery secret) — rebuilds the graph and resets the user to
+    // Home, skipping the recovery-secret screen entirely. Latch it once from the first
+    // resolved (non-Loading) state; show a loader until then. rememberSaveable so a
+    // config change mid create-flow doesn't re-derive it to Home and yank the backstack.
+    var latchedStart by rememberSaveable { mutableStateOf<String?>(null) }
+    val currentIdentity = identityState
+    if (latchedStart == null && currentIdentity !is IdentityState.Loading) {
+        latchedStart = if (currentIdentity is IdentityState.Active) Routes.HOME else Routes.ONBOARDING
+    }
+    val start = latchedStart
+    if (start == null) {
+        Loading()
+        return
+    }
 
     fun goHome() = nav.navigate(Routes.HOME) {
         popUpTo(nav.graph.id) { inclusive = true }
