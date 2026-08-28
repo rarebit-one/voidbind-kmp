@@ -1,4 +1,4 @@
-# Voidbind iOS app (scaffold)
+# Voidbind iOS app
 
 The SwiftUI device authenticator. It links the KMP library as `Voidbind.xcframework`
 and provides the two platform pieces the library needs on iOS: the **Swift
@@ -6,12 +6,50 @@ and provides the two platform pieces the library needs on iOS: the **Swift
 key) and a **`URLSessionHttpTransport`**. Everything else — identity derivation,
 pairing, web-login, cert crypto — lives in the shared library.
 
-> ⚠️ **Not compiled in CI, but type-checked locally.** CI verifies the KMP library
-> (`jvmTest` + Android + the iOS klibs). These `.swift` files were **type-checked
-> against the real exported framework** (`swiftc -typecheck -F <Voidbind.xcframework
-> simulator slice>`, clean — zero errors/warnings), so the API usage is correct.
-> What still needs a **real iPhone** is the runtime Secure Enclave + biometric
-> behaviour — see [`../docs/DEVICE-TESTING.md`](../docs/DEVICE-TESTING.md).
+## Build & run (Simulator)
+
+The Xcode project is generated from [`project.yml`](project.yml) with
+[XcodeGen](https://github.com/yonom/XcodeGen) (`brew install xcodegen`), so
+`Voidbind.xcodeproj` is **not** checked in — regenerate it after a clone:
+
+```sh
+cd iosApp
+xcodegen generate            # writes Voidbind.xcodeproj from project.yml
+# The scheme's pre-build phase runs `assembleVoidbindDebugXCFramework` if the
+# framework is missing; you can also build it up front from the repo root:
+#   ./gradlew assembleVoidbindDebugXCFramework
+xcodebuild -scheme Voidbind -project Voidbind.xcodeproj -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' ARCHS=arm64 EXCLUDED_ARCHS=x86_64 build
+```
+
+`ARCHS=arm64 EXCLUDED_ARCHS=x86_64` is required: Kotlin/Native only emits an
+**arm64** simulator slice, so an Intel-arch simulator leg won't link. On Apple
+Silicon this is the native path anyway.
+
+Install + launch in a booted arm64 Simulator:
+
+```sh
+DEV=$(xcrun simctl list devices available | grep -m1 'iPhone 17 Pro (' | grep -oE '[0-9A-F-]{36}')
+xcrun simctl boot "$DEV"
+APP=$(find iosApp/build/DerivedData/Build/Products/Debug-iphonesimulator -maxdepth 1 -name Voidbind.app)
+xcrun simctl install "$DEV" "$APP"
+xcrun simctl launch  "$DEV" one.rarebit.voidbind
+xcrun simctl io "$DEV" screenshot onboarding.png
+```
+
+Verified on the iOS 26.2 Simulator (Xcode 26.2): the app builds, installs,
+launches, and renders the onboarding screen (Create / Restore).
+
+Project facts: bundle id `one.rarebit.voidbind`, deployment target iOS 16, links
+`Voidbind.xcframework` **Embed & Sign**, `NSFaceIDUsageDescription` +
+`NSCameraUsageDescription` in `Info.plist`. The app's Swift module is
+`VoidbindApp` (not `Voidbind`) so `import Voidbind` resolves to the framework and
+not the app target itself.
+
+> ⚠️ CI verifies the KMP library (`jvmTest` + Android + the iOS klibs) and the
+> Swift files are type-checked against the real exported framework. What still
+> needs a **real iPhone** is the runtime Secure Enclave + biometric behaviour —
+> see [`../docs/DEVICE-TESTING.md`](../docs/DEVICE-TESTING.md).
 >
 > To re-run the type-check:
 > ```sh
