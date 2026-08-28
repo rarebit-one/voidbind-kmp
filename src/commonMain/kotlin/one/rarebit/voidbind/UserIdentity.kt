@@ -60,7 +60,13 @@ class UserIdentity private constructor(
          * RESTORE an identity from the recovery string the user wrote down. Fails
          * LOUD on a transcription slip (the bech32m checksum in [RecoverySecret.parse]
          * throws) — it never derives a plausible-but-wrong identity.
+         *
+         * `@Throws` so the rejection crosses the ObjC/Swift boundary as a catchable
+         * error (Kotlin's `IllegalArgumentException` is unchecked and would otherwise
+         * bridge as an uncatchable crash) — a mistyped secret in the iOS/Swift app
+         * must surface as "re-read the secret", not a fatal.
          */
+        @Throws(IllegalArgumentException::class)
         fun restore(secret: String): UserIdentity = fromSecret(RecoverySecret.parse(secret))
 
         /** Derive the identity from an already-parsed [RecoverySecret]. */

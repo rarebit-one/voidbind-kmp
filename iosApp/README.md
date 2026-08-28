@@ -6,25 +6,53 @@ and provides the two platform pieces the library needs on iOS: the **Swift
 key) and a **`URLSessionHttpTransport`**. Everything else — identity derivation,
 pairing, web-login, cert crypto — lives in the shared library.
 
-> ⚠️ **This Swift is NOT compiled in CI.** CI verifies the KMP library
-> (`jvmTest` + Android + the iOS klibs). These `.swift` files need an Xcode project
-> and, for the Secure Enclave + biometric paths, a **real iPhone** — see
-> [`../docs/DEVICE-TESTING.md`](../docs/DEVICE-TESTING.md). Treat them as reviewed
-> scaffold until a device run confirms them.
+> ⚠️ **Not compiled in CI, but type-checked locally.** CI verifies the KMP library
+> (`jvmTest` + Android + the iOS klibs). These `.swift` files were **type-checked
+> against the real exported framework** (`swiftc -typecheck -F <Voidbind.xcframework
+> simulator slice>`, clean — zero errors/warnings), so the API usage is correct.
+> What still needs a **real iPhone** is the runtime Secure Enclave + biometric
+> behaviour — see [`../docs/DEVICE-TESTING.md`](../docs/DEVICE-TESTING.md).
+>
+> To re-run the type-check:
+> ```sh
+> cd .. && ./gradlew assembleVoidbindDebugXCFramework
+> SLICE=build/XCFrameworks/debug/Voidbind.xcframework/ios-arm64-simulator
+> xcrun --sdk iphonesimulator swiftc -typecheck \
+>   -target arm64-apple-ios17.0-simulator -F "$SLICE" iosApp/Voidbind/*.swift
+> ```
 
 ## Files
 
 | File | Role |
 |---|---|
-| `Voidbind/SecureEnclaveSealer.swift` | Implements the KMP `SecureEnclaveSealer` protocol — SE P-256 key + ECIES seal/unseal of the Ed25519 seed, biometric-gated; Keychain persistence. |
+| `Voidbind/SecureEnclaveSealer.swift` | `EnclaveSealer` — implements the KMP `SecureEnclaveSealer` protocol (SE P-256 key + ECIES seal/unseal of the Ed25519 seed, biometric-gated; Keychain persistence). Named `EnclaveSealer` so it doesn't clash with the protocol. |
 | `Voidbind/URLSessionHttpTransport.swift` | The KMP `HttpTransport` actual over `URLSession` (blocking, per the contract). |
 | `Voidbind/VoidbindEngine.swift` | Wiring — the iOS mirror of Android's `DeviceVoidbindEngine`: `UserIdentity` create/restore, `DeviceIdentity` provisioning, `Enrolment`, the three coordinators. |
 | `Voidbind/VoidbindApp.swift` | `@main` app; builds the engine (injects the sealer) once. |
 | `Voidbind/OnboardingView.swift` | A demonstrative screen proving the create/restore → enrol wiring. |
+| `Smoke/RuntimeSmoke.swift` | A **runtime** smoke — runs the identity path from Swift in the iOS Simulator and checks the results (bridging, `@Throws`, the derivation KAT). |
 
 The full screen set from Jaryl's mockups (home, QR scanner, web-login approval
 sheet, pair connect/verify, recovery backup, settings) is fleshed out on-device;
 each view binds to a `VoidbindEngine` coordinator exactly as `OnboardingView` does.
+
+## Runtime smoke (no device, no UI, no network)
+
+`Smoke/RuntimeSmoke.swift` drives the pure identity surface from Swift in the iOS
+**Simulator**, so it proves the Swift↔KMP bridge works at runtime — the
+`Data`↔`KotlinByteArray` conversions, the companion/object accessors, and the
+`@Throws` catch — not just that the Swift type-checks. It exercises only
+derivation (no Secure Enclave, no network), so it runs headless. See the header of
+that file for the exact `swiftc` + `simctl spawn` commands. Verified passing on the
+iOS 26.2 Simulator:
+
+```
+ROUNDTRIP OK      # create → recovery secret → restore → same identity
+KAT OK            # a known secret derives the exact voidbind-go public key, through Swift
+THROWS OK         # a mistyped secret is caught, not a crash (the @Throws fix)
+QR_MATCH OK       # the voidbind:login QR is byte-identical through Swift
+SMOKE_DONE
+```
 
 ## Building the framework the app links
 
@@ -60,13 +88,14 @@ let engine = VoidbindEngine()                    // injects SecureEnclaveSealer 
 
 // onboarding:
 let identity = engine.createIdentity()           // show identity.recovery.format() ONCE
+// restore instead: `let identity = try engine.restoreIdentity(secret)` — throws on a mistyped secret
 let device   = engine.deviceIdentity()           // provisions the SE-sealed signing key
 _ = engine.enrolFirstDevice(identity: identity, device: device)
 
-// scan dispatch:
+// scan dispatch (types drop the framework prefix — VoidbindQr.Login / .Pair):
 switch engine.parseScanned(qr) {
-case let login as VoidbindVoidbindQrLogin: /* engine.loginApproval(...).begin/approve */ break
-case let pair  as VoidbindVoidbindQrPair:  /* engine.devicePairing(...).begin/confirm */ break
+case let login as VoidbindQr.Login: /* engine.loginApproval(...).begin/approve */ break
+case let pair  as VoidbindQr.Pair:  /* engine.devicePairing(...).begin/confirm */ break
 default: break
 }
 ```

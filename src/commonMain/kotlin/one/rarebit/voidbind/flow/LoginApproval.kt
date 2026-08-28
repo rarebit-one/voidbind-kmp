@@ -40,9 +40,11 @@ class LoginApproval(
     )
 
     /** Decode a scanned login QR, fetch the challenge, and return what to show. */
+    @Throws(Exception::class)
     fun begin(loginQr: String): Request = begin(LoginQr.decode(loginQr))
 
     /** Same, when the Scan screen already parsed the QR via [one.rarebit.voidbind.VoidbindQr]. */
+    @Throws(Exception::class)
     fun begin(parsed: LoginQr.Parsed): Request {
         val client = WebLoginClient(http, parsed.rp)
         val challenge = client.fetchChallenge(parsed.id)
@@ -52,8 +54,10 @@ class LoginApproval(
     /**
      * After the human confirms: sign the fetched challenge with the device key
      * (biometric-gated inside [DeviceIdentity.sign]) and submit the assertion.
-     * Throws if the RP refuses it (expired, unpinned device, replay).
+     * Throws if the RP refuses it (expired, unpinned device, replay). `@Throws` so
+     * the refusal is catchable in Swift (a retry prompt), not a crash.
      */
+    @Throws(Exception::class)
     fun approve(request: Request) {
         val assertion = WebLogin.signAssertion(request.challenge, enrolmentCert) { message ->
             device.sign(message)

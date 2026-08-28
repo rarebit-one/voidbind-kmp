@@ -35,9 +35,11 @@ class DevicePairing(
     )
 
     /** Scan the invite QR, join the relay, run the handshake, return the SAS. */
+    @Throws(Exception::class)
     fun begin(inviteQr: String): Handshake = begin(Invite.decode(inviteQr))
 
     /** Same, when the Scan screen already parsed the invite via [one.rarebit.voidbind.VoidbindQr]. */
+    @Throws(Exception::class)
     fun begin(invite: Invite.Parsed): Handshake {
         val relay = RelayClient(
             http, invite.relay, invite.session, RelayClient.ROLE_RESPONDER, pollIntervalMillis,
@@ -50,8 +52,9 @@ class DevicePairing(
      * After the human confirms the SAS matches: receive the sealed cert, unseal it
      * with this device's X25519 key, verify it, and return the enrolment cert token
      * to store. Throws if the delivered cert does not verify or binds a different
-     * device/user.
+     * device/user. `@Throws` so a delivery/verify failure is catchable in Swift.
      */
+    @Throws(Exception::class)
     fun confirm(handshake: Handshake): String =
         handshake.responder.receive(device.encPrivateKey)
 }
