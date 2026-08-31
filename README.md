@@ -115,6 +115,68 @@ Identity/signing = **Ed25519**; device encryption = **X25519**. Certain constant
 (the HKDF label, the `heyarr` HRP, the pairing labels) are **identity-defining** —
 see [`CLAUDE.md`](CLAUDE.md); changing them silently breaks wire compatibility.
 
+## Consuming `voidbind-client` as a dependency
+
+The shared client — everything above (the `commonMain` identity/net/flow wire
+brain: `UserIdentity`, `DeviceIdentity`, `Enrolment`, `RelayClient`,
+`WebLoginClient`, `NotifyClient`, `PairflowInitiator`/`PairflowResponder`,
+`VoidbindCertSealer`, the `LoginApproval`/`DevicePairing`/`DeviceAuthorization`
+coordinators, `LoginQr`/`WebLogin` + the challenge-v2 number-match), **plus** the
+`DeviceKeyStore` hardware seam — is published as a Kotlin Multiplatform artifact so
+relying-party apps depend on it over the wire instead of re-implementing the login
+seam.
+
+- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.1.0` (Gradle resolves
+  the right variant per target: `-jvm`, `-android`, `-iosarm64`,
+  `-iossimulatorarm64`).
+- **Registry:** GitHub Packages — `https://maven.pkg.github.com/rarebit-one/voidbind-kmp`
+  (private; a read requires a token with `read:packages`).
+- **Published by CI** on a `v*` tag / GitHub Release (`.github/workflows/publish.yml`).
+
+### What the artifact does NOT carry (stays per-app)
+
+The published module is the shared **wire/flow brain**. The **per-platform
+hardware wiring** stays in each consuming app, because it needs app-owned objects
+the library cannot hold:
+
+- **Android** — call `VoidbindAndroid.init(applicationContext)` once (e.g. in
+  `Application.onCreate`) and drive the biometric gate (`BiometricPrompt`) around
+  `DeviceKeyStore`/the flow coordinators. The StrongBox/TEE seal itself is in the
+  artifact (`androidMain`); the `Context` + prompt are yours.
+- **iOS** — implement the `SecureEnclaveSealer` protocol in Swift (CryptoKit /
+  Security) and inject it once via `VoidbindIos.shared.doInit(sealer:)`. (iOS apps
+  typically link the `Voidbind.xcframework` — see below — rather than the Maven
+  artifact.)
+
+### Gradle setup (consuming app)
+
+```kotlin
+// settings.gradle.kts — add the GitHub Packages repo
+dependencyResolutionManagement {
+    repositories {
+        google(); mavenCentral()
+        maven {
+            url = uri("https://maven.pkg.github.com/rarebit-one/voidbind-kmp")
+            credentials {
+                username = providers.gradleProperty("gpr.user").orNull
+                    ?: System.getenv("GITHUB_ACTOR")
+                password = providers.gradleProperty("gpr.token").orNull
+                    ?: System.getenv("GITHUB_TOKEN")   // a PAT with read:packages
+            }
+        }
+    }
+}
+```
+
+```kotlin
+// app/build.gradle.kts — the single dependency line that replaces the login seam
+implementation("one.rarebit.voidbind:voidbind-client:0.1.0")
+```
+
+Adding this lets `allthing-android` / `heyarr-mobile` **delete their thin
+wire-compatible `login/` seam** and call the real `WebLoginClient` / `LoginQr` /
+`LoginApproval` directly.
+
 ## Build
 
 Requires **JDK 21**. Uses the Gradle wrapper (self-downloads Gradle 8.9 +
