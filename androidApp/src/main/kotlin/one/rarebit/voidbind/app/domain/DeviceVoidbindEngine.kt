@@ -112,21 +112,38 @@ class DeviceVoidbindEngine(
 
     // --- Web login ------------------------------------------------------------
 
-    override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequest = withContext(Dispatchers.IO) {
-        val persisted = store.load() ?: error("no identity on this device")
+    override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequestResult = withContext(Dispatchers.IO) {
+        val persisted = store.load()
+            ?: return@withContext LoginRequestResult.Failed("No identity on this device.")
         val approval = LoginApproval(transport, buildDevice(), persisted.enrolmentCert)
-        val request = approval.begin(LoginQr.Parsed(code.rpBase, code.loginId))
-        pendingLogin = approval to request
-        LoginRequest(
-            domain = host(request.rp),
-            appName = "",
-            origin = request.audience,
-            signInAs = "vb1 · ${shortFingerprint(persisted.userPublicKey)}",
-            expiresInSeconds = (request.expiresAt - clock()).toInt().coerceAtLeast(0),
-            access = "Authentication only",
-            signatureValid = true,
-            candidates = request.candidates, // non-empty ⇒ a number-matching (push) login
-        )
+        // beginCatching converts every transport/IO failure and non-2xx into an Outcome.Failed
+        // instead of throwing, so an unreachable/misconfigured RP surfaces as a login error and
+        // never becomes an uncaught main-thread FATAL. The extra runCatching is belt-and-braces:
+        // no unexpected throw from this boundary may escape the approval coroutine.
+        val outcome = runCatching { approval.beginCatching(LoginQr.Parsed(code.rpBase, code.loginId)) }
+            .getOrElse { LoginApproval.Outcome.Failed(LoginApproval.FailureKind.UNREACHABLE, "Couldn't reach the site.") }
+        when (outcome) {
+            is LoginApproval.Outcome.Failed -> {
+                pendingLogin = null
+                LoginRequestResult.Failed(outcome.message)
+            }
+            is LoginApproval.Outcome.Ready -> {
+                val request = outcome.request
+                pendingLogin = approval to request
+                LoginRequestResult.Ready(
+                    LoginRequest(
+                        domain = host(request.rp),
+                        appName = "",
+                        origin = request.audience,
+                        signInAs = "vb1 · ${shortFingerprint(persisted.userPublicKey)}",
+                        expiresInSeconds = (request.expiresAt - clock()).toInt().coerceAtLeast(0),
+                        access = "Authentication only",
+                        signatureValid = true,
+                        candidates = request.candidates, // non-empty ⇒ a number-matching (push) login
+                    ),
+                )
+            }
+        }
     }
 
     override suspend fun approveLogin(code: ScannedCode.WebLogin) = withContext(Dispatchers.IO) {

@@ -5,6 +5,16 @@ import one.rarebit.voidbind.crypto.Base64Url
 import one.rarebit.voidbind.crypto.MiniJson
 
 /**
+ * The RP was **reached** but returned a non-success status for a weblogin call. It is
+ * distinct from a transport failure (unreachable host, TLS error, timeout, a
+ * cleartext-blocked URL) — those surface as the platform transport's own exception — so
+ * a caller can tell "the site refused this" from "couldn't reach the site" and show the
+ * right message. [status] is the HTTP code; [op] names the call (e.g. "fetch challenge").
+ */
+class WebLoginHttpException(val status: Int, val op: String) :
+    RuntimeException("weblogin: $op: HTTP $status")
+
+/**
  * Client for the Voidbind web QR-login (voidbind-go `weblogin`): the DEVICE side
  * (approve a login) and, for a browser stand-in, the create/poll side.
  *
@@ -82,7 +92,9 @@ class WebLoginClient(
      */
     fun fetchChallenge(id: String): WebLogin.Challenge {
         val resp = http.get(trimr(rpBase) + "/login/" + id + "/challenge")
-        require(resp.status == 200) { "weblogin: fetch challenge: HTTP ${resp.status}" }
+        // A reached-but-refused RP throws the typed exception so the flow layer can tell it
+        // apart from a transport failure (which arrives as the platform transport's own throw).
+        if (resp.status != 200) throw WebLoginHttpException(resp.status, "fetch challenge")
         val o = MiniJson.parseObject(resp.body.decodeToString())
         @Suppress("UNCHECKED_CAST")
         val candidates = (o["candidates"] as? List<Long>)?.map { it.toInt() } ?: emptyList()

@@ -3,8 +3,11 @@ package one.rarebit.voidbind.app.ui.nav
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,6 +30,7 @@ import kotlinx.coroutines.launch
 import one.rarebit.voidbind.app.AppViewModel
 import one.rarebit.voidbind.app.domain.IdentityState
 import one.rarebit.voidbind.app.domain.LoginRequest
+import one.rarebit.voidbind.app.domain.LoginRequestResult
 import one.rarebit.voidbind.app.domain.PairInviteDisplay
 import one.rarebit.voidbind.app.domain.PairSession
 import one.rarebit.voidbind.app.domain.RecoveryBackup
@@ -70,6 +74,9 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
     // where the destination falls back to the home graph.
     var loginRequest by remember { mutableStateOf<LoginRequest?>(null) }
     var loginCode by remember { mutableStateOf<ScannedCode.WebLogin?>(null) }
+    // A failed login-challenge fetch (unreachable/misconfigured RP, TLS, timeout, non-2xx,
+    // cleartext-blocked) surfaces here as a dismissible error instead of crashing the app.
+    var loginError by remember { mutableStateOf<String?>(null) }
     var pairSession by remember { mutableStateOf<PairSession?>(null) }
     var pairInvite by remember { mutableStateOf<PairInviteDisplay?>(null) }
     var revealBackup by remember { mutableStateOf<RecoveryBackup?>(null) }
@@ -107,13 +114,28 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
         val tuple = wakeTuple ?: return@LaunchedEffect
         val code = engine.parseScanned(tuple)
         if (code is ScannedCode.WebLogin) {
-            runCatching {
-                loginCode = code
-                loginRequest = engine.fetchLoginRequest(code)
-            }.onSuccess {
-                nav.navigate(Routes.LOGIN)
+            loginCode = code
+            // fetchLoginRequest never throws for a fetch failure; the runCatching is a final
+            // guard so no unexpected throw in this effect can become a main-thread FATAL.
+            when (val result = runCatching { engine.fetchLoginRequest(code) }.getOrNull()) {
+                is LoginRequestResult.Ready -> {
+                    loginRequest = result.request
+                    nav.navigate(Routes.LOGIN)
+                }
+                is LoginRequestResult.Failed -> loginError = result.message
+                null -> loginError = "Couldn't reach the site."
             }
         }
+    }
+
+    // A login-fetch failure (couldn't reach / site refused) — a dismissible dialog, not a crash.
+    loginError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { loginError = null },
+            confirmButton = { TextButton(onClick = { loginError = null }) { Text("OK") } },
+            title = { Text("Sign-in unavailable") },
+            text = { Text(message) },
+        )
     }
 
     Scaffold(
@@ -219,8 +241,23 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                         when (val c = engine.parseScanned(raw)) {
                             is ScannedCode.WebLogin -> scope.launch {
                                 loginCode = c
-                                loginRequest = engine.fetchLoginRequest(c)
-                                nav.navigate(Routes.LOGIN) { popUpTo(Routes.SCAN) { inclusive = true } }
+                                // fetchLoginRequest resolves a failed challenge fetch to Failed
+                                // instead of throwing; the runCatching is a final guard so no
+                                // unexpected throw can escape this coroutine as a FATAL.
+                                when (val result = runCatching { engine.fetchLoginRequest(c) }.getOrNull()) {
+                                    is LoginRequestResult.Ready -> {
+                                        loginRequest = result.request
+                                        nav.navigate(Routes.LOGIN) { popUpTo(Routes.SCAN) { inclusive = true } }
+                                    }
+                                    is LoginRequestResult.Failed -> {
+                                        loginError = result.message
+                                        nav.popBackStack()
+                                    }
+                                    null -> {
+                                        loginError = "Couldn't reach the site."
+                                        nav.popBackStack()
+                                    }
+                                }
                             }
                             is ScannedCode.PairInvite -> scope.launch {
                                 pairSession = engine.joinPairInvite(c)
@@ -243,7 +280,10 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                         onDeny = { goHome() },
                         onApprove = { chosen ->
                             scope.launch {
-                                loginCode?.let { engine.approveNumberMatch(it, chosen) }
+                                // A refused/failed approval (RP rejects, network drops) is caught so
+                                // it surfaces as an error instead of an uncaught main-thread FATAL.
+                                runCatching { loginCode?.let { engine.approveNumberMatch(it, chosen) } }
+                                    .onFailure { loginError = "Couldn't complete the sign-in." }
                                 goHome()
                             }
                         },
@@ -253,7 +293,8 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                         onDeny = { goHome() },
                         onApprove = {
                             scope.launch {
-                                loginCode?.let { engine.approveLogin(it) }
+                                runCatching { loginCode?.let { engine.approveLogin(it) } }
+                                    .onFailure { loginError = "Couldn't complete the sign-in." }
                                 goHome()
                             }
                         },
