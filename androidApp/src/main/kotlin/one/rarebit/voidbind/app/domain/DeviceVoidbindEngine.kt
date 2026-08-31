@@ -220,7 +220,13 @@ class DeviceVoidbindEngine(
 
     private fun loadState(): IdentityState {
         val persisted = store.load() ?: return IdentityState.None
-        val devicePub = DeviceKeyStore.getOrCreate(deviceAlias).publicKey().bytes
+        val ks = DeviceKeyStore.getOrCreate(deviceAlias)
+        val devicePub = ks.publicKey().bytes
+        val backing = when (ks.securityLevel()) {
+            DeviceKeyStore.SecurityLevel.STRONGBOX -> HardwareBacking.STRONGBOX
+            DeviceKeyStore.SecurityLevel.TEE -> HardwareBacking.TEE
+            DeviceKeyStore.SecurityLevel.SOFTWARE -> HardwareBacking.SOFTWARE
+        }
         return IdentityState.Active(
             identity = Identity(
                 version = "vb1",
@@ -231,7 +237,7 @@ class DeviceVoidbindEngine(
             device = DeviceInfo(
                 name = persisted.deviceName,
                 label = "dev · ${shortFingerprint(devicePub)}",
-                backing = HardwareBacking.STRONGBOX, // hardware-backed; StrongBox-vs-TEE confirmed on device
+                backing = backing, // the REAL tier queried from the wrapping key, not assumed
                 biometricRequired = persisted.biometricApproval,
             ),
             trustedSites = store.trustedSites(),

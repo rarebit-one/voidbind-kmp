@@ -1,6 +1,7 @@
 package one.rarebit.voidbind
 
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
 import android.security.keystore.UserNotAuthenticatedException
@@ -9,6 +10,7 @@ import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
 
 /**
@@ -34,6 +36,31 @@ actual class DeviceKeyStore private constructor(
 ) {
 
     actual val isHardwareBacked: Boolean = true
+
+    /** The AndroidKeyStore security tier actually backing this device's wrapping key. */
+    enum class SecurityLevel { STRONGBOX, TEE, SOFTWARE }
+
+    /**
+     * The REAL security tier of the wrapping key. [createWrapKey] falls back to TEE on
+     * devices without a StrongBox secure element, so we must query the level rather than
+     * assume StrongBox — the UI must never over-state hardware backing.
+     */
+    fun securityLevel(): SecurityLevel {
+        val key = loadWrapKey(alias) ?: return SecurityLevel.SOFTWARE
+        return try {
+            val factory = SecretKeyFactory.getInstance(key.algorithm, KEYSTORE)
+            val info = factory.getKeySpec(key, KeyInfo::class.java) as KeyInfo
+            when (info.securityLevel) {
+                KeyProperties.SECURITY_LEVEL_STRONGBOX -> SecurityLevel.STRONGBOX
+                KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> SecurityLevel.TEE
+                else -> SecurityLevel.SOFTWARE
+            }
+        } catch (_: Exception) {
+            // Can't read the tier (older HAL / unknown): the key is still in the
+            // AndroidKeyStore and non-extractable — report TEE conservatively, never StrongBox.
+            SecurityLevel.TEE
+        }
+    }
 
     actual fun publicKey(): KeyRef = KeyRef.ed25519(publicKeyBytes)
 
