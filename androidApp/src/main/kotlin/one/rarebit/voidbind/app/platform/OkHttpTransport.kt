@@ -31,6 +31,13 @@ class OkHttpTransport(
         return execute(Request.Builder().url(url).put(rb).build())
     }
 
+    override fun delete(url: String, body: ByteArray?, contentType: String?): HttpResponse {
+        // The notify-plane unsubscribe carries the device cert in the body; OkHttp
+        // sends a DELETE body when one is provided.
+        val rb = body?.toRequestBody(contentType?.toMediaTypeOrNull())
+        return execute(Request.Builder().url(url).delete(rb).build())
+    }
+
     override fun sleep(millis: Long) {
         try {
             Thread.sleep(millis)

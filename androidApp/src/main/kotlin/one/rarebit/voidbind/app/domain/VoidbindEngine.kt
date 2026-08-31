@@ -43,11 +43,40 @@ interface VoidbindEngine {
 
     // --- Web login ------------------------------------------------------------
 
-    /** Fetch the details of a web-login request (from the RP) for the approval sheet. */
+    /**
+     * Fetch the details of a web-login request (from the RP) for the approval sheet.
+     * The same call serves a scanned v1 login and a push-woken **number-matching**
+     * one — the returned [LoginRequest.candidates] is non-empty for the latter, and
+     * the UI shows the number grid instead of a plain Approve button.
+     */
     suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequest
 
-    /** Approve a web login — sign the challenge with the hardware key. Biometric-gated. */
+    /** Approve a scanned (v1) web login — sign the challenge with the hardware key. Biometric-gated. */
     suspend fun approveLogin(code: ScannedCode.WebLogin)
+
+    /**
+     * Approve a **number-matching (v2)** login by the number the human tapped — sign
+     * the challenge bound to [chosen] (biometric-gated) and submit it. Tapping a
+     * decoy binds the wrong number and the RP refuses it (no login), which is the
+     * anti-phishing point. [chosen] must be one of the fetched
+     * [LoginRequest.candidates].
+     */
+    suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int)
+
+    // --- Push wake (self-hosted ntfy / UnifiedPush) ---------------------------
+
+    /**
+     * Register this device's [endpoint] (the ntfy topic URL a UnifiedPush distributor
+     * handed us) with the notify plane, cert-authenticated, so a push login can wake
+     * this phone. Call on app open with the current endpoint; a subscription is
+     * short-lived by design, so re-registering is normal. Returns true on success,
+     * false if there is no identity yet or the plane refused it (best-effort — a
+     * failure just means no background wake, and QR login still works).
+     */
+    suspend fun registerForPush(endpoint: String): Boolean
+
+    /** Drop this device's wake subscription (cert-authenticated). Best-effort. */
+    suspend fun unregisterFromPush()
 
     // --- Pairing --------------------------------------------------------------
 
