@@ -85,10 +85,27 @@ class LoginApprovalErrorTest {
 
     @Test
     fun nonSuccessStatusResolvesToRejectedFailureNotACrash() {
-        val flow = LoginApproval(StatusTransport(503), dummyDevice(), "cert-unused")
-        val outcome = flow.beginCatching(parsed) // must NOT throw
-        val failed = assertIs<LoginApproval.Outcome.Failed>(outcome)
-        assertEquals(LoginApproval.FailureKind.REJECTED, failed.kind)
+        // A genuine refusal (a 4xx that is not 404/410, or a 5xx) is REJECTED — not EXPIRED.
+        for (status in listOf(401, 403, 500, 503)) {
+            val flow = LoginApproval(StatusTransport(status), dummyDevice(), "cert-unused")
+            val outcome = flow.beginCatching(parsed) // must NOT throw
+            val failed = assertIs<LoginApproval.Outcome.Failed>(outcome)
+            assertEquals(LoginApproval.FailureKind.REJECTED, failed.kind, "HTTP $status should be REJECTED")
+        }
+    }
+
+    @Test
+    fun expiredOrNotFoundStatusResolvesToExpiredFailureNotRejected() {
+        // A 404 (not found) or 410 (gone) on the challenge fetch means the short-lived login id
+        // expired or was lost (the RP restarted) — its own EXPIRED kind, distinct from REJECTED,
+        // so the user is told to scan a fresh code rather than "the site refused".
+        for (status in listOf(404, 410)) {
+            val flow = LoginApproval(StatusTransport(status), dummyDevice(), "cert-unused")
+            val outcome = flow.beginCatching(parsed) // must NOT throw
+            val failed = assertIs<LoginApproval.Outcome.Failed>(outcome)
+            assertEquals(LoginApproval.FailureKind.EXPIRED, failed.kind, "HTTP $status should be EXPIRED")
+            assertTrue(failed.message.isNotBlank())
+        }
     }
 
     @Test

@@ -61,6 +61,13 @@ object Routes {
     const val RECOVERY = "recovery"
 }
 
+/**
+ * A dismissible login-error to show as a dialog. [expired] flags a stale sign-in code (a 404/410
+ * on the challenge fetch) so the dialog can title it "Expired" and say to scan a fresh QR, rather
+ * than the generic "Sign-in unavailable" used for an unreachable or refusing RP.
+ */
+private data class LoginErrorState(val message: String, val expired: Boolean = false)
+
 @Composable
 fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
     val nav = rememberNavController()
@@ -76,7 +83,7 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
     var loginCode by remember { mutableStateOf<ScannedCode.WebLogin?>(null) }
     // A failed login-challenge fetch (unreachable/misconfigured RP, TLS, timeout, non-2xx,
     // cleartext-blocked) surfaces here as a dismissible error instead of crashing the app.
-    var loginError by remember { mutableStateOf<String?>(null) }
+    var loginError by remember { mutableStateOf<LoginErrorState?>(null) }
     var pairSession by remember { mutableStateOf<PairSession?>(null) }
     var pairInvite by remember { mutableStateOf<PairInviteDisplay?>(null) }
     var revealBackup by remember { mutableStateOf<RecoveryBackup?>(null) }
@@ -122,19 +129,21 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                     loginRequest = result.request
                     nav.navigate(Routes.LOGIN)
                 }
-                is LoginRequestResult.Failed -> loginError = result.message
-                null -> loginError = "Couldn't reach the site."
+                is LoginRequestResult.Failed -> loginError = LoginErrorState(result.message, result.expired)
+                null -> loginError = LoginErrorState("Couldn't reach the site.")
             }
         }
     }
 
-    // A login-fetch failure (couldn't reach / site refused) — a dismissible dialog, not a crash.
-    loginError?.let { message ->
+    // A login-fetch failure (couldn't reach / site refused / stale code) — a dismissible dialog,
+    // not a crash. A stale sign-in code (404/410) is titled "Expired" and reads as "scan a fresh
+    // QR"; everything else keeps the generic "Sign-in unavailable".
+    loginError?.let { error ->
         AlertDialog(
             onDismissRequest = { loginError = null },
             confirmButton = { TextButton(onClick = { loginError = null }) { Text("OK") } },
-            title = { Text("Sign-in unavailable") },
-            text = { Text(message) },
+            title = { Text(if (error.expired) "Expired" else "Sign-in unavailable") },
+            text = { Text(error.message) },
         )
     }
 
@@ -250,11 +259,11 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                                         nav.navigate(Routes.LOGIN) { popUpTo(Routes.SCAN) { inclusive = true } }
                                     }
                                     is LoginRequestResult.Failed -> {
-                                        loginError = result.message
+                                        loginError = LoginErrorState(result.message, result.expired)
                                         nav.popBackStack()
                                     }
                                     null -> {
-                                        loginError = "Couldn't reach the site."
+                                        loginError = LoginErrorState("Couldn't reach the site.")
                                         nav.popBackStack()
                                     }
                                 }
@@ -283,7 +292,7 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                                 // A refused/failed approval (RP rejects, network drops) is caught so
                                 // it surfaces as an error instead of an uncaught main-thread FATAL.
                                 runCatching { loginCode?.let { engine.approveNumberMatch(it, chosen) } }
-                                    .onFailure { loginError = "Couldn't complete the sign-in." }
+                                    .onFailure { loginError = LoginErrorState("Couldn't complete the sign-in.") }
                                 goHome()
                             }
                         },
@@ -294,7 +303,7 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                         onApprove = {
                             scope.launch {
                                 runCatching { loginCode?.let { engine.approveLogin(it) } }
-                                    .onFailure { loginError = "Couldn't complete the sign-in." }
+                                    .onFailure { loginError = LoginErrorState("Couldn't complete the sign-in.") }
                                 goHome()
                             }
                         },

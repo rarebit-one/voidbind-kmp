@@ -115,8 +115,13 @@ sealed interface LoginRequestResult {
     /** The RP answered; show the approval sheet for [request]. */
     data class Ready(val request: LoginRequest) : LoginRequestResult
 
-    /** The fetch failed; show [message] (already human-readable, no raw exception text). */
-    data class Failed(val message: String) : LoginRequestResult
+    /**
+     * The fetch failed; show [message] (already human-readable, no raw exception text).
+     * [expired] is true when the login code was stale (a 404/410 on the challenge fetch) rather
+     * than unreachable or refused — the UI can then title the dialog "Expired" and tell the user
+     * to scan a fresh QR instead of the generic "Sign-in unavailable".
+     */
+    data class Failed(val message: String, val expired: Boolean = false) : LoginRequestResult
 }
 
 /** SAS-compare state for the pair VERIFY step. */
