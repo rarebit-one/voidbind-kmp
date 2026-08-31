@@ -6,10 +6,18 @@ plugins {
     // compiler must match. AGP bumped to a version compatible with Gradle 8.9.
     kotlin("multiplatform") version "2.3.20"
     id("com.android.library") version "8.7.3"
+    // Publishes the shared client (identity/net/flow wire brain + DeviceKeyStore
+    // seam) as the consumable `voidbind-client` artifact to GitHub Packages, so
+    // relying-party apps (allthing-android, heyarr-mobile) depend on it over the
+    // wire instead of re-implementing the login seam. See "Consuming as a
+    // dependency" in README.md.
+    id("maven-publish")
 }
 
 group = "one.rarebit.voidbind"
-version = "0.1.0-SNAPSHOT"
+// First consumable (non-SNAPSHOT) release of the shared client. Bump on any
+// wire-affecting change; the coordinates are `one.rarebit.voidbind:voidbind-client`.
+version = "0.1.0"
 
 repositories {
     mavenCentral()
@@ -46,6 +54,10 @@ kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
+        // Publish only the release variant of the Android artifact
+        // (`voidbind-client-android`) — deterministic, and what a consuming app
+        // resolves. Debug is a build-time concern of the consuming app.
+        publishLibraryVariants("release")
     }
 
     // iOS — Secure-Enclave-P256 ECIES seal over a software Ed25519 key. Building
@@ -97,5 +109,72 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+// ── Publishing: `voidbind-client` on GitHub Packages ───────────────────────────
+// The shared client — the pure `commonMain` identity/net/flow wire brain
+// (UserIdentity, DeviceIdentity, Enrolment, RelayClient, WebLoginClient,
+// NotifyClient, PairflowInitiator/Responder, VoidbindCertSealer, the
+// LoginApproval/DevicePairing/DeviceAuthorization coordinators, LoginQr/WebLogin,
+// challenge-v2 number-match) plus the `DeviceKeyStore` hardware seam — is this KMP
+// module. The per-app hardware wiring (Android `VoidbindAndroid.init(context)` +
+// BiometricPrompt, iOS `SecureEnclaveSealer` via `VoidbindIos`) stays in each
+// consuming app; the published artifact is the shared wire/flow brain, not the app.
+//
+// The Kotlin Multiplatform plugin creates one publication per target; we only
+// rename each artifactId from the project name (`voidbind-kmp`) to
+// `voidbind-client`, giving:
+//   one.rarebit.voidbind:voidbind-client                    (root Gradle-metadata)
+//   one.rarebit.voidbind:voidbind-client-jvm
+//   one.rarebit.voidbind:voidbind-client-android
+//   one.rarebit.voidbind:voidbind-client-iosarm64
+//   one.rarebit.voidbind:voidbind-client-iossimulatorarm64
+// Consumers depend on the root coordinate and Gradle resolves the right variant.
+publishing {
+    publications.withType<MavenPublication>().configureEach {
+        pom {
+            name.set("voidbind-client")
+            description.set(
+                "Voidbind shared client — the Kotlin Multiplatform identity/net/flow " +
+                    "wire brain (login/pairing/authorization) plus the DeviceKeyStore " +
+                    "hardware seam. The consumable side of voidbind-kmp.",
+            )
+            url.set("https://github.com/rarebit-one/voidbind-kmp")
+            licenses {
+                license {
+                    name.set("The Apache Software License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/rarebit-one/voidbind-kmp")
+            credentials {
+                // CI provides GITHUB_ACTOR/GITHUB_TOKEN; locally, GPR_USER/GPR_TOKEN
+                // (a PAT with read:packages / write:packages) fall back in.
+                username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user") as String?
+                    ?: System.getenv("GPR_USER")
+                password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.token") as String?
+                    ?: System.getenv("GPR_TOKEN")
+            }
+        }
+    }
+}
+
+// Rename every publication's artifactId from the project name (`voidbind-kmp`) to
+// `voidbind-client`. This runs in `afterEvaluate` because the Android Gradle
+// Plugin sets the Android variant publication's artifactId in its OWN
+// `afterEvaluate` (registered when the plugin is applied, i.e. earlier than this
+// block) — so a plain `configureEach` rename is overwritten back to
+// `voidbind-kmp-android`. Renaming here, after all plugin `afterEvaluate` hooks,
+// makes every target — including `-android` — consistently `voidbind-client-*`,
+// and keeps the root Gradle-module metadata's variant coordinates in sync.
+afterEvaluate {
+    publishing.publications.withType<MavenPublication>().configureEach {
+        artifactId = artifactId.replace(rootProject.name, "voidbind-client")
     }
 }

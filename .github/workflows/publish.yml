@@ -1,0 +1,41 @@
+name: publish
+
+# Publishes the shared `voidbind-client` KMP artifact (all targets: metadata,
+# jvm, android, iosArm64, iosSimulatorArm64) to GitHub Packages for consumption
+# by relying-party apps (allthing-android, heyarr-mobile).
+#
+# Triggers on a published GitHub Release or a pushed `v*` tag. The build itself
+# stays PR-verified by `test.yml` (a broken publishing config fails those
+# compile/test legs too), so this workflow only does the release-time publish.
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # A single macOS runner publishes EVERY target: the iOS Kotlin/Native klibs
+  # compile only on macOS, and macos-latest also ships the Android SDK + JDK, so
+  # the jvm/android/ios/metadata publications all go up in one pass. GITHUB_TOKEN
+  # carries `packages: write` for the rarebit-one/voidbind-kmp registry.
+  publish:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: publish voidbind-client to GitHub Packages
+        run: >-
+          ./gradlew publishAllPublicationsToGitHubPackagesRepository
+          --no-daemon --stacktrace
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
