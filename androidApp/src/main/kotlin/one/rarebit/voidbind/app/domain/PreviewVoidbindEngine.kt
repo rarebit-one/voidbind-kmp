@@ -51,6 +51,12 @@ class PreviewVoidbindEngine(
 
     override suspend fun approveLogin(code: ScannedCode.WebLogin) { delay(600) }
 
+    override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int) { delay(600) }
+
+    override suspend fun registerForPush(endpoint: String): Boolean { delay(150); return true }
+
+    override suspend fun unregisterFromPush() { delay(150) }
+
     override suspend fun startPairInvite(): PairInviteDisplay {
         delay(200)
         return SampleData.pairInvite
@@ -128,6 +134,9 @@ object SampleData {
         access = "Authentication only",
         signatureValid = true,
     )
+
+    /** A push-woken, number-matching login: the phone shows candidates, the user taps the match. */
+    val numberMatchRequest = loginRequest.copy(candidates = listOf(27, 84, 61))
 
     val pairInvite = PairInviteDisplay(
         inviteId = "INV · 8F2C 91A7",

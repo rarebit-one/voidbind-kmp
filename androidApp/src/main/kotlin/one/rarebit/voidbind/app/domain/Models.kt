@@ -91,7 +91,18 @@ data class LoginRequest(
     val expiresInSeconds: Int,
     val access: String = "Authentication only",
     val signatureValid: Boolean = true,
-)
+    /**
+     * Non-empty only for a **number-matching (v2)** login — a push wake, where
+     * nothing was scanned. The approval UI shows these numbers and the user taps the
+     * one matching the initiating surface; the tap is what proves the human is
+     * looking at the right screen (see [VoidbindEngine.approveNumberMatch]). Empty
+     * for a scanned v1 login, whose QR already carries its origin-binding.
+     */
+    val candidates: List<Int> = emptyList(),
+) {
+    /** True when this login must be approved by tapping a matched number, not a plain Approve. */
+    val isNumberMatch: Boolean get() = candidates.isNotEmpty()
+}
 
 /** SAS-compare state for the pair VERIFY step. */
 data class PairSession(

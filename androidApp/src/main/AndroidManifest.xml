@@ -22,6 +22,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.Voidbind"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|density|uiMode|smallestScreenSize"
             android:windowSoftInputMode="adjustResize">
@@ -30,6 +31,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Self-hosted ntfy / UnifiedPush wake receiver — Voidbind's ONLY background
+             push path (no FCM/Google). A UnifiedPush distributor broadcasts these
+             actions; the receiver routes an OPAQUE login tuple into the app. exported
+             because the distributor is a separate app. -->
+        <receiver
+            android:name=".platform.push.UnifiedPushReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.MESSAGE" />
+                <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT" />
+                <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED" />
+                <action android:name="org.unifiedpush.android.connector.UNREGISTERED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

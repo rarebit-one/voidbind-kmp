@@ -21,6 +21,7 @@ import one.rarebit.voidbind.flow.DeviceAuthorization
 import one.rarebit.voidbind.flow.DevicePairing
 import one.rarebit.voidbind.flow.LoginApproval
 import one.rarebit.voidbind.net.HttpTransport
+import one.rarebit.voidbind.net.NotifyClient
 import java.net.URI
 
 /**
@@ -45,6 +46,7 @@ class DeviceVoidbindEngine(
     private val transport: HttpTransport,
     private val biometric: BiometricAuthenticator,
     private val relayBase: String,
+    private val notifyBase: String = DEFAULT_NOTIFY,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
 ) : VoidbindEngine {
 
@@ -123,16 +125,49 @@ class DeviceVoidbindEngine(
             expiresInSeconds = (request.expiresAt - clock()).toInt().coerceAtLeast(0),
             access = "Authentication only",
             signatureValid = true,
+            candidates = request.candidates, // non-empty ⇒ a number-matching (push) login
         )
     }
 
     override suspend fun approveLogin(code: ScannedCode.WebLogin) = withContext(Dispatchers.IO) {
         val (approval, request) = pendingLogin ?: error("no login in progress")
         withDeviceAuth { approval.approve(request) }
+        finishApproval(request)
+    }
+
+    override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int) = withContext(Dispatchers.IO) {
+        val (approval, request) = pendingLogin ?: error("no login in progress")
+        // approval.approve(request, chosen) signs the v2 binding; a decoy tap binds the
+        // wrong number and the RP refuses it (thrown) — no site is recorded on refusal.
+        withDeviceAuth { approval.approve(request, chosen) }
+        finishApproval(request)
+    }
+
+    private fun finishApproval(request: LoginApproval.Request) {
         val domain = host(request.rp)
         store.upsertTrustedSite(TrustedSite(domain, domain, "", "just now", accentFor(domain)))
         pendingLogin = null
         _identity.value = loadState()
+    }
+
+    // --- Push wake ------------------------------------------------------------
+
+    override suspend fun registerForPush(endpoint: String): Boolean = withContext(Dispatchers.IO) {
+        val persisted = store.load() ?: return@withContext false
+        try {
+            NotifyClient(transport, notifyBase).subscribe(persisted.enrolmentCert, endpoint)
+            true
+        } catch (_: Throwable) {
+            // Best-effort: a failed wake registration just means no background push;
+            // scanned QR login is unaffected. Do not surface it as an app error.
+            false
+        }
+    }
+
+    override suspend fun unregisterFromPush() = withContext(Dispatchers.IO) {
+        val persisted = store.load() ?: return@withContext
+        runCatching { NotifyClient(transport, notifyBase).unsubscribe(persisted.enrolmentCert) }
+        Unit
     }
 
     // --- Pairing --------------------------------------------------------------
@@ -302,5 +337,8 @@ class DeviceVoidbindEngine(
     companion object {
         /** A sensible default relay base for the family homelab; override at construction. */
         const val DEFAULT_RELAY = "https://relay.thesim.family"
+
+        /** Default notify-plane base (POST/DELETE /v1/subscriptions); override at construction. */
+        const val DEFAULT_NOTIFY = "https://notify.thesim.family"
     }
 }

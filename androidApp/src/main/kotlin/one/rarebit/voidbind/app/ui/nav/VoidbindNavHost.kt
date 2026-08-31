@@ -33,6 +33,7 @@ import one.rarebit.voidbind.app.domain.RecoveryBackup
 import one.rarebit.voidbind.app.domain.ScannedCode
 import one.rarebit.voidbind.app.ui.screens.HomeScreen
 import one.rarebit.voidbind.app.ui.screens.LoginApprovalScreen
+import one.rarebit.voidbind.app.ui.screens.NumberMatchApprovalScreen
 import one.rarebit.voidbind.app.ui.screens.OnboardingScreen
 import one.rarebit.voidbind.app.ui.screens.PairConnectScreen
 import one.rarebit.voidbind.app.ui.screens.PairVerifyScreen
@@ -57,7 +58,7 @@ object Routes {
 }
 
 @Composable
-fun VoidbindNavHost(viewModel: AppViewModel) {
+fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
     val nav = rememberNavController()
     val engine = viewModel.engine
     val identityState by viewModel.identity.collectAsStateWithLifecycle()
@@ -97,6 +98,22 @@ fun VoidbindNavHost(viewModel: AppViewModel) {
 
     fun goHome() = nav.navigate(Routes.HOME) {
         popUpTo(nav.graph.id) { inclusive = true }
+    }
+
+    // A push wake: the UnifiedPush receiver launched us with the opaque login tuple.
+    // Fetch the (number-matching) request and open the approval — the same LOGIN
+    // destination a scan uses, so the number grid vs. plain-approve branch is shared.
+    LaunchedEffect(wakeTuple, start) {
+        val tuple = wakeTuple ?: return@LaunchedEffect
+        val code = engine.parseScanned(tuple)
+        if (code is ScannedCode.WebLogin) {
+            runCatching {
+                loginCode = code
+                loginRequest = engine.fetchLoginRequest(code)
+            }.onSuccess {
+                nav.navigate(Routes.LOGIN)
+            }
+        }
     }
 
     Scaffold(
@@ -217,10 +234,21 @@ fun VoidbindNavHost(viewModel: AppViewModel) {
 
             composable(Routes.LOGIN) {
                 val req = loginRequest
-                if (req == null) {
-                    LaunchedEffect(Unit) { goHome() }
-                } else {
-                    LoginApprovalScreen(
+                when {
+                    req == null -> LaunchedEffect(Unit) { goHome() }
+                    // A push-woken, number-matching login: show the candidate grid and
+                    // approve by the tapped number (v2). A decoy tap is refused by the RP.
+                    req.isNumberMatch -> NumberMatchApprovalScreen(
+                        request = req,
+                        onDeny = { goHome() },
+                        onApprove = { chosen ->
+                            scope.launch {
+                                loginCode?.let { engine.approveNumberMatch(it, chosen) }
+                                goHome()
+                            }
+                        },
+                    )
+                    else -> LoginApprovalScreen(
                         request = req,
                         onDeny = { goHome() },
                         onApprove = {
