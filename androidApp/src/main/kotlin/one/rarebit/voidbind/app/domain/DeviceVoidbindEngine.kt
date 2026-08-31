@@ -14,6 +14,7 @@ import one.rarebit.voidbind.Enrolment
 import one.rarebit.voidbind.LoginQr
 import one.rarebit.voidbind.RecoverySecret
 import one.rarebit.voidbind.UserIdentity
+import one.rarebit.voidbind.app.platform.ApprovalPolicyStore
 import one.rarebit.voidbind.app.platform.BiometricAuthenticator
 import one.rarebit.voidbind.app.platform.IdentityStore
 import one.rarebit.voidbind.crypto.Hex
@@ -22,6 +23,8 @@ import one.rarebit.voidbind.flow.DevicePairing
 import one.rarebit.voidbind.flow.LoginApproval
 import one.rarebit.voidbind.net.HttpTransport
 import one.rarebit.voidbind.net.NotifyClient
+import one.rarebit.voidbind.policy.ApprovalPolicy
+import one.rarebit.voidbind.policy.ApprovalPolicyManager
 import java.net.URI
 
 /**
@@ -43,6 +46,7 @@ import java.net.URI
  */
 class DeviceVoidbindEngine(
     private val store: IdentityStore,
+    private val policyStore: ApprovalPolicyStore,
     private val transport: HttpTransport,
     private val biometric: BiometricAuthenticator,
     private val relayBase: String,
@@ -51,6 +55,10 @@ class DeviceVoidbindEngine(
 ) : VoidbindEngine {
 
     private val deviceAlias = "device"
+
+    // The per-RP approval policy + audit trail. Pure commonMain brain; [policyStore]
+    // supplies persistence. It records consent AROUND the unchanged hardware signature.
+    private val policy = ApprovalPolicyManager(policyStore, policyStore, clock)
     private val _identity = MutableStateFlow<IdentityState>(IdentityState.Loading)
     override val identity: StateFlow<IdentityState> = _identity.asStateFlow()
 
@@ -152,7 +160,7 @@ class DeviceVoidbindEngine(
     override suspend fun approveLogin(code: ScannedCode.WebLogin) = withContext(Dispatchers.IO) {
         val (approval, request) = pendingLogin ?: error("no login in progress")
         withDeviceAuth { approval.approve(request) }
-        finishApproval(request)
+        finishApproval(request, matchNumber = null)
     }
 
     override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int) = withContext(Dispatchers.IO) {
@@ -160,11 +168,23 @@ class DeviceVoidbindEngine(
         // approval.approve(request, chosen) signs the v2 binding; a decoy tap binds the
         // wrong number and the RP refuses it (thrown) — no site is recorded on refusal.
         withDeviceAuth { approval.approve(request, chosen) }
-        finishApproval(request)
+        finishApproval(request, matchNumber = chosen)
     }
 
-    private fun finishApproval(request: LoginApproval.Request) {
+    override suspend fun denyLogin() = withContext(Dispatchers.IO) {
+        // The human declined. Nothing is signed; record the denial in the audit trail
+        // (trust is untouched — a denial never trusts a site) and drop the pending login.
+        pendingLogin?.let { (_, request) ->
+            policy.recordDenial(host(request.rp), request.audience, request.loginId, matchNumber = null)
+        }
+        pendingLogin = null
+    }
+
+    private fun finishApproval(request: LoginApproval.Request, matchNumber: Int?) {
         val domain = host(request.rp)
+        // Record the approval in the audit trail and apply trust-on-first-use. The
+        // signature above is unchanged — this is consent/audit state around it.
+        policy.recordApproval(domain, request.audience, request.loginId, matchNumber)
         store.upsertTrustedSite(TrustedSite(domain, domain, "", "just now", accentFor(domain)))
         pendingLogin = null
         _identity.value = loadState()
@@ -268,7 +288,29 @@ class DeviceVoidbindEngine(
 
     override suspend fun revokeSite(siteId: String) = withContext(Dispatchers.IO) {
         store.removeTrustedSite(siteId)
+        policy.forget(siteId) // the site's TrustedSite.id is its host, the policy key
         _identity.value = loadState()
+    }
+
+    // --- Per-RP approval policy + audit ---------------------------------------
+
+    override suspend fun sitePolicy(rp: String): SitePolicyView = withContext(Dispatchers.IO) {
+        val p = policy.policyFor(rp)
+        SitePolicyView(
+            rp = rp,
+            policy = p?.policy ?: ApprovalPolicy.AlwaysAsk,
+            pinnedAlwaysAsk = p?.pinnedAlwaysAsk ?: false,
+        )
+    }
+
+    override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean) = withContext(Dispatchers.IO) {
+        if (alwaysAsk) policy.setAlwaysAsk(rp) else policy.trust(rp)
+        _identity.value = loadState()
+    }
+
+    override suspend fun approvalActivity(limit: Int): List<ApprovalActivity> = withContext(Dispatchers.IO) {
+        val now = clock()
+        policy.auditEntries(limit).map { ApprovalActivity.from(it, relativeTime(now, it.timestampSeconds)) }
     }
 
     // --- internals ------------------------------------------------------------
@@ -295,9 +337,27 @@ class DeviceVoidbindEngine(
                 backing = backing, // the REAL tier queried from the wrapping key, not assumed
                 biometricRequired = persisted.biometricApproval,
             ),
-            trustedSites = store.trustedSites(),
+            trustedSites = store.trustedSites().map { site ->
+                // Join the per-RP policy (kept in a separate store) onto each site row.
+                val p = policyStore.get(site.id)
+                site.copy(
+                    policy = p?.policy ?: ApprovalPolicy.AlwaysAsk,
+                    pinnedAlwaysAsk = p?.pinnedAlwaysAsk ?: false,
+                )
+            },
             biometricApproval = persisted.biometricApproval,
         )
+    }
+
+    /** A coarse "just now / 5m ago / 3h ago / 2d ago" label from two unix-seconds stamps. */
+    private fun relativeTime(now: Long, then: Long): String {
+        val secs = (now - then).coerceAtLeast(0)
+        return when {
+            secs < 60 -> "just now"
+            secs < 3_600 -> "${secs / 60}m ago"
+            secs < 86_400 -> "${secs / 3_600}h ago"
+            else -> "${secs / 86_400}d ago"
+        }
     }
 
     private fun buildDevice(): DeviceIdentity {

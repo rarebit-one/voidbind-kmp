@@ -29,11 +29,23 @@ final class AppModel: ObservableObject {
 
     let engine: VoidbindEngine
 
+    /// The per-RP approval policy + audit trail — the SAME commonMain brain the Android
+    /// engine uses (`ApprovalPolicyManager`), so trust-on-first-use and the audit log
+    /// behave identically on both platforms. Backed by the in-memory commonMain stores
+    /// for now; persisting them across launches (Keychain/UserDefaults, mirroring the
+    /// enc-key baseline in `VoidbindEngine`) is a documented follow-up.
+    let policy: ApprovalPolicyManager
+
     private let defaults = UserDefaults.standard
     private enum Key { static let userId = "vb.userId", cert = "vb.cert" }
 
     init(engine: VoidbindEngine = VoidbindEngine(), preview: Bool = false) {
         self.engine = engine
+        self.policy = ApprovalPolicyManager(
+            policies: InMemorySitePolicyStore(),
+            audit: InMemoryApprovalAuditLog(capacity: 500),
+            clock: { KotlinLong(longLong: Int64(Date().timeIntervalSince1970)) }
+        )
         if preview { return }
         if let userId = defaults.string(forKey: Key.userId),
            let cert = defaults.string(forKey: Key.cert) {
@@ -41,7 +53,31 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Whether the given RP host is trusted-on-first-use (streamlined) rather than always-ask.
+    func isTrusted(_ rp: String) -> Bool {
+        policy.policyFor(rp: rp)?.policy == ApprovalPolicy.trustedTofu
+    }
+
+    /// Whether the user pinned "always ask" for the given RP host.
+    func isPinnedAlwaysAsk(_ rp: String) -> Bool {
+        policy.policyFor(rp: rp)?.pinnedAlwaysAsk == true
+    }
+
+    /// Pin (or clear) "always ask" for an RP host. Pinning blocks silent trust-on-first-use.
+    func setAlwaysAsk(_ rp: String, _ alwaysAsk: Bool) {
+        if alwaysAsk { policy.setAlwaysAsk(rp: rp) } else { policy.trust(rp: rp) }
+        objectWillChange.send()
+    }
+
+    /// The approval-activity log, newest first.
+    func approvalActivity(limit: Int32 = 100) -> [ApprovalAuditEntry] {
+        policy.auditEntries(limit: limit)
+    }
+
     var isEnrolled: Bool { if case .enrolled = enrolment { return true } else { return false } }
+
+    /// This device's enrolment cert, if enrolled — needed to sign a web-login approval.
+    var cert: String? { if case let .enrolled(_, cert) = enrolment { return cert } else { return nil } }
 
     /// Persist a freshly enrolled identity and move to Home.
     func completeEnrolment(userId: String, cert: String) {

@@ -19,10 +19,13 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import one.rarebit.voidbind.app.domain.LoginRequest
+import one.rarebit.voidbind.app.domain.SitePolicyView
 import one.rarebit.voidbind.app.ui.components.DangerButton
 import one.rarebit.voidbind.app.ui.components.HSpace
 import one.rarebit.voidbind.app.ui.components.PrimaryButton
@@ -48,13 +52,22 @@ import one.rarebit.voidbind.app.ui.components.VbCard
 import one.rarebit.voidbind.app.ui.components.VbHairline
 import one.rarebit.voidbind.app.ui.theme.VbColors
 
-/** Web-login approval (Mockup 4): the sovereign consent sheet, biometric-gated. */
+/**
+ * Web-login approval (Mockup 4): the sovereign consent sheet, biometric-gated.
+ *
+ * [policy] is the RP's current per-site approval policy — trust-on-first-use vs.
+ * always-ask. The sheet shows it as a pill and lets the user pin/clear "always ask"
+ * inline via [onSetAlwaysAsk]. The policy governs UI friction only; the Approve path
+ * still produces the same hardware-gated signature regardless of the toggle.
+ */
 @Composable
 fun LoginApprovalScreen(
     request: LoginRequest,
     onDeny: () -> Unit,
     onApprove: () -> Unit,
     modifier: Modifier = Modifier,
+    policy: SitePolicyView? = null,
+    onSetAlwaysAsk: (Boolean) -> Unit = {},
 ) {
     var remaining by remember { mutableIntStateOf(request.expiresInSeconds) }
     LaunchedEffect(Unit) {
@@ -114,6 +127,11 @@ fun LoginApprovalScreen(
             Text("No personal data is shared.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
         }
 
+        if (policy != null) {
+            VSpace(14)
+            PolicyControl(policy = policy, onSetAlwaysAsk = onSetAlwaysAsk)
+        }
+
         Spacer(Modifier.weight(1f))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -141,6 +159,45 @@ fun LoginApprovalScreen(
             Icon(Icons.Rounded.Memory, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(16.dp))
             HSpace(8)
             Text("Signed by StrongBox key · this device", style = MaterialTheme.typography.labelMedium, color = VbColors.TextSecondary)
+        }
+    }
+}
+
+/**
+ * The per-RP policy control on the consent sheet: a pill showing whether this site is
+ * trusted (TOFU) or always-asks, and a switch to pin "always ask". Toggling ON forces
+ * the full sheet every time; OFF trusts the site. The signature path is unchanged.
+ */
+@Composable
+private fun PolicyControl(policy: SitePolicyView, onSetAlwaysAsk: (Boolean) -> Unit) {
+    VbCard(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(vertical = 4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.Shield, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(20.dp))
+                HSpace(12)
+                Column(Modifier.weight(1f)) {
+                    Text("Always ask", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
+                    Text(
+                        if (policy.pinnedAlwaysAsk) "Full review every time (pinned)"
+                        else if (policy.trusted) "Trusted — streamlined next time"
+                        else "Review this site every time",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = VbColors.TextSecondary,
+                    )
+                }
+                Switch(
+                    checked = policy.pinnedAlwaysAsk,
+                    onCheckedChange = onSetAlwaysAsk,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = VbColors.OnMint,
+                        checkedTrackColor = VbColors.Mint,
+                        uncheckedTrackColor = VbColors.SurfaceElevated,
+                    ),
+                )
+            }
         }
     }
 }

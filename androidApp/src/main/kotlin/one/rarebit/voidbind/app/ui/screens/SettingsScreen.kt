@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Fingerprint
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import one.rarebit.voidbind.app.domain.IdentityState
 import one.rarebit.voidbind.app.domain.TrustedSite
+import one.rarebit.voidbind.policy.ApprovalPolicy
 import one.rarebit.voidbind.app.ui.components.HSpace
 import one.rarebit.voidbind.app.ui.components.IconCircle
 import one.rarebit.voidbind.app.ui.components.OutlineButton
@@ -59,6 +61,7 @@ fun SettingsScreen(
     onRevoke: (TrustedSite) -> Unit,
     onManageSites: () -> Unit,
     onRecoveryBackup: () -> Unit,
+    onApprovalActivity: () -> Unit,
     onAbout: () -> Unit,
     onSecurity: () -> Unit,
     onLicenses: () -> Unit,
@@ -138,11 +141,21 @@ fun SettingsScreen(
                         Column(Modifier.weight(1f)) {
                             Text(site.domain, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
                             Text("${site.appName} · ${site.lastUsed}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+                            VSpace(6)
+                            PolicyPill(site)
                         }
                         OutlineButton("Revoke", onClick = { onRevoke(site) }, accent = VbColors.Coral)
                     }
                     if (i == 0) VbHairline(Modifier.padding(horizontal = 16.dp))
                 }
+                VbHairline(Modifier.padding(horizontal = 16.dp))
+                RowItem(
+                    title = "Approval activity",
+                    subtitle = "Who you approved, and when",
+                    onClick = onApprovalActivity,
+                    leading = { IconCircle(Icons.Rounded.History, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) },
+                    trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
+                )
                 VbHairline(Modifier.padding(horizontal = 16.dp))
                 RowItem(
                     title = "Manage all ${state.trustedSites.size} trusted sites",
@@ -196,6 +209,21 @@ fun SettingsScreen(
             Text("Your keys never leave your devices.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center)
         }
     }
+}
+
+/** A small pill showing a trusted site's approval policy: trusted (TOFU) vs. always-ask. */
+@Composable
+private fun PolicyPill(site: TrustedSite) {
+    val trusted = site.policy == ApprovalPolicy.TrustedTofu
+    StatusPill(
+        text = when {
+            site.pinnedAlwaysAsk -> "Always ask (pinned)"
+            trusted -> "Trusted"
+            else -> "Always ask"
+        },
+        accent = if (trusted) VbColors.Mint else VbColors.Amber,
+        leadingIcon = if (trusted) Icons.Rounded.Shield else Icons.Rounded.Lock,
+    )
 }
 
 @Composable

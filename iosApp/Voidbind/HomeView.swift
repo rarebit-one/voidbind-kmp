@@ -33,7 +33,7 @@ struct HomeView: View {
         .vbScreen()
         .safeAreaInset(edge: .top) { header }
         .sheet(isPresented: $showScan) {
-            NavigationStack { ScanView(engine: model.engine) { origin in
+            NavigationStack { ScanView(engine: model.engine, cert: model.cert, policy: model.policy) { origin in
                 model.recordLogin(origin: origin)
             } }
         }

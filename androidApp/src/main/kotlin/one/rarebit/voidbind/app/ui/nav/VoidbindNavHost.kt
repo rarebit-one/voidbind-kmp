@@ -35,6 +35,8 @@ import one.rarebit.voidbind.app.domain.PairInviteDisplay
 import one.rarebit.voidbind.app.domain.PairSession
 import one.rarebit.voidbind.app.domain.RecoveryBackup
 import one.rarebit.voidbind.app.domain.ScannedCode
+import one.rarebit.voidbind.app.domain.SitePolicyView
+import one.rarebit.voidbind.app.ui.screens.ApprovalActivityScreen
 import one.rarebit.voidbind.app.ui.screens.HomeScreen
 import one.rarebit.voidbind.app.ui.screens.LoginApprovalScreen
 import one.rarebit.voidbind.app.ui.screens.NumberMatchApprovalScreen
@@ -59,6 +61,7 @@ object Routes {
     const val PAIR_CONNECT = "pair_connect"
     const val PAIR_VERIFY = "pair_verify"
     const val RECOVERY = "recovery"
+    const val ACTIVITY = "activity"
 }
 
 /**
@@ -81,6 +84,9 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
     // where the destination falls back to the home graph.
     var loginRequest by remember { mutableStateOf<LoginRequest?>(null) }
     var loginCode by remember { mutableStateOf<ScannedCode.WebLogin?>(null) }
+    // The RP's per-site approval policy, fetched when the approval sheet opens.
+    var loginPolicy by remember { mutableStateOf<SitePolicyView?>(null) }
+    var approvalActivity by remember { mutableStateOf<List<one.rarebit.voidbind.app.domain.ApprovalActivity>>(emptyList()) }
     // A failed login-challenge fetch (unreachable/misconfigured RP, TLS, timeout, non-2xx,
     // cleartext-blocked) surfaces here as a dismissible error instead of crashing the app.
     var loginError by remember { mutableStateOf<LoginErrorState?>(null) }
@@ -235,6 +241,12 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                                 nav.navigate(Routes.RECOVERY)
                             }
                         },
+                        onApprovalActivity = {
+                            scope.launch {
+                                approvalActivity = engine.approvalActivity()
+                                nav.navigate(Routes.ACTIVITY)
+                            }
+                        },
                         onAbout = { },
                         onSecurity = { },
                         onLicenses = { },
@@ -286,7 +298,12 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                     // approve by the tapped number (v2). A decoy tap is refused by the RP.
                     req.isNumberMatch -> NumberMatchApprovalScreen(
                         request = req,
-                        onDeny = { goHome() },
+                        onDeny = {
+                            scope.launch {
+                                runCatching { engine.denyLogin() }
+                                goHome()
+                            }
+                        },
                         onApprove = { chosen ->
                             scope.launch {
                                 // A refused/failed approval (RP rejects, network drops) is caught so
@@ -297,17 +314,34 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                             }
                         },
                     )
-                    else -> LoginApprovalScreen(
-                        request = req,
-                        onDeny = { goHome() },
-                        onApprove = {
-                            scope.launch {
-                                runCatching { loginCode?.let { engine.approveLogin(it) } }
-                                    .onFailure { loginError = LoginErrorState("Couldn't complete the sign-in.") }
-                                goHome()
-                            }
-                        },
-                    )
+                    else -> {
+                        // Fetch this RP's current approval policy when the sheet opens so it can
+                        // show trusted/always-ask and offer the inline pin toggle.
+                        LaunchedEffect(req.domain) { loginPolicy = engine.sitePolicy(req.domain) }
+                        LoginApprovalScreen(
+                            request = req,
+                            onDeny = {
+                                scope.launch {
+                                    runCatching { engine.denyLogin() }
+                                    goHome()
+                                }
+                            },
+                            onApprove = {
+                                scope.launch {
+                                    runCatching { loginCode?.let { engine.approveLogin(it) } }
+                                        .onFailure { loginError = LoginErrorState("Couldn't complete the sign-in.") }
+                                    goHome()
+                                }
+                            },
+                            policy = loginPolicy,
+                            onSetAlwaysAsk = { alwaysAsk ->
+                                scope.launch {
+                                    engine.setAlwaysAsk(req.domain, alwaysAsk)
+                                    loginPolicy = engine.sitePolicy(req.domain)
+                                }
+                            },
+                        )
+                    }
                 }
             }
 
@@ -369,6 +403,13 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                         stepLabel = "RECOVERY SECRET",
                     )
                 }
+            }
+
+            composable(Routes.ACTIVITY) {
+                ApprovalActivityScreen(
+                    activity = approvalActivity,
+                    onBack = { nav.popBackStack() },
+                )
             }
         }
     }

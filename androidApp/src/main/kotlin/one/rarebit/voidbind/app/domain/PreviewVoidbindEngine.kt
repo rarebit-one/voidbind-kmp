@@ -5,6 +5,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import one.rarebit.voidbind.policy.ApprovalPolicy
+import one.rarebit.voidbind.policy.ApprovalPolicyManager
+import one.rarebit.voidbind.policy.InMemoryApprovalAuditLog
+import one.rarebit.voidbind.policy.InMemorySitePolicyStore
 
 /**
  * A fully in-memory engine seeded with the mockup data, so the entire UI runs and
@@ -19,6 +23,20 @@ class PreviewVoidbindEngine(
 
     private val _identity = MutableStateFlow(initial)
     override val identity: StateFlow<IdentityState> = _identity.asStateFlow()
+
+    // A real (in-memory) policy manager so the preview exercises TOFU + the audit log
+    // exactly as the device engine does, just without persistence or a clock of record.
+    private var previewClock = 1_724_000_000L
+    private val policy = ApprovalPolicyManager(InMemorySitePolicyStore(), InMemoryApprovalAuditLog()) { previewClock }
+
+    init {
+        // Seed a plausible activity history + one trusted site so the log/settings screens
+        // have something to render under @Preview.
+        policy.trust("thesim.family")
+        policy.recordApproval("thesim.family", "https://thesim.family", "L-1001")
+        previewClock += 3_600
+        policy.recordDenial("unknown.example", "https://unknown.example", "L-1002")
+    }
 
     override suspend fun refresh() { /* already seeded */ }
 
@@ -53,6 +71,8 @@ class PreviewVoidbindEngine(
 
     override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int) { delay(600) }
 
+    override suspend fun denyLogin() { delay(100) }
+
     override suspend fun registerForPush(endpoint: String): Boolean { delay(150); return true }
 
     override suspend fun unregisterFromPush() { delay(150) }
@@ -85,10 +105,23 @@ class PreviewVoidbindEngine(
     }
 
     override suspend fun revokeSite(siteId: String) {
+        policy.forget(siteId)
         _identity.update { s ->
             if (s is IdentityState.Active) s.copy(trustedSites = s.trustedSites.filterNot { it.id == siteId }) else s
         }
     }
+
+    override suspend fun sitePolicy(rp: String): SitePolicyView {
+        val p = policy.policyFor(rp)
+        return SitePolicyView(rp, p?.policy ?: ApprovalPolicy.AlwaysAsk, p?.pinnedAlwaysAsk ?: false)
+    }
+
+    override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean) {
+        if (alwaysAsk) policy.setAlwaysAsk(rp) else policy.trust(rp)
+    }
+
+    override suspend fun approvalActivity(limit: Int): List<ApprovalActivity> =
+        policy.auditEntries(limit).map { ApprovalActivity.from(it, whenLabel = "recently") }
 }
 
 /** Sample content mirroring the product mockups. Placeholder only. */
@@ -108,9 +141,9 @@ object SampleData {
     )
 
     val trustedSites = listOf(
-        TrustedSite("thesim", "thesim.family", "All Thing", "last used today", SiteAccent.BLUE),
-        TrustedSite("cove", "home.cove.lan", "Cove Control", "yesterday", SiteAccent.PURPLE),
-        TrustedSite("bartley", "bartley.home", "Home Assistant", "6 days ago", SiteAccent.MINT),
+        TrustedSite("thesim", "thesim.family", "All Thing", "last used today", SiteAccent.BLUE, policy = ApprovalPolicy.TrustedTofu),
+        TrustedSite("cove", "home.cove.lan", "Cove Control", "yesterday", SiteAccent.PURPLE, policy = ApprovalPolicy.AlwaysAsk, pinnedAlwaysAsk = true),
+        TrustedSite("bartley", "bartley.home", "Home Assistant", "6 days ago", SiteAccent.MINT, policy = ApprovalPolicy.TrustedTofu),
     )
 
     val activeState = IdentityState.Active(
