@@ -48,8 +48,13 @@ interface VoidbindEngine {
      * The same call serves a scanned v1 login and a push-woken **number-matching**
      * one — the returned [LoginRequest.candidates] is non-empty for the latter, and
      * the UI shows the number grid instead of a plain Approve button.
+     *
+     * The fetch touches the network and MUST NOT throw for a transport/IO failure: an
+     * unreachable RP, a TLS error, a timeout, a non-2xx, or a cleartext-blocked URL all
+     * resolve to [LoginRequestResult.Failed] so the UI can render an error rather than the
+     * app crashing with an uncaught main-thread exception.
      */
-    suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequest
+    suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequestResult
 
     /** Approve a scanned (v1) web login — sign the challenge with the hardware key. Biometric-gated. */
     suspend fun approveLogin(code: ScannedCode.WebLogin)

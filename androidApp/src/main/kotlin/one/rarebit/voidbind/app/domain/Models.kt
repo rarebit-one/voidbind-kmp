@@ -104,6 +104,21 @@ data class LoginRequest(
     val isNumberMatch: Boolean get() = candidates.isNotEmpty()
 }
 
+/**
+ * The result of fetching a web-login request. A fetch touches the network (the RP is the
+ * source of truth for the challenge), so it can fail — an unreachable RP, a TLS error, a
+ * timeout, a non-2xx, or a cleartext-blocked URL. The engine catches every such failure
+ * and returns [Failed] rather than throwing, so the UI can render an error instead of the
+ * app crashing with an uncaught main-thread exception (see [VoidbindEngine.fetchLoginRequest]).
+ */
+sealed interface LoginRequestResult {
+    /** The RP answered; show the approval sheet for [request]. */
+    data class Ready(val request: LoginRequest) : LoginRequestResult
+
+    /** The fetch failed; show [message] (already human-readable, no raw exception text). */
+    data class Failed(val message: String) : LoginRequestResult
+}
+
 /** SAS-compare state for the pair VERIFY step. */
 data class PairSession(
     val thisDeviceName: String,

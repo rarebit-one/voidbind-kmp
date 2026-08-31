@@ -44,9 +44,9 @@ class PreviewVoidbindEngine(
         else -> ScannedCode.Unknown(raw)
     }
 
-    override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequest {
+    override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequestResult {
         delay(300)
-        return SampleData.loginRequest
+        return LoginRequestResult.Ready(SampleData.loginRequest)
     }
 
     override suspend fun approveLogin(code: ScannedCode.WebLogin) { delay(600) }

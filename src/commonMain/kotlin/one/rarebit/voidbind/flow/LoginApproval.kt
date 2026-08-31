@@ -5,6 +5,7 @@ import one.rarebit.voidbind.LoginQr
 import one.rarebit.voidbind.WebLogin
 import one.rarebit.voidbind.net.HttpTransport
 import one.rarebit.voidbind.net.WebLoginClient
+import one.rarebit.voidbind.net.WebLoginHttpException
 
 /**
  * The device side of **web QR-login** as one app flow: the user scans a
@@ -48,6 +49,47 @@ class LoginApproval(
     ) {
         /** True for a v2 (number-matching) login — the UI must show [candidates] and take a tap. */
         val isNumberMatch: Boolean get() = candidates.isNotEmpty()
+    }
+
+    /** Why a [begin] failed, kept coarse on purpose (see [Outcome.Failed]). */
+    enum class FailureKind {
+        /** The RP could not be reached at all — connection refused, TLS error, timeout, a
+         *  cleartext-blocked URL. The device never got a response. */
+        UNREACHABLE,
+
+        /** The RP was reached but refused the challenge fetch (a non-2xx status). */
+        REJECTED,
+    }
+
+    /**
+     * The result of a non-throwing [beginCatching]: either the [Request] to show, or a
+     * classified [Failed] the UI can render as a login error instead of crashing.
+     */
+    sealed interface Outcome {
+        data class Ready(val request: Request) : Outcome
+        data class Failed(val kind: FailureKind, val message: String) : Outcome
+    }
+
+    /**
+     * Like [begin], but a transport/IO failure or a non-2xx from the RP resolves to an
+     * [Outcome.Failed] the caller can render — it never throws for a fetch failure. This
+     * is the boundary that keeps a failed login-challenge fetch (an unreachable RP, a TLS
+     * error, a timeout, a 4xx/5xx, a cleartext-blocked URL) from becoming an uncaught
+     * crash. The throwing [begin] overloads remain for callers (e.g. iOS) that already
+     * catch. Blocking (network); run it off the main thread.
+     */
+    fun beginCatching(loginQr: String): Outcome = beginCatching(LoginQr.decode(loginQr))
+
+    /** [beginCatching] for an already-parsed QR (the Scan screen path). */
+    fun beginCatching(parsed: LoginQr.Parsed): Outcome = try {
+        Outcome.Ready(begin(parsed))
+    } catch (e: WebLoginHttpException) {
+        Outcome.Failed(FailureKind.REJECTED, "The site refused the sign-in request (HTTP ${e.status}).")
+    } catch (_: Throwable) {
+        // Any other failure is a transport/IO problem (unreachable, TLS, timeout,
+        // cleartext-blocked) or a malformed response — from the human's point of view the
+        // site could not be reached. Deliberately does not leak the raw exception text.
+        Outcome.Failed(FailureKind.UNREACHABLE, "Couldn't reach the site.")
     }
 
     /** Decode a scanned login QR, fetch the challenge, and return what to show. */
