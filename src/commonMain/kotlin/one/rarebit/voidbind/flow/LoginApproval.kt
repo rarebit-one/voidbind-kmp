@@ -30,14 +30,25 @@ class LoginApproval(
     /**
      * What the approval sheet shows the human. [audience] is the RP origin the
      * challenge binds; [expiresAt] is unix seconds (render a live countdown).
+     *
+     * [candidates] is non-empty only for a **number-matching (v2)** login (a push
+     * wake, where nothing was scanned): the approval UI shows these numbers and the
+     * user taps the one matching the initiating surface. The true match is not here —
+     * only the RP holds it — so the tap, not the fetch, is what proves the human is
+     * looking at the right screen. Approve such a request with [approve] passing the
+     * chosen number; a v1 request uses the no-argument-number overload.
      */
     class Request internal constructor(
         val rp: String,
         val loginId: String,
         val audience: String,
         val expiresAt: Long,
+        val candidates: List<Int>,
         internal val challenge: WebLogin.Challenge,
-    )
+    ) {
+        /** True for a v2 (number-matching) login — the UI must show [candidates] and take a tap. */
+        val isNumberMatch: Boolean get() = candidates.isNotEmpty()
+    }
 
     /** Decode a scanned login QR, fetch the challenge, and return what to show. */
     @Throws(Exception::class)
@@ -48,7 +59,9 @@ class LoginApproval(
     fun begin(parsed: LoginQr.Parsed): Request {
         val client = WebLoginClient(http, parsed.rp)
         val challenge = client.fetchChallenge(parsed.id)
-        return Request(parsed.rp, parsed.id, challenge.audience, challenge.expiresAt, challenge)
+        return Request(
+            parsed.rp, parsed.id, challenge.audience, challenge.expiresAt, challenge.candidates, challenge,
+        )
     }
 
     /**
@@ -56,10 +69,37 @@ class LoginApproval(
      * (biometric-gated inside [DeviceIdentity.sign]) and submit the assertion.
      * Throws if the RP refuses it (expired, unpinned device, replay). `@Throws` so
      * the refusal is catchable in Swift (a retry prompt), not a crash.
+     *
+     * v1 only — a scanned QR carries its origin-binding already. For a
+     * number-matching (v2) request ([Request.isNumberMatch]) use the [approve]
+     * overload that takes the chosen number.
      */
     @Throws(Exception::class)
     fun approve(request: Request) {
+        require(!request.isNumberMatch) {
+            "this is a number-matching login — approve(request, chosenNumber)"
+        }
         val assertion = WebLogin.signAssertion(request.challenge, enrolmentCert) { message ->
+            device.sign(message)
+        }
+        WebLoginClient(http, request.rp).approve(request.loginId, assertion)
+    }
+
+    /**
+     * Approve a **number-matching (v2)** login: sign the challenge bound to the
+     * [chosenNumber] the human tapped (biometric-gated) and submit it. [chosenNumber]
+     * must be one of [Request.candidates]. If the human tapped a decoy, the signature
+     * binds the wrong number and the RP refuses it (its `ErrNumberMismatch` → a 401
+     * that surfaces here as a thrown refusal) — so a wrong tap yields no login, which
+     * is the whole anti-phishing point.
+     */
+    @Throws(Exception::class)
+    fun approve(request: Request, chosenNumber: Int) {
+        require(request.isNumberMatch) { "this is not a number-matching login — use approve(request)" }
+        require(chosenNumber in request.candidates) {
+            "chosen number $chosenNumber is not one of the candidates shown"
+        }
+        val assertion = WebLogin.signAssertionV2(request.challenge, chosenNumber, enrolmentCert) { message ->
             device.sign(message)
         }
         WebLoginClient(http, request.rp).approve(request.loginId, assertion)
