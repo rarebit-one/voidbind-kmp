@@ -11,6 +11,9 @@ struct ScanView: View {
     let engine: VoidbindEngine
     /// The enrolled device cert, needed to approve a login. Nil during add-device onboarding.
     var cert: String? = nil
+    /// The per-RP approval policy manager, threaded to the login-approval sheet so it can
+    /// show/set the site's policy and record the decision. Nil during add-device onboarding.
+    var policy: ApprovalPolicyManager? = nil
     var onLogin: (_ origin: String) -> Void = { _ in }
 
     @Environment(\.dismiss) private var dismiss
@@ -41,7 +44,7 @@ struct ScanView: View {
             NavigationStack {
                 switch d {
                 case .login(let uri):
-                    WebLoginApprovalView(engine: engine, cert: cert ?? "", loginQr: uri) { origin in
+                    WebLoginApprovalView(engine: engine, cert: cert ?? "", loginQr: uri, policy: policy) { origin in
                         onLogin(origin); dispatch = nil; dismiss()
                     }
                 case .pair(let uri):

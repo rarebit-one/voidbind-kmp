@@ -1,5 +1,8 @@
 package one.rarebit.voidbind.app.domain
 
+import one.rarebit.voidbind.policy.ApprovalAuditEntry
+import one.rarebit.voidbind.policy.ApprovalPolicy
+
 /**
  * UI-facing domain models. These are the app's own view of identity state, kept
  * deliberately separate from the wire types in the KMP library so a screen never
@@ -42,9 +45,44 @@ data class TrustedSite(
     val lastUsed: String,
     /** A stable seed for the leading avatar's accent, 0..n. */
     val accent: SiteAccent = SiteAccent.BLUE,
+    /**
+     * This RP's per-site approval policy (trust-on-first-use vs. always-ask). Joined
+     * in from the [one.rarebit.voidbind.policy.SitePolicyStore] at load time — it is
+     * NOT part of the trusted-site serialization, so the two stores stay independent.
+     */
+    val policy: ApprovalPolicy = ApprovalPolicy.AlwaysAsk,
+    /** True when the user pinned "always ask" — the toggle reflects an explicit choice, not a default. */
+    val pinnedAlwaysAsk: Boolean = false,
 )
 
 enum class SiteAccent { BLUE, PURPLE, MINT }
+
+/**
+ * One row in the approval-activity log the UI renders — a UI projection of the
+ * library's [ApprovalAuditEntry] with display-ready fields. The engine formats the
+ * timestamp; the screen stays free of date math.
+ */
+data class ApprovalActivity(
+    val rp: String,
+    val audience: String,
+    val loginId: String,
+    val approved: Boolean,
+    /** Already-formatted time, e.g. "just now" / "2h ago" / an absolute date. */
+    val whenLabel: String,
+    /** The tapped number for a number-matching (v2) login, or null for a scanned login. */
+    val matchNumber: Int? = null,
+) {
+    companion object {
+        fun from(entry: ApprovalAuditEntry, whenLabel: String): ApprovalActivity = ApprovalActivity(
+            rp = entry.rp,
+            audience = entry.audience,
+            loginId = entry.loginId,
+            approved = entry.decision == one.rarebit.voidbind.policy.ApprovalDecision.Approved,
+            whenLabel = whenLabel,
+            matchNumber = entry.matchNumber,
+        )
+    }
+}
 
 /** Overall identity state the app boots into. */
 sealed interface IdentityState {

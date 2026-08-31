@@ -68,6 +68,12 @@ interface VoidbindEngine {
      */
     suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int)
 
+    /**
+     * The human declined the pending login. Records a denial in the approval audit
+     * trail (nothing is signed, and trust is untouched) and clears the pending login.
+     */
+    suspend fun denyLogin()
+
     // --- Push wake (self-hosted ntfy / UnifiedPush) ---------------------------
 
     /**
@@ -108,4 +114,33 @@ interface VoidbindEngine {
     suspend fun renameDevice(name: String)
     suspend fun setBiometricApproval(enabled: Boolean)
     suspend fun revokeSite(siteId: String)
+
+    // --- Per-RP approval policy + audit ---------------------------------------
+
+    /**
+     * The current per-RP approval policy for [rp] (its host): trust-on-first-use vs.
+     * always-ask, plus whether the user pinned always-ask. A brand-new RP is
+     * always-ask/unpinned. Consult it to decide whether the approval sheet shows the
+     * full review or a streamlined confirm — the biometric-gated signature is unchanged
+     * either way.
+     */
+    suspend fun sitePolicy(rp: String): SitePolicyView
+
+    /**
+     * Set [rp]'s policy: pinning [alwaysAsk] forces the full sheet on every login (and
+     * blocks silent trust-on-first-use); clearing it trusts the site. Persisted.
+     */
+    suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean)
+
+    /** The approval-activity log, newest first, at most [limit] entries. */
+    suspend fun approvalActivity(limit: Int = 100): List<ApprovalActivity>
+}
+
+/** The per-RP policy as the approval sheet / settings shows it. */
+data class SitePolicyView(
+    val rp: String,
+    val policy: one.rarebit.voidbind.policy.ApprovalPolicy,
+    val pinnedAlwaysAsk: Boolean,
+) {
+    val trusted: Boolean get() = policy == one.rarebit.voidbind.policy.ApprovalPolicy.TrustedTofu
 }

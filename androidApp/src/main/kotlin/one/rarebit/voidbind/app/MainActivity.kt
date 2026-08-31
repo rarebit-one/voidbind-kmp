@@ -18,6 +18,7 @@ import one.rarebit.voidbind.app.domain.DeviceVoidbindEngine
 import one.rarebit.voidbind.app.domain.PreviewVoidbindEngine
 import one.rarebit.voidbind.app.domain.VoidbindEngine
 import one.rarebit.voidbind.app.platform.AndroidBiometricAuthenticator
+import one.rarebit.voidbind.app.platform.ApprovalPolicyStore
 import one.rarebit.voidbind.app.platform.IdentityStore
 import one.rarebit.voidbind.app.platform.OkHttpTransport
 import one.rarebit.voidbind.app.platform.push.PushEndpointStore
@@ -51,6 +52,7 @@ class MainActivity : FragmentActivity() {
                         if (USE_DEVICE_ENGINE) {
                             DeviceVoidbindEngine(
                                 store = IdentityStore(applicationContext),
+                                policyStore = ApprovalPolicyStore(applicationContext),
                                 transport = OkHttpTransport(),
                                 biometric = AndroidBiometricAuthenticator(this@MainActivity),
                                 relayBase = DeviceVoidbindEngine.DEFAULT_RELAY,

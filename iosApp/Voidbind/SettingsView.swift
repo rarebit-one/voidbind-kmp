@@ -8,6 +8,7 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var showAddDevice = false
+    @State private var showActivity = false
     @State private var confirmSignOut = false
 
     private var userId: String {
@@ -29,6 +30,10 @@ struct SettingsView: View {
                     infoRow(icon: "faceid", title: "Biometric gate", value: "On")
                     Divider().overlay(VB.hairline)
                     infoRow(icon: "wifi.slash", title: "Verification", value: "Offline")
+                }
+                section(title: "Approvals") {
+                    row(icon: "clock.arrow.circlepath", title: "Approval activity",
+                        subtitle: "Who you approved, and when") { showActivity = true }
                 }
                 section(title: "Account") {
                     row(icon: "rectangle.portrait.and.arrow.right", title: "Sign out of this device",
@@ -52,6 +57,9 @@ struct SettingsView: View {
         .toolbarBackground(VB.bg, for: .navigationBar)
         .sheet(isPresented: $showAddDevice) {
             NavigationStack { AddDeviceGate(engine: model.engine) }
+        }
+        .sheet(isPresented: $showActivity) {
+            NavigationStack { ApprovalActivityView(model: model) }
         }
         .confirmationDialog("Sign out of this device?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { model.signOut(); dismiss() }
