@@ -57,7 +57,14 @@ class LoginApproval(
          *  cleartext-blocked URL. The device never got a response. */
         UNREACHABLE,
 
-        /** The RP was reached but refused the challenge fetch (a non-2xx status). */
+        /** The RP was reached and answered, but the login-challenge is gone: a `404 Not Found`
+         *  (or `410 Gone`) on the fetch. weblogin login ids are short-lived, so this means the
+         *  scanned code EXPIRED or was lost (e.g. the RP restarted) — NOT a deliberate refusal.
+         *  The fix is to scan a fresh QR, so it gets its own message, distinct from [REJECTED]. */
+        EXPIRED,
+
+        /** The RP was reached but genuinely refused the challenge fetch — any other non-2xx
+         *  status (a 4xx that is not 404/410, or a 5xx). */
         REJECTED,
     }
 
@@ -84,7 +91,14 @@ class LoginApproval(
     fun beginCatching(parsed: LoginQr.Parsed): Outcome = try {
         Outcome.Ready(begin(parsed))
     } catch (e: WebLoginHttpException) {
-        Outcome.Failed(FailureKind.REJECTED, "The site refused the sign-in request (HTTP ${e.status}).")
+        // A 404 (or 410 Gone) on the challenge fetch means the short-lived login id expired or was
+        // lost (the RP restarted) — a stale code, not a refusal — so it gets its own EXPIRED kind
+        // with a "scan a fresh QR" message. Every other non-2xx is a genuine refusal (REJECTED).
+        if (e.status == 404 || e.status == 410) {
+            Outcome.Failed(FailureKind.EXPIRED, "This sign-in code has expired — scan a fresh QR.")
+        } else {
+            Outcome.Failed(FailureKind.REJECTED, "The site refused the sign-in request (HTTP ${e.status}).")
+        }
     } catch (_: Throwable) {
         // Any other failure is a transport/IO problem (unreachable, TLS, timeout,
         // cleartext-blocked) or a malformed response — from the human's point of view the

@@ -125,7 +125,10 @@ class DeviceVoidbindEngine(
         when (outcome) {
             is LoginApproval.Outcome.Failed -> {
                 pendingLogin = null
-                LoginRequestResult.Failed(outcome.message)
+                LoginRequestResult.Failed(
+                    outcome.message,
+                    expired = outcome.kind == LoginApproval.FailureKind.EXPIRED,
+                )
             }
             is LoginApproval.Outcome.Ready -> {
                 val request = outcome.request
