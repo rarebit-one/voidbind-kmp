@@ -5,6 +5,7 @@ import java.net.ServerSocket
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import one.rarebit.voidbind.Cert
 import one.rarebit.voidbind.Ed25519Engine
@@ -127,6 +128,66 @@ class GoInteropTest {
             assertEquals("approved", poll.status, "the Go RP must approve a valid Kotlin assertion")
             assertTrue(!poll.token.isNullOrEmpty(), "the Go RP must mint a session token")
             assertEquals(userId, poll.user, "the authenticated principal is the pinned Kotlin user")
+        } finally {
+            proc.destroyForcibly()
+        }
+    }
+
+    @Test
+    fun deviceApprovesNumberMatchLoginOnLiveGoRp() {
+        assumeTrue(goAvailable(), "voidbind-go / go not available — skipping cross-language test")
+        val cli = buildCli()
+        val port = freePort()
+        val base = "http://127.0.0.1:$port"
+
+        val user = Ed25519Engine.generate()
+        val userId = KeyRef.ed25519(user.publicKey).render()
+
+        val proc = ProcessBuilder(cli.absolutePath, "login-serve", "--addr", "127.0.0.1:$port", "--pin", userId)
+            .redirectErrorStream(true).start()
+        try {
+            val http = JdkHttpTransport()
+            waitReady { http.post("$base/login").status == 200 }
+
+            val rp = WebLoginClient(http, base)
+            // As the INITIATING surface: create a number-matching login and learn the
+            // true number the browser would display.
+            val created = rp.createNumberMatchLogin()
+            val trueNumber = created.matchNumber
+
+            // A Kotlin device cert the Go RP pins.
+            val dev = Ed25519Engine.generate()
+            val now = System.currentTimeMillis() / 1000
+            val certToken = Cert(
+                version = Labels.CERT_VERSION,
+                user = KeyRef.ed25519(user.publicKey),
+                device = KeyRef.ed25519(dev.publicKey),
+                deviceEnc = KeyRef.x25519(ByteArray(32) { (it + 9).toByte() }),
+                issuedAt = now,
+                expiresAt = now + 3600,
+            ).encode { msg -> Ed25519Engine.sign(user.privateSeed, msg) }
+
+            // As the PHONE: the fetched challenge carries the candidate set but NOT the
+            // true number (the Go handler withholds it — origin-binding).
+            val chal = rp.fetchChallenge(created.id)
+            assertTrue(chal.isNumberMatch, "the Go RP must send a candidate set for a v2 login")
+            assertTrue(chal.candidates.contains(trueNumber), "the true number must be among the candidates")
+
+            // Tapping the true number authenticates; the Go RP verifies the v2 binding.
+            val ok = WebLogin.signAssertionV2(chal, trueNumber, certToken) { Ed25519Engine.sign(dev.privateSeed, it) }
+            rp.approve(created.id, ok)
+            val poll = rp.poll(created.id)
+            assertEquals("approved", poll.status, "the Go RP must approve a correct number-match")
+            assertEquals(userId, poll.user)
+
+            // A SECOND, fresh login where the phone taps a DECOY must be refused by Go
+            // (ErrNumberMismatch → the approve endpoint returns non-204).
+            val created2 = rp.createNumberMatchLogin()
+            val chal2 = rp.fetchChallenge(created2.id)
+            val decoy = chal2.candidates.first { it != created2.matchNumber }
+            val bad = WebLogin.signAssertionV2(chal2, decoy, certToken) { Ed25519Engine.sign(dev.privateSeed, it) }
+            assertFailsWith<IllegalArgumentException> { rp.approve(created2.id, bad) }
+            assertEquals("pending", rp.poll(created2.id).status, "a decoy tap must not authenticate on Go")
         } finally {
             proc.destroyForcibly()
         }

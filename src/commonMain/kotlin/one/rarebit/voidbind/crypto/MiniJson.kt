@@ -54,7 +54,12 @@ object MiniJson {
         sb.append('"')
     }
 
-    /** A parsed flat object: values are either [String] or [Long]. */
+    /**
+     * A parsed object. Values are [String], [Long], or — for a JSON array of
+     * integers, e.g. weblogin v2's `candidates` — a `List<Long>`. Objects nested as
+     * values are still out of scope (this stays a flat, wire-shaped codec); only the
+     * top level and integer arrays are supported.
+     */
     fun parseObject(json: String): Map<String, Any> {
         val p = Parser(json)
         p.skipWs()
@@ -92,8 +97,28 @@ object MiniJson {
 
         fun parseValue(): Any = when (val c = peek()) {
             '"' -> parseString()
+            '[' -> parseIntArray()
             else -> if (c == '-' || c in '0'..'9') parseNumber()
             else throw IllegalArgumentException("unsupported JSON value starting with '$c'")
+        }
+
+        /** Parse a JSON array of integers to a `List<Long>` (weblogin v2 `candidates`). */
+        fun parseIntArray(): List<Long> {
+            expect('[')
+            val out = ArrayList<Long>()
+            skipWs()
+            if (peek() == ']') { next(); return out }
+            while (true) {
+                skipWs()
+                out.add(parseNumber())
+                skipWs()
+                when (val c = next()) {
+                    ',' -> continue
+                    ']' -> break
+                    else -> throw IllegalArgumentException("expected ',' or ']', got '$c'")
+                }
+            }
+            return out
         }
 
         fun parseString(): String {

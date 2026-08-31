@@ -28,6 +28,15 @@ interface HttpTransport {
     /** PUT url with a body. */
     fun put(url: String, body: ByteArray, contentType: String? = null): HttpResponse
 
+    /**
+     * DELETE url with an optional body — the notify plane's unsubscribe carries the
+     * device cert in a JSON body (voidbind-go reads it on DELETE). A default is
+     * provided so existing transports and test fakes need not implement it; the real
+     * JVM/Android transports override it.
+     */
+    fun delete(url: String, body: ByteArray? = null, contentType: String? = null): HttpResponse =
+        throw UnsupportedOperationException("this transport does not implement DELETE")
+
     /** Sleep the given milliseconds — backs the relay fetch poll loop. */
     fun sleep(millis: Long)
 }

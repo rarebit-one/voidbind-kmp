@@ -34,6 +34,12 @@ class JdkHttpTransport(
     override fun put(url: String, body: ByteArray, contentType: String?): HttpResponse =
         send(withType(base(url).PUT(HttpRequest.BodyPublishers.ofByteArray(body)), contentType).build())
 
+    override fun delete(url: String, body: ByteArray?, contentType: String?): HttpResponse {
+        val pub = if (body == null) HttpRequest.BodyPublishers.noBody()
+        else HttpRequest.BodyPublishers.ofByteArray(body)
+        return send(withType(base(url).method("DELETE", pub), contentType).build())
+    }
+
     override fun sleep(millis: Long) = Thread.sleep(millis)
 
     private fun base(url: String): HttpRequest.Builder =
