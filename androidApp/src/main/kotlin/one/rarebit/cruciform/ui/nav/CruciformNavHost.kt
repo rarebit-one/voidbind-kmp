@@ -1,5 +1,6 @@
 package one.rarebit.cruciform.ui.nav
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -608,9 +609,14 @@ fun CruciformNavHost(
                                 delay(1000)
                             }
                         }
+                        // Leaving this screen on purpose — the top-bar Back or the system back
+                        // gesture — cancels the invite (drops the wait + the keep-alive). Only the
+                        // human does this; switching apps is not leaving.
+                        val leave = { invites.cancel(); nav.popBackStack(); Unit }
+                        BackHandler(onBack = leave)
                         PairConnectScreen(
                             invite = inv,
-                            onBack = { invites.cancel(); nav.popBackStack() },
+                            onBack = leave,
                             onScanInstead = { nav.navigate(Routes.SCAN) },
                             sameDeviceTargets = sameDeviceTargets,
                             onSendTo = { target -> RpPairLauncher.sendTo(context, target, inv.qrPayload) },
