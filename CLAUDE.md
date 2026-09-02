@@ -58,6 +58,13 @@ deliberate and load-bearing.
   `base64url` is URL-safe, **no padding** (Go's `RawURLEncoding`). The payload is
   **compact** JSON with fields in this exact order (they are signed as-is):
   `{v, usr, dev, denc, iat, exp}`. The signer is the **user identity** key.
+- **Membership op token** (v3, ADR-0005) = the same `base64url(payload).base64url(sig)`
+  shape with payload `{v:3, usr, op, dev, denc?, by, prev:[…], cosig?, iat, exp?}` in
+  that order, signed by `by` (a member device key, or `usr` for genesis). A v1/v2 cert
+  IS a v3 add signed by genesis with no `prev`. `Membership.evaluate` is a line-for-line
+  port of voidbind-go `enrolment.Evaluate`; the 14 golden vectors in
+  `src/jvmTest/resources/vectors/membership/` are copied from voidbind-go and must
+  replay byte-for-byte — never edit them here, re-copy from Go.
 - **Recovery secret** = 256-bit, **bech32m** (BIP-350, *not* bech32) with HRP
   `heyarr`.
 - **Pairing** = short-authentication-string with **commit-before-reveal**: each
@@ -116,13 +123,16 @@ src/
     KeyRef.kt          ed25519:/x25519: hex rendering + parse
     RecoverySecret.kt  256-bit bech32m secret (HRP heyarr)
     Cert.kt            enrolment cert model + token encode/parse/verify
+    MembershipOp.kt    v3 membership op (add/remove) sign/verify/hash; v1/v2 certs read as genesis adds
+    Membership.kt      the CRDT evaluator (voidbind-go enrolment.Evaluate, ADR-0007) + merge
     Ed25519.kt         signer/verifier seams
     Pairing.kt         commit-before-reveal SAS derivation
     DeviceKeyStore.kt  expect: hardware signing key
     crypto/            Hex, Base64Url (no-pad), Bech32m, MiniJson (compact, ordered)
-  commonTest/…         bech32m roundtrip, cert roundtrip, SAS determinism
+  commonTest/…         bech32m roundtrip, cert roundtrip, SAS determinism, op token KATs
   jvmMain/…            DeviceKeyStore actual (software) + JvmEd25519 (JDK provider)
-  jvmTest/…            real-Ed25519 end-to-end
+  jvmTest/…            real-Ed25519 end-to-end; membership golden-vector parity
+                       (resources/vectors/membership/ = voidbind-go testdata, verbatim)
   iosMain/…            DeviceKeyStore actual (Secure Enclave — stub, documented)
 ```
 
