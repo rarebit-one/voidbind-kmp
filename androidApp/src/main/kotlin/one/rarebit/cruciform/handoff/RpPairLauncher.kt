@@ -21,9 +21,20 @@ object RpPairLauncher {
      */
     fun resolvable(context: Context, targets: List<RpPairTarget> = RpPairHandoff.KNOWN): List<RpPairTarget> =
         targets.filter { t ->
-            Intent(Intent.ACTION_VIEW, Uri.parse("${t.callbackBase}?${RpPairHandoff.INVITE}=probe"))
-                .resolveActivity(context.packageManager) != null
+            val probe = probeUri(t)
+            val hit = Intent(Intent.ACTION_VIEW, Uri.parse(probe)).resolveActivity(context.packageManager)
+            // Diagnosable from logcat: `adb logcat -s RpPairHandoff`. A null here with the
+            // RP installed means the manifest <queries> entry no longer matches its filter.
+            Log.d(TAG, "resolvable? ${t.appName} probe=$probe -> ${hit?.flattenToShortString() ?: "null (not visible/installed)"}")
+            hit != null
         }
+
+    /**
+     * The URI probed for visibility: the target's `scheme://host` plus a dummy invite
+     * value, so it matches the RP's `scheme` + `host="pair"` filter exactly the way a
+     * real handoff would. The manifest `<queries>` must carry the same scheme AND host.
+     */
+    fun probeUri(target: RpPairTarget): String = "${target.callbackBase}?${RpPairHandoff.INVITE}=probe"
 
     /**
      * Open [target] with the invite. `FLAG_ACTIVITY_NEW_TASK` so the RP lands in ITS OWN
