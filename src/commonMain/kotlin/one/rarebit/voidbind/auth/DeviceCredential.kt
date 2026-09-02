@@ -91,6 +91,25 @@ class DeviceCredential(
         /** The enrolment separator joining the cert and the possession proof. */
         const val SEPARATOR = "~"
 
+        /**
+         * The request header a device uses to present the membership ops it knows
+         * beside its credential (voidbind-go `rp.MembershipHeader`, ADR-0005): a
+         * comma-separated list of op tokens, at most [MAX_PRESENTED_OPS]. An RP merges
+         * them with its own log before evaluating, so a device admitted by a phone
+         * this RP has never met still authenticates on first contact.
+         */
+        const val MEMBERSHIP_HEADER = "Voidbind-Membership"
+
+        /** The most ops [MEMBERSHIP_HEADER] may carry (voidbind-go `rp.MaxPresentedOps`). */
+        const val MAX_PRESENTED_OPS = 64
+
+        /**
+         * The [MEMBERSHIP_HEADER] value for [ops]: de-duplicated, in hash order, capped
+         * at [MAX_PRESENTED_OPS]; empty when there is nothing to present (send no header).
+         */
+        fun membershipHeaderValue(ops: List<String>): String =
+            one.rarebit.voidbind.Membership.merge(ops).take(MAX_PRESENTED_OPS).joinToString(",")
+
         /** Build the credential VALUE `<cert>~<proof>` (the part after `Device `). Pure. */
         fun format(cert: String, proof: String): String {
             require(cert.isNotEmpty() && proof.isNotEmpty()) { "a device credential needs a cert and a proof" }

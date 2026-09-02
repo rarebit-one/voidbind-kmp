@@ -27,7 +27,11 @@ group = "one.rarebit.voidbind"
 // 0.5.0 adds the membership op-set (ADR-0005 / voidbind-go ADR-0007): `MembershipOp`
 // (the v3 add/remove op, v1/v2 certs reinterpreted as genesis adds) and
 // `Membership.evaluate`/`merge` (the CRDT evaluator, golden-vector parity with
-// voidbind-go v0.9.0), so any member device can admit or remove another.
+// voidbind-go v0.9.0), so any member device can admit or remove another; invite v3
+// carries `usr`, `PairflowInitiator`/`DeviceAuthorization` take a MEMBER device
+// (`PairflowAuthority.Device`) or genesis, the responder evaluates the initiator's
+// ops before deriving a SAS, `DevicePairing.confirm` returns the `Admission`
+// {op, ops}, and `LoginApproval`/`WebLogin.Assertion` present `ops`.
 version = "0.5.0"
 
 repositories {

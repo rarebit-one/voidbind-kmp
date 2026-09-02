@@ -41,7 +41,7 @@ class DeepLinkTest {
     fun loginUriFromTheBrokerTupleRoundTrips() {
         assertEquals(brokerQr, VoidbindDeepLink.loginUriFromTuple(brokerQr))
         assertEquals("$brokerQr&callback=allthing%3A%2F%2Fsignin", VoidbindDeepLink.loginUriFromTuple(brokerQr, "allthing://signin"))
-        assertFailsWith<IllegalArgumentException> { VoidbindDeepLink.loginUriFromTuple("voidbind:pair?v=2", "allthing://x") }
+        assertFailsWith<IllegalArgumentException> { VoidbindDeepLink.loginUriFromTuple("voidbind:pair?v=3", "allthing://x") }
     }
 
     @Test
@@ -82,7 +82,7 @@ class DeepLinkTest {
     @Test
     fun pairHandoffCarriesTheInviteAndCallback() {
         val saltHex = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
-        val invite = Invite.encode("http://relay", "sess1", Hex.decode(saltHex))
+        val invite = Invite.encode("http://relay", "sess1", Hex.decode(saltHex), "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4")
         val uri = VoidbindDeepLink.pairUri(invite, "myapp://paired")
         assertEquals("$invite&callback=myapp%3A%2F%2Fpaired", uri)
         val p = VoidbindDeepLink.parse(uri) as VoidbindDeepLink.Parsed.Pair

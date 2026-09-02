@@ -72,7 +72,7 @@ class PairingConfirmErrorTest {
     private fun handshook(): Handshook {
         val http = RelayTransport()
         val auth = DeviceAuthorization(http, UserIdentity.create(), { 1_724_700_000L }, pollIntervalMillis = 10)
-        val pairing = DevicePairing(http, device(), pollIntervalMillis = 10)
+        val pairing = DevicePairing(http, device(), { 1_724_700_000L }, pollIntervalMillis = 10)
         val invitation = assertIs<PairingOutcome.Ready<DeviceAuthorization.Invitation>>(
             auth.inviteCatching("http://192.168.16.224:7777"),
         ).value
@@ -134,8 +134,10 @@ class PairingConfirmErrorTest {
     @Test
     fun theHappyPathStillDeliversAVerifiedCert() {
         val h = handshook()
-        assertIs<PairingOutcome.Ready<Unit>>(h.auth.authoriseCatching(h.invitation))
-        val token = assertIs<PairingOutcome.Ready<String>>(h.pairing.confirmCatching(h.handshake)).value
-        assertEquals(true, one.rarebit.voidbind.Cert.parse(token).verify(Ed25519Engine.verifier()))
+        val ops = assertIs<PairingOutcome.Ready<List<String>>>(h.auth.authoriseCatching(h.invitation)).value
+        assertEquals(1, ops.size, "genesis held no ops; after authorising it holds the one add")
+        val admission = assertIs<PairingOutcome.Ready<one.rarebit.voidbind.net.Admission>>(h.pairing.confirmCatching(h.handshake)).value
+        assertEquals(ops, admission.ops)
+        assertEquals(true, one.rarebit.voidbind.MembershipOp.verify(admission.op).genesis)
     }
 }

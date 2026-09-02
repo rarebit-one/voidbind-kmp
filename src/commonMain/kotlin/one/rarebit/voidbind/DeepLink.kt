@@ -9,7 +9,7 @@ import one.rarebit.voidbind.crypto.UrlQuery
  * RPs, the RP opens the authenticator by deep link and resumes when it finishes.
  *
  *     voidbind:login?rp=<origin>&id=<login-id>[&callback=<app-scheme-uri>]
- *     voidbind:pair?v=2&relay=&session=&salt=<hex>[&callback=<app-scheme-uri>]
+ *     voidbind:pair?v=3&relay=&session=&salt=<hex>&usr=<ed25519:hex>[&callback=<app-scheme-uri>]
  *
  * This is the EXACT QR tuple ([LoginQr] / [Invite] — the voidbind-go wire, which
  * stays byte-identical) plus one optional, authenticator-local `callback` key. The
@@ -52,7 +52,7 @@ object VoidbindDeepLink {
         /** A pairing-invite handoff — join as the new device against [invite]. */
         class Pair(val invite: Invite.Parsed, override val callback: String?) : Parsed() {
             /** The bare invite (no callback), byte-identical to the initiator's rendering. */
-            val tuple: String get() = Invite.encode(invite.relay, invite.session, invite.salt)
+            val tuple: String get() = Invite.encode(invite.relay, invite.session, invite.salt, invite.user)
         }
     }
 
@@ -82,7 +82,7 @@ object VoidbindDeepLink {
      */
     fun pairUri(inviteTuple: String, callback: String? = null): String {
         val inv = Invite.decode(inviteTuple)
-        return withCallback(Invite.encode(inv.relay, inv.session, inv.salt), callback)
+        return withCallback(Invite.encode(inv.relay, inv.session, inv.salt, inv.user), callback)
     }
 
     /**

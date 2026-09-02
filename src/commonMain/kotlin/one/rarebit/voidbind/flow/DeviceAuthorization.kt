@@ -1,37 +1,84 @@
 package one.rarebit.voidbind.flow
 
 import dev.whyoleg.cryptography.random.CryptographyRandom
+import one.rarebit.voidbind.DeviceIdentity
 import one.rarebit.voidbind.Enrolment
 import one.rarebit.voidbind.Invite
 import one.rarebit.voidbind.Pairing
 import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.net.HttpTransport
+import one.rarebit.voidbind.net.PairflowAuthority
 import one.rarebit.voidbind.net.PairflowInitiator
 import one.rarebit.voidbind.net.RelayClient
 
 /**
  * The **existing device authorising a new one**, as one app flow (the mirror of
- * [DevicePairing]): this device holds the user identity key. It opens a relay
- * session, shows the new device a `voidbind:pair?…` invite QR, runs the
- * commit-before-reveal handshake, displays the 7-digit SAS, and — only after the
- * human confirms both screens match — signs a device cert, seals it to the new
- * device's X25519 key, and posts it over the relay.
+ * [DevicePairing]). Under ADR-0005 / voidbind-go ADR-0007 this device is ANY
+ * member of the identity — it signs the new device's add op with its own hardware
+ * key, citing the heads of the membership ops it holds; no recovery secret is
+ * involved. (The genesis form — the recovery key itself — survives for the first
+ * device and for re-admitting a removed device, which only genesis can do.)
+ *
+ * It opens a relay session, shows the new device a `voidbind:pair?…` invite QR
+ * (v3, carrying the identity), runs the commit-before-reveal handshake, displays
+ * the 7-digit SAS, and — only after the human confirms both screens match — signs
+ * the add op, seals it with the ops to the new device's X25519 key, and posts it.
  *
  * Three steps around the human gate:
  *  1. [invite] opens the session + returns the [Invitation.inviteQr] to render.
  *  2. [handshake] runs once the new device joins → the SAS to compare.
- *  3. [authorise] (only after the human matches the SAS) signs + seals + delivers.
+ *  3. [authorise] (only after the human matches the SAS) signs + seals + delivers,
+ *     and returns the ops this device now holds (including the add it just signed)
+ *     for the app to record in its replica.
  *
  * Blocking (the relay is polled); run it off the main thread. [clock] supplies
- * unix seconds (`commonMain` has no clock) for the cert's issued-at.
+ * unix seconds (`commonMain` has no clock) for the op's issued-at.
  */
-class DeviceAuthorization(
+class DeviceAuthorization private constructor(
     private val http: HttpTransport,
-    private val identity: UserIdentity,
+    private val authority: () -> PairflowAuthority,
     private val clock: () -> Long,
-    private val certLifetimeSeconds: Long = Enrolment.DEFAULT_LIFETIME_SECONDS,
-    private val pollIntervalMillis: Long = 150,
+    private val pollIntervalMillis: Long,
 ) {
+    /**
+     * A MEMBER device authorising: [device] holds the hardware signing key and the
+     * encryption keys, [admittingOp] is its own admitting op (the cert/op it
+     * presents as its credential) and [knownOps] the membership replica it holds.
+     * Refuses (at [invite]) a device its own ops do not find a member.
+     */
+    constructor(
+        http: HttpTransport,
+        device: DeviceIdentity,
+        admittingOp: String,
+        knownOps: List<String>,
+        clock: () -> Long,
+        pollIntervalMillis: Long = 150,
+    ) : this(
+        http,
+        { PairflowAuthority.Device(device.asSigner(), device.signPublicKey, device.encPublicKey, admittingOp, knownOps) },
+        clock,
+        pollIntervalMillis,
+    )
+
+    /**
+     * GENESIS authorising: this device holds the user identity (the recovery
+     * secret's key). Used for the first device and for recovery re-adds; [knownOps]
+     * must include the remove being overridden for a re-add to be honoured.
+     */
+    constructor(
+        http: HttpTransport,
+        identity: UserIdentity,
+        clock: () -> Long,
+        certLifetimeSeconds: Long = Enrolment.DEFAULT_LIFETIME_SECONDS,
+        pollIntervalMillis: Long = 150,
+        knownOps: List<String> = emptyList(),
+    ) : this(
+        http,
+        { PairflowAuthority.Genesis(identity.signer(), identity.userPublicKey, knownOps, certLifetimeSeconds) },
+        clock,
+        pollIntervalMillis,
+    )
+
     /** An opened pairing session: the [inviteQr] to render + the state the later steps resume. */
     class Invitation internal constructor(
         val inviteQr: String,
@@ -39,7 +86,10 @@ class DeviceAuthorization(
         internal val initiator: PairflowInitiator,
         /** The relay this invitation lives on — named in a `*Catching` failure. */
         internal val relayBase: String = "",
-    )
+    ) {
+        /** The identity being enrolled into (`ed25519:<hex>`). */
+        val userId: String get() = initiator.userId
+    }
 
     /**
      * Open a relay session and render the invite QR. A fresh random [salt] is drawn
@@ -47,17 +97,14 @@ class DeviceAuthorization(
      */
     @Throws(Exception::class)
     fun invite(relayBase: String, salt: ByteArray = randomSalt()): Invitation {
+        val now = clock()
+        // Build the initiator FIRST: a member device that is not (any more) a member
+        // under its own ops is refused here, before a session is opened.
+        val auth = authority()
         val session = RelayClient.createSession(http, relayBase)
         val relay = RelayClient(http, relayBase, session, RelayClient.ROLE_INITIATOR, pollIntervalMillis)
-        val initiator = PairflowInitiator(
-            relay,
-            identity.userSeed,
-            identity.userPublicKey,
-            salt,
-            issuedAt = clock(),
-            lifetimeSeconds = certLifetimeSeconds,
-        )
-        return Invitation(Invite.encode(relayBase, session, salt), session, initiator, relayBase)
+        val initiator = PairflowInitiator(relay, auth, salt, now)
+        return Invitation(Invite.encode(relayBase, session, salt, initiator.userId), session, initiator, relayBase)
     }
 
     /**
@@ -79,18 +126,25 @@ class DeviceAuthorization(
 
     /**
      * Like [authorise], but a transport failure or relay refusal while delivering the
-     * sealed cert resolves to a [PairingOutcome.Failed] instead of throwing.
+     * sealed admission resolves to a [PairingOutcome.Failed] instead of throwing.
      */
-    fun authoriseCatching(invitation: Invitation): PairingOutcome<Unit> =
+    fun authoriseCatching(invitation: Invitation): PairingOutcome<List<String>> =
         PairingFailures.catching(invitation.relayBase) { authorise(invitation) }
 
     /** Run the handshake once the new device joins; return the SAS to compare. */
     @Throws(Exception::class)
     fun handshake(invitation: Invitation): String = invitation.initiator.handshake()
 
-    /** After the human confirms the SAS: sign, seal, and deliver the cert. */
+    /**
+     * After the human confirms the SAS: sign, seal, and deliver the add op. Returns
+     * the membership ops this device now holds — its replica plus the add it just
+     * signed — for the app to persist.
+     */
     @Throws(Exception::class)
-    fun authorise(invitation: Invitation) = invitation.initiator.authorise()
+    fun authorise(invitation: Invitation): List<String> {
+        invitation.initiator.authorise()
+        return invitation.initiator.ops
+    }
 
     private companion object {
         /** 32 bytes of salt — comfortably above [Pairing.MIN_SALT_LEN]. */

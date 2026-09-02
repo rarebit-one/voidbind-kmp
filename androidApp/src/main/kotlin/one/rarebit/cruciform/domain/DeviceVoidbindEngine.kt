@@ -270,7 +270,7 @@ class DeviceVoidbindEngine(
             val ks = withDeviceAuth { DeviceKeyStore.getOrCreate(deviceAlias) }
             val enc = existingEncKey() ?: DeviceIdentity.generateEncryptionKey()
             val device = DeviceIdentity(ks.publicKey().bytes, enc.publicKey, enc.privateKey) { ks.sign(it) }
-            val pairing = DevicePairing(transport, device)
+            val pairing = DevicePairing(transport, device, clock)
             // beginCatching turns the blocking relay handshake's every failure (no route,
             // refused, TLS, timeout, relay non-2xx, a commitment that does not open) into a
             // classified outcome instead of throwing — the SocketTimeoutException that
@@ -305,8 +305,10 @@ class DeviceVoidbindEngine(
                 return@engineCatching when (val outcome = join.pairing.confirmCatching(join.handshake)) {
                     is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
                     is PairingOutcome.Ready -> {
-                        val cert = outcome.value
-                        val userPub = Cert.parse(cert).cert.user.bytes
+                        // PR 3 persists the whole admission (op + ops); until then the
+                        // admitting op takes the cert slot — it IS the credential.
+                        val cert = outcome.value.op
+                        val userPub = one.rarebit.voidbind.MembershipOp.verify(cert).let { one.rarebit.voidbind.KeyRef.parse(it.user).bytes }
                         store.saveJoined(cert, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
                         pendingJoin = null
                         sessionUser = null // a joined device holds no user key

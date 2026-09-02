@@ -70,7 +70,11 @@ deliberate and load-bearing.
 - **Pairing** = short-authentication-string with **commit-before-reveal**: each
   side commits to its nonce (H(label ‖ role ‖ nonce)) before either nonce is
   revealed, so neither party can bias the final digits; both derive the SAS from a
-  bound transcript and humans compare it out-of-band.
+  bound transcript and humans compare it out-of-band. Under ADR-0005 the initiator
+  is ANY member device (`PairflowAuthority.Device`, or `Genesis` for the first
+  device / recovery): the invite is v3 (`usr`), the initiator's reveal carries its
+  `ops`, the responder EVALUATES them and refuses a non-member before any SAS
+  exists, and the sealed `cert` message carries the admission `{op, ops}`.
 
 ## The hardware keystore is the whole point
 

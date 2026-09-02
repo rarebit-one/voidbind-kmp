@@ -62,8 +62,17 @@ object WebLogin {
      * refuses the approval unless it equals the challenge's true match. Serialised as
      * `match_number`, omitted for a v1 approval (matches voidbind-go's
      * `Assertion.MatchNumber` with `omitempty`).
+     *
+     * [ops] are the membership ops the device knows (ADR-0005; at most
+     * [MAX_PRESENTED_OPS]), so an RP that has never met the member that admitted this
+     * device can evaluate the admission. Serialised as `ops`, omitted when empty; not
+     * part of the signed assertion because each op is signed on its own. [cert] is the
+     * device's ADMITTING op — a v3 add, or a v1/v2 cert, which is one.
      */
-    data class Assertion(val cert: String, val sig: String, val matchNumber: Int? = null)
+    data class Assertion(val cert: String, val sig: String, val matchNumber: Int? = null, val ops: List<String> = emptyList())
+
+    /** The most membership ops an RP accepts beside a credential (voidbind-go `rp.MaxPresentedOps`). */
+    const val MAX_PRESENTED_OPS = 64
 
     /**
      * The exact, domain-separated, 8-byte-big-endian length-framed preimage the
@@ -114,11 +123,12 @@ object WebLogin {
     fun signAssertion(
         challenge: Challenge,
         certToken: String,
+        ops: List<String> = emptyList(),
         sign: (ByteArray) -> ByteArray,
     ): Assertion {
         require(certToken.isNotEmpty()) { "weblogin: a device enrolment cert is required" }
         val sig = sign(signingBytes(challenge))
-        return Assertion(cert = certToken, sig = Base64Url.encode(sig))
+        return Assertion(cert = certToken, sig = Base64Url.encode(sig), ops = presentable(ops))
     }
 
     /**
@@ -134,12 +144,21 @@ object WebLogin {
         challenge: Challenge,
         chosen: Int,
         certToken: String,
+        ops: List<String> = emptyList(),
         sign: (ByteArray) -> ByteArray,
     ): Assertion {
         require(certToken.isNotEmpty()) { "weblogin: a device enrolment cert is required" }
         val sig = sign(signingBytesV2(challenge, chosen))
-        return Assertion(cert = certToken, sig = Base64Url.encode(sig), matchNumber = chosen)
+        return Assertion(cert = certToken, sig = Base64Url.encode(sig), matchNumber = chosen, ops = presentable(ops))
     }
+
+    /**
+     * The ops a device presents beside its credential: de-duplicated by hash, in hash
+     * order, capped at [MAX_PRESENTED_OPS] (an RP refuses more). A replica that has
+     * outgrown the cap presents its first 64 in hash order — deterministic, and the
+     * RP already holds what it has seen before.
+     */
+    fun presentable(ops: List<String>): List<String> = Membership.merge(ops).take(MAX_PRESENTED_OPS)
 
     /** 8-byte big-endian encoding of [v] (unsigned), matching Go's `binary.BigEndian`. */
     private fun be64(v: Long): ByteArray {
