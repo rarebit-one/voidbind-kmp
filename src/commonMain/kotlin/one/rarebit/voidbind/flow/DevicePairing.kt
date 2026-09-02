@@ -32,7 +32,40 @@ class DevicePairing(
     class Handshake internal constructor(
         val sas: String,
         internal val responder: PairflowResponder,
+        /** The relay this handshake ran over — named in a [confirmCatching] failure. */
+        internal val relayBase: String = "",
     )
+
+    /**
+     * Like [begin], but a transport failure (no route to the relay, refused, TLS, timeout,
+     * cleartext-blocked), a relay refusal, a peer that never joins, or a commitment that
+     * does not open resolves to a [PairingOutcome.Failed] the caller renders — it never
+     * throws. This is the boundary that keeps a blocking relay call from escaping a
+     * coroutine as an uncaught crash (the on-device `SocketTimeoutException` from
+     * [handshake][one.rarebit.voidbind.net.PairflowResponder.handshake]). A malformed
+     * invite string also resolves to a `Failed` (PROTOCOL). The throwing overloads
+     * remain for callers that already catch. Blocking; run off the main thread.
+     */
+    fun beginCatching(inviteQr: String): PairingOutcome<Handshake> {
+        val invite = try {
+            Invite.decode(inviteQr)
+        } catch (e: Throwable) {
+            return PairingFailures.classify(e, relayBase = "")
+        }
+        return beginCatching(invite)
+    }
+
+    /** [beginCatching] for an already-parsed invite (the Scan screen / deep-link path). */
+    fun beginCatching(invite: Invite.Parsed): PairingOutcome<Handshake> =
+        PairingFailures.catching(invite.relay) { begin(invite) }
+
+    /**
+     * Like [confirm], but a failed delivery (relay unreachable / refused / the initiator
+     * never posted the cert) or a cert that does not verify resolves to a
+     * [PairingOutcome.Failed] instead of throwing.
+     */
+    fun confirmCatching(handshake: Handshake): PairingOutcome<String> =
+        PairingFailures.catching(handshake.relayBase) { confirm(handshake) }
 
     /** Scan the invite QR, join the relay, run the handshake, return the SAS. */
     @Throws(Exception::class)
@@ -45,7 +78,7 @@ class DevicePairing(
             http, invite.relay, invite.session, RelayClient.ROLE_RESPONDER, pollIntervalMillis,
         )
         val responder = PairflowResponder(relay, device.signPublicKey, device.encPublicKey, invite.salt)
-        return Handshake(responder.handshake(), responder)
+        return Handshake(responder.handshake(), responder, invite.relay)
     }
 
     /**

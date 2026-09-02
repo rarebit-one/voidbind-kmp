@@ -162,6 +162,49 @@ sealed interface LoginRequestResult {
     data class Failed(val message: String, val expired: Boolean = false) : LoginRequestResult
 }
 
+/**
+ * A user-facing failure from an engine step that touches the network or the hardware
+ * gate. [message] is already human-readable and says what to do ("Can't reach the relay
+ * at <host>. Check Wi-Fi or your VPN and try again.") — never raw exception text.
+ * [retryable] tells the UI whether a Retry that re-runs the SAME step (re-join the same
+ * invite, re-mint the invite, re-confirm) can plausibly succeed; a protocol failure or
+ * a cancelled biometric prompt is not retried against the same session.
+ */
+data class EngineFailure(
+    val message: String,
+    val kind: Kind,
+    val retryable: Boolean = kind == Kind.UNREACHABLE || kind == Kind.REJECTED,
+) {
+    enum class Kind {
+        /** No route to the relay / RP (Wi-Fi, VPN, DNS, TLS, timeout). Retry when the network is back. */
+        UNREACHABLE,
+        /** The peer never showed up: the invite expired unjoined. Retry = a fresh invite. */
+        TIMEOUT,
+        /** The relay was reached but refused (stale / used session, server error). */
+        REJECTED,
+        /** The bytes did not verify — do not retry the same session. */
+        PROTOCOL,
+        /** The human cancelled the biometric prompt. */
+        CANCELLED,
+        /** Anything else (a bug, a missing precondition such as no identity). */
+        INTERNAL,
+    }
+}
+
+/**
+ * The result of an engine step that MUST NOT throw for a transport/hardware failure:
+ * every pairing entry point returns one, so a blocking relay call that blows up inside
+ * `withContext(Dispatchers.IO)` is turned into a value on the IO thread — it never
+ * escapes the coroutine. (A call-site `runCatching` is not enough: when the calling
+ * coroutine has already been cancelled, an exception thrown later by the blocking call
+ * has no caller to deliver to and reaches the uncaught handler as a main-thread FATAL,
+ * which is exactly the crash seen on-device.)
+ */
+sealed interface EngineResult<out T> {
+    data class Ready<T>(val value: T) : EngineResult<T>
+    data class Failed(val failure: EngineFailure) : EngineResult<Nothing>
+}
+
 /** SAS-compare state for the pair VERIFY step. */
 data class PairSession(
     val thisDeviceName: String,

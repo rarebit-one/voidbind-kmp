@@ -31,7 +31,7 @@ class RelayClient(
         /** Ask the relay to open a session and return its id. */
         fun createSession(http: HttpTransport, base: String): String {
             val resp = http.post(trimr(base) + "/v1/sessions")
-            require(resp.status == 200) { "relay: create session: HTTP ${resp.status}" }
+            if (resp.status != 200) throw RelayHttpException(resp.status, "create session")
             val id = MiniJson.parseObject(resp.body.decodeToString())["session_id"] as? String
             require(!id.isNullOrEmpty()) { "relay: empty session id" }
             return id
@@ -48,7 +48,7 @@ class RelayClient(
     /** Write this role's [type] slot (write-once at the relay). */
     fun post(type: String, payload: ByteArray) {
         val resp = http.put(slotUrl(role, type), payload, "application/octet-stream")
-        require(resp.status == 204) { "relay: post $role/$type: HTTP ${resp.status}" }
+        if (resp.status != 204) throw RelayHttpException(resp.status, "post $role/$type")
     }
 
     /** Poll the PEER role's [type] slot until present, returning its bytes. */
@@ -64,7 +64,7 @@ class RelayClient(
                     http.sleep(pollIntervalMillis)
                     waited += pollIntervalMillis
                 }
-                else -> throw IllegalStateException("relay: fetch $p/$type: HTTP ${resp.status}")
+                else -> throw RelayHttpException(resp.status, "fetch $p/$type")
             }
         }
     }
@@ -72,3 +72,12 @@ class RelayClient(
 
 /** Thrown when [RelayClient.fetch] gives up waiting for a peer slot. */
 class RelayTimeout(message: String) : RuntimeException(message)
+
+/**
+ * The relay was REACHED but answered a non-success [status] for [op] — a stale or
+ * already-used session (404 / 409 on a write-once slot), or a server error. Typed,
+ * like [WebLoginHttpException], so a flow can classify "reached but refused" apart
+ * from "unreachable" (which arrives as whatever the transport throws).
+ */
+class RelayHttpException(val status: Int, val op: String) :
+    RuntimeException("relay: $op: HTTP $status")

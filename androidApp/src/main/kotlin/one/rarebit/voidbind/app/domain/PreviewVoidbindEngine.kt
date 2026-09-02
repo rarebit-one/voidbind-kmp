@@ -77,22 +77,33 @@ class PreviewVoidbindEngine(
 
     override suspend fun unregisterFromPush() { delay(150) }
 
-    override suspend fun startPairInvite(): PairInviteDisplay {
+    override suspend fun startPairInvite(): EngineResult<PairInviteDisplay> {
         delay(200)
-        return SampleData.pairInvite
+        return EngineResult.Ready(SampleData.pairInvite)
     }
 
-    override suspend fun awaitPairHandshake(): PairSession {
+    override suspend fun awaitPairHandshake(): EngineResult<PairSession> {
         delay(1500) // stand in for the new device joining the relay + handshake
-        return SampleData.pairSession
+        return EngineResult.Ready(SampleData.pairSession)
     }
 
-    override suspend fun joinPairInvite(code: ScannedCode.PairInvite): PairSession {
+    override suspend fun joinPairInvite(code: ScannedCode.PairInvite): EngineResult<PairSession> {
         delay(500)
-        return SampleData.pairSession
+        // The preview never touches a network; an invite naming an unreachable-looking
+        // relay renders the same error the device engine would, so the dialog is
+        // reviewable without hardware.
+        if (code.relay.contains("unreachable")) {
+            return EngineResult.Failed(
+                EngineFailure(
+                    "Can't reach the relay at ${code.relay.substringAfter("://").substringBefore("/")}. Check Wi-Fi or your VPN and try again.",
+                    EngineFailure.Kind.UNREACHABLE,
+                ),
+            )
+        }
+        return EngineResult.Ready(SampleData.pairSession)
     }
 
-    override suspend fun confirmPairing() { delay(600) }
+    override suspend fun confirmPairing(): EngineResult<Unit> { delay(600); return EngineResult.Ready(Unit) }
 
     override suspend fun renameDevice(name: String) {
         _identity.update { s ->

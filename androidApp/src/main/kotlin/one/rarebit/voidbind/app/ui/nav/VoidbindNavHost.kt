@@ -28,6 +28,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import one.rarebit.voidbind.app.AppViewModel
+import one.rarebit.voidbind.app.domain.EngineFailure
+import one.rarebit.voidbind.app.domain.EngineResult
 import one.rarebit.voidbind.app.domain.IdentityState
 import one.rarebit.voidbind.app.domain.LoginRequest
 import one.rarebit.voidbind.app.domain.LoginRequestResult
@@ -73,6 +75,13 @@ object Routes {
 private data class LoginErrorState(val message: String, val expired: Boolean = false)
 
 /**
+ * A pairing (or other engine) failure to show as a dismissible dialog. [retry], when
+ * present, re-runs the SAME step (re-join the same invite, re-mint the invite,
+ * re-confirm) — the engine returns these as values, so nothing here ever throws.
+ */
+private data class EngineErrorState(val failure: EngineFailure, val retry: (() -> Unit)? = null)
+
+/**
  * [handoff] is a login/pairing the activity was woken into from outside (a push ping
  * or another app's `voidbind:` deep link); the graph runs the SAME approval flow a
  * scan does and reports the decision through [onHandoffFinished] — which, for a
@@ -101,6 +110,11 @@ fun VoidbindNavHost(
     // A failed login-challenge fetch (unreachable/misconfigured RP, TLS, timeout, non-2xx,
     // cleartext-blocked) surfaces here as a dismissible error instead of crashing the app.
     var loginError by remember { mutableStateOf<LoginErrorState?>(null) }
+    // A failed pairing step (no route to the relay, relay refused, invite expired unjoined,
+    // a handshake that did not verify, a cancelled biometric prompt) surfaces here as a
+    // dismissible error WITH a Retry, instead of crashing the app. Every engine pairing
+    // entry point returns an EngineResult; this is where a Failed lands.
+    var engineError by remember { mutableStateOf<EngineErrorState?>(null) }
     var pairSession by remember { mutableStateOf<PairSession?>(null) }
     var pairInvite by remember { mutableStateOf<PairInviteDisplay?>(null) }
     var revealBackup by remember { mutableStateOf<RecoveryBackup?>(null) }
@@ -146,6 +160,47 @@ fun VoidbindNavHost(
         if (h == null || !h.returnsToCaller) goHome()
     }
 
+    /**
+     * Join a pairing invite as the new device and go to VERIFY — the one path a scan, a
+     * deep link and the error dialog's Retry all share, so Retry re-joins the SAME
+     * invite. [beforeVerify] tailors the navigation (a scan pops the scanner first).
+     */
+    fun joinInvite(code: ScannedCode.PairInvite, beforeVerify: () -> Unit = {}) {
+        scope.launch {
+            // joinPairInvite never throws for a transport failure (it resolves to Failed on the
+            // IO thread); the runCatching is a final guard for anything unexpected.
+            val result = runCatching { engine.joinPairInvite(code) }.getOrElse { EngineResult.Failed(unexpected(it)) }
+            when (result) {
+                is EngineResult.Ready -> {
+                    pairSession = result.value
+                    beforeVerify()
+                    nav.navigate(Routes.PAIR_VERIFY)
+                }
+                is EngineResult.Failed -> engineError = EngineErrorState(
+                    result.failure,
+                    retry = if (result.failure.retryable) ({ joinInvite(code, beforeVerify) }) else null,
+                )
+            }
+        }
+    }
+
+    /** Mint a pairing invite as the existing device and show it; Retry re-mints. */
+    fun startInvite() {
+        scope.launch {
+            val result = runCatching { engine.startPairInvite() }.getOrElse { EngineResult.Failed(unexpected(it)) }
+            when (result) {
+                is EngineResult.Ready -> {
+                    pairInvite = result.value
+                    if (route != Routes.PAIR_CONNECT) nav.navigate(Routes.PAIR_CONNECT)
+                }
+                is EngineResult.Failed -> engineError = EngineErrorState(
+                    result.failure,
+                    retry = if (result.failure.retryable) ({ startInvite() }) else null,
+                )
+            }
+        }
+    }
+
     // A wake from outside — a push ping, or another app's `voidbind:` deep link (the
     // same-device handoff). The tuple is the bare QR string, so this is EXACTLY the scan
     // path: fetch the request from the RP (the origin is shown, nothing auto-approves)
@@ -168,15 +223,9 @@ fun VoidbindNavHost(
                     null -> loginError = LoginErrorState("Couldn't reach the site.")
                 }
             }
-            is ScannedCode.PairInvite -> {
-                when (val session = runCatching { engine.joinPairInvite(code) }.getOrNull()) {
-                    null -> loginError = LoginErrorState("Couldn't join the pairing invite.")
-                    else -> {
-                        pairSession = session
-                        nav.navigate(Routes.PAIR_VERIFY)
-                    }
-                }
-            }
+            // The pairing deep link (#27) joins as the new device. Failure — the phone has
+            // no route to the relay, most likely — is a dialog with Retry, never a crash.
+            is ScannedCode.PairInvite -> joinInvite(code)
             is ScannedCode.Unknown -> loginError = LoginErrorState("Not a Voidbind code.")
         }
     }
@@ -198,6 +247,31 @@ fun VoidbindNavHost(
             confirmButton = { TextButton(onClick = dismiss) { Text("OK") } },
             title = { Text(if (error.expired) "Expired" else "Sign-in unavailable") },
             text = { Text(error.message) },
+        )
+    }
+
+    // A pairing-step failure: titled by kind, with a Retry that re-runs the same step
+    // when that can help (unreachable relay → once Wi-Fi/VPN is back; expired invite →
+    // a fresh one). Cancelling during a deep-link handoff returns to the caller.
+    engineError?.let { error ->
+        val dismiss = {
+            engineError = null
+            val h = activeHandoff
+            if (h != null && h.returnsToCaller) decided(false)
+        }
+        val retry = error.retry
+        AlertDialog(
+            onDismissRequest = dismiss,
+            confirmButton = {
+                if (retry != null) {
+                    TextButton(onClick = { engineError = null; retry() }) { Text("Retry") }
+                } else {
+                    TextButton(onClick = dismiss) { Text("OK") }
+                }
+            },
+            dismissButton = if (retry != null) ({ TextButton(onClick = dismiss) { Text("Cancel") } }) else null,
+            title = { Text(titleFor(error.failure.kind)) },
+            text = { Text(error.failure.message) },
         )
     }
 
@@ -229,7 +303,16 @@ fun VoidbindNavHost(
 
             composable(Routes.CREATE) {
                 var backup by remember { mutableStateOf<RecoveryBackup?>(null) }
-                LaunchedEffect(Unit) { backup = engine.createIdentity() }
+                // Biometric-gated: a cancelled prompt or a keystore error must not escape the
+                // effect as a crash — surface it and return to onboarding.
+                LaunchedEffect(Unit) {
+                    runCatching { engine.createIdentity() }
+                        .onSuccess { backup = it }
+                        .onFailure {
+                            engineError = EngineErrorState(unexpected(it, "Couldn't create the identity."))
+                            nav.popBackStack()
+                        }
+                }
                 val b = backup
                 if (b == null) {
                     Loading()
@@ -263,12 +346,7 @@ fun VoidbindNavHost(
                         trustedSites = active.trustedSites,
                         onSettings = { nav.navigate(Routes.SETTINGS) },
                         onCopyIdentity = { clipboard.setText(AnnotatedString(active.identity.fullKey)) },
-                        onDevice = {
-                            scope.launch {
-                                pairInvite = engine.startPairInvite()
-                                nav.navigate(Routes.PAIR_CONNECT)
-                            }
-                        },
+                        onDevice = { startInvite() },
                         onSite = { /* site detail — later */ },
                     )
                 }
@@ -285,8 +363,10 @@ fun VoidbindNavHost(
                         onManageSites = { /* full list — later */ },
                         onRecoveryBackup = {
                             scope.launch {
-                                revealBackup = engine.revealRecoverySecret()
-                                nav.navigate(Routes.RECOVERY)
+                                // Biometric-gated; a cancelled prompt is an error, not a crash.
+                                runCatching { engine.revealRecoverySecret() }
+                                    .onSuccess { revealBackup = it; nav.navigate(Routes.RECOVERY) }
+                                    .onFailure { engineError = EngineErrorState(unexpected(it, "Couldn't show the recovery secret.")) }
                             }
                         },
                         onApprovalActivity = {
@@ -328,10 +408,9 @@ fun VoidbindNavHost(
                                     }
                                 }
                             }
-                            is ScannedCode.PairInvite -> scope.launch {
-                                pairSession = engine.joinPairInvite(c)
-                                nav.navigate(Routes.PAIR_VERIFY) { popUpTo(Routes.SCAN) { inclusive = true } }
-                            }
+                            // Join as the new device; on failure the scanner stays up under the
+                            // error dialog so Retry re-joins the same invite without rescanning.
+                            is ScannedCode.PairInvite -> joinInvite(c, beforeVerify = { nav.popBackStack() })
                             is ScannedCode.Unknown -> { /* not a Voidbind code — surfaced later */ }
                         }
                     },
@@ -408,14 +487,21 @@ fun VoidbindNavHost(
                     // derived, advance to VERIFY; a timeout/expiry returns home. The
                     // effect is cancelled if the user leaves this screen first.
                     LaunchedEffect(inv) {
-                        runCatching { engine.awaitPairHandshake() }
-                            .onSuccess { session ->
-                                pairSession = session
+                        val result = runCatching { engine.awaitPairHandshake() }.getOrElse { EngineResult.Failed(unexpected(it)) }
+                        when (result) {
+                            is EngineResult.Ready -> {
+                                pairSession = result.value
                                 nav.navigate(Routes.PAIR_VERIFY) {
                                     popUpTo(Routes.PAIR_CONNECT) { inclusive = true }
                                 }
                             }
-                            .onFailure { if (route == Routes.PAIR_CONNECT) goHome() }
+                            // The relay dropped, or nobody joined before the invite expired: say
+                            // so, and let Retry mint a fresh invite (the old session is spent).
+                            is EngineResult.Failed -> engineError = EngineErrorState(
+                                result.failure,
+                                retry = if (result.failure.retryable) ({ startInvite() }) else null,
+                            )
+                        }
                     }
                     PairConnectScreen(
                         invite = inv,
@@ -434,14 +520,26 @@ fun VoidbindNavHost(
                         session = ses,
                         onCancel = { decided(false) },
                         onConfirm = {
-                            scope.launch {
-                                val ok = runCatching { engine.confirmPairing() }
-                                    .onFailure { loginError = LoginErrorState("Couldn't complete the pairing.") }
-                                    .isSuccess
-                                // A failed approval during a deep-link handoff keeps the error on
-                                // screen; dismissing it returns to the caller.
-                                if (ok || activeHandoff?.returnsToCaller != true) decided(ok)
+                            // confirmPairing returns a value for every failure (relay dropped while
+                            // the cert was in flight, cert did not verify, biometric cancelled).
+                            fun confirm() {
+                                scope.launch {
+                                    val result = runCatching { engine.confirmPairing() }.getOrElse { EngineResult.Failed(unexpected(it)) }
+                                    when (result) {
+                                        is EngineResult.Ready -> decided(true)
+                                        is EngineResult.Failed -> {
+                                            // The error stays on screen (a deep-link caller is told
+                                            // "not approved" only when the human dismisses it).
+                                            engineError = EngineErrorState(
+                                                result.failure,
+                                                retry = if (result.failure.retryable) ({ confirm() }) else null,
+                                            )
+                                            if (activeHandoff?.returnsToCaller != true && !result.failure.retryable) decided(false)
+                                        }
+                                    }
+                                }
                             }
+                            confirm()
                         },
                     )
                 }
@@ -470,6 +568,27 @@ fun VoidbindNavHost(
         }
     }
 }
+
+/** Dialog title per failure kind — the message itself already says what to do. */
+private fun titleFor(kind: EngineFailure.Kind): String = when (kind) {
+    EngineFailure.Kind.UNREACHABLE -> "Can't reach the relay"
+    EngineFailure.Kind.TIMEOUT -> "Pairing timed out"
+    EngineFailure.Kind.REJECTED -> "Pairing refused"
+    EngineFailure.Kind.PROTOCOL -> "Pairing didn't verify"
+    EngineFailure.Kind.CANCELLED -> "Cancelled"
+    EngineFailure.Kind.INTERNAL -> "Something went wrong"
+}
+
+/**
+ * The final guard's failure for a throw the engine did not classify (it should not
+ * happen — every engine pairing step returns a value). Never shows raw exception text.
+ */
+private fun unexpected(t: Throwable, message: String = "Couldn't complete the pairing."): EngineFailure =
+    EngineFailure(
+        message = if (t is IllegalArgumentException || t is IllegalStateException) t.message ?: message else message,
+        kind = EngineFailure.Kind.INTERNAL,
+        retryable = false,
+    )
 
 @Composable
 private fun Loading() {
