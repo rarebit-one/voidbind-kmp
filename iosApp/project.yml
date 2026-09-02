@@ -1,4 +1,4 @@
-name: Voidbind
+name: Cruciform
 options:
   bundleIdPrefix: one.rarebit
   deploymentTarget:
@@ -8,24 +8,26 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.3.0"
     CURRENT_PROJECT_VERSION: "1"
     # No code signing needed for a Simulator build; a real device build sets a team.
     CODE_SIGNING_ALLOWED: "NO"
     CODE_SIGNING_REQUIRED: "NO"
 
 targets:
-  Voidbind:
+  # The authenticator app is named Cruciform (ADR-0004); the KMP framework it links
+  # stays `Voidbind` (the protocol). Sources still live under the `Voidbind/` folder.
+  Cruciform:
     type: application
     platform: iOS
     sources:
       - path: Voidbind
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: one.rarebit.voidbind
-        # The KMP framework's module is also 'Voidbind'; give the app a distinct
-        # Swift module name so `import Voidbind` resolves to the framework, not itself.
-        PRODUCT_MODULE_NAME: VoidbindApp
+        PRODUCT_BUNDLE_IDENTIFIER: one.rarebit.cruciform
+        # The KMP framework's module is 'Voidbind'; the app's own Swift module name is
+        # distinct so `import Voidbind` resolves to the framework, not itself.
+        PRODUCT_MODULE_NAME: CruciformApp
         INFOPLIST_FILE: Voidbind/Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

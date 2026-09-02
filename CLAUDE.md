@@ -16,6 +16,16 @@ two sides:
   key in **hardware** (Secure Enclave / StrongBox) and speak the same wire format
   as voidbind-go.
 
+## Naming: Voidbind is the protocol, Cruciform is the app
+
+**Voidbind** names the protocol / security model and everything on the wire (the
+`voidbind:` scheme, `one.rarebit.voidbind:voidbind-client`, the library package,
+the ADR terminology). **Cruciform** names the first-party authenticator app
+(`androidApp/`, package + applicationId `one.rarebit.cruciform`; the iOS scaffold
+target) — see ADR-0004. Do not rename protocol identifiers to Cruciform, and do not
+brand the app "Voidbind" again; a small "Voidbind protocol" attribution where the
+security posture is explained is the intended overlap.
+
 ## The single most important rule: mirror voidbind-go exactly
 
 Every value that crosses the wire must be **byte-identical** to what voidbind-go

@@ -1,8 +1,10 @@
-# androidApp — the Voidbind Android authenticator
+# androidApp — **Cruciform**, the Android authenticator
 
-The first-party Android app: a Jetpack Compose, Material 3, **dark-first**
-authenticator that drives the real Voidbind flows with a hardware-backed device
-key. It is a separate Gradle application module that depends on the root KMP
+The first-party Android app, **Cruciform** (`one.rarebit.cruciform`; the Hyperion
+Cantos artefact that lets you come back with your identity intact — ADR-0004): a
+Jetpack Compose, Material 3, **dark-first** authenticator that drives the real
+**Voidbind** protocol flows with a hardware-backed device key. Voidbind names the
+protocol and the `voidbind:` scheme; Cruciform names this app. It is a separate Gradle application module that depends on the root KMP
 library (`project(":")`) — the shared wire contract, the flow coordinators, and
 the hardware `DeviceKeyStore`.
 
@@ -40,7 +42,7 @@ launched bare only after a successful approval. Routing lives in `handoff/`
   coral = destructive), typography (a monospace face for every load-bearing crypto
   string), and the dark Material 3 scheme.
 - **`ui/components`**, **`ui/screens`**, **`ui/nav`** — the reusable pieces, the
-  screens, and the `VoidbindNavHost` that wires them with a bottom bar.
+  screens, and the `CruciformNavHost` that wires them with a bottom bar.
 - **`ui/scan`** — the CameraX + ML Kit QR reader (`QrScanner`).
 
 ### Two engines
@@ -77,6 +79,20 @@ The engine is chosen at **build time** — no source edit:
 ```
 
 `local.properties` must point `sdk.dir` at your Android SDK (gitignored).
+
+### Installing over the old `one.rarebit.voidbind` package
+
+Cruciform is a **different app** to Android from the pre-0.3.0 `one.rarebit.voidbind`
+build: its keystore key and identity prefs are not carried over. Install the new
+package, enrol (create / restore / pair), and only then uninstall the old one so a
+single authenticator claims the `voidbind:` scheme:
+
+```sh
+./gradlew -PdeviceEngine=true :androidApp:assembleDebug
+adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk   # one.rarebit.cruciform
+# … launch Cruciform, enrol …
+adb uninstall one.rarebit.voidbind                                          # LAST
+```
 
 ## Acceptance is device-tested, not CI
 

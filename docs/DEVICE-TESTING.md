@@ -118,9 +118,13 @@ authenticator shows the normal approval sheet and finishes back to the caller (A
 Simulate the RP with `adb` against a live node:
 
 ```sh
-# build + install the REAL engine (the phone must already hold an enrolled identity)
+# build + install the REAL engine (the phone must already hold an enrolled identity).
+# The app is Cruciform, package one.rarebit.cruciform (ADR-0004); if a pre-0.3.0
+# one.rarebit.voidbind install is still present, uninstall it LAST — after the new
+# app launches and is enrolled — so only one authenticator claims the voidbind: scheme.
 ./gradlew -PdeviceEngine=true :androidApp:assembleDebug
 adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
+# adb uninstall one.rarebit.voidbind   # old package, only once Cruciform is enrolled
 
 # mint a login on the RP (a heyarr dev node on the LAN), then hand it to the authenticator
 ID=$(curl -s -X POST http://192.168.16.224:7777/login | sed -E 's/.*"id":"([^"]+)".*/\1/')

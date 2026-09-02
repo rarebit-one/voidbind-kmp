@@ -3,7 +3,10 @@
 **Status:** Accepted
 **Date:** 2026-09-02
 **Relates to:** ADR-0002 (per-RP approval policy), voidbind-go `weblogin` (the tuple wire), the
-consumption-clients plan (`voidbind-client-apps-and-push.md`: ONE authenticator, N relying parties)
+consumption-clients plan (`voidbind-client-apps-and-push.md`: ONE authenticator, N relying parties).
+*Naming note (ADR-0004):* "the authenticator" below is the app now named **Cruciform**
+(`one.rarebit.cruciform`); "Voidbind" names the protocol and the `voidbind:` scheme, which is
+what relying parties resolve — the package name is not part of the contract.
 
 ## Context
 
