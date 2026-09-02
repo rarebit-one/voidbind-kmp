@@ -42,6 +42,25 @@ data class DeviceInfo(
     val hardwareBacked: Boolean get() = backing != HardwareBacking.SOFTWARE
 }
 
+/**
+ * One member of the identity's device set, as the Devices screen shows it — the
+ * evaluated membership (`Membership.evaluate`, ADR-0005) projected to display fields.
+ */
+data class MemberDevice(
+    /** The device signing key, `ed25519:<hex>` — what a remove op names. */
+    val id: String,
+    /** Short fingerprint, e.g. `A29F 67B1`. */
+    val fingerprint: String,
+    /** True for the device this app runs on (shown, but removed via a different path). */
+    val isThisDevice: Boolean,
+    /** Who admitted it: "genesis (recovery key)" or the admitting device's short fingerprint. */
+    val admittedByLabel: String,
+    /** Already-formatted admitted-at, e.g. "2 Sep 2026". */
+    val admittedLabel: String,
+    /** Already-formatted expiry, e.g. "renews by 1 Dec 2026". */
+    val expiresLabel: String,
+)
+
 /** A relying party this identity has enrolled with. */
 data class TrustedSite(
     val id: String,

@@ -121,6 +121,23 @@ interface VoidbindEngine {
     /** After the human confirms the SAS matches: authorise/receive the sealed cert. */
     suspend fun confirmPairing(): EngineResult<Unit>
 
+    // --- Devices (membership, ADR-0005) ---------------------------------------
+
+    /**
+     * The identity's current device set as this device evaluates it from the ops it
+     * knows (its replica) — including itself. Empty when there is no identity.
+     */
+    suspend fun devices(): List<MemberDevice>
+
+    /**
+     * Remove [deviceId] from the identity: biometric-gated, signs a `remove` op with
+     * THIS device's hardware key (citing its heads), records it in the replica, and
+     * pushes the ops to the relying parties this app knows (`POST /membership/{usr}`,
+     * best-effort — an RP that does not serve the route yet is tolerated). Refuses
+     * to remove this device itself. Never throws for a transport failure.
+     */
+    suspend fun removeDevice(deviceId: String): EngineResult<Unit>
+
     // --- Settings actions -----------------------------------------------------
 
     suspend fun renameDevice(name: String)

@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.History
@@ -63,6 +64,7 @@ fun SettingsScreen(
     onManageSites: () -> Unit,
     onRecoveryBackup: () -> Unit,
     onApprovalActivity: () -> Unit,
+    onDevices: () -> Unit,
     onAbout: () -> Unit,
     onSecurity: () -> Unit,
     onLicenses: () -> Unit,
@@ -103,6 +105,14 @@ fun SettingsScreen(
                     trailing = {
                         IconButton(onClick = onRename) { Icon(Icons.Rounded.Edit, contentDescription = "Rename", tint = VbColors.TextSecondary) }
                     },
+                )
+                VbHairline(Modifier.padding(horizontal = 16.dp))
+                RowItem(
+                    title = "Devices",
+                    subtitle = "Every member of this identity · add or remove",
+                    onClick = onDevices,
+                    leading = { IconCircle(Icons.Rounded.Devices, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) },
+                    trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
                 )
                 VbHairline(Modifier.padding(horizontal = 16.dp))
                 Row(
