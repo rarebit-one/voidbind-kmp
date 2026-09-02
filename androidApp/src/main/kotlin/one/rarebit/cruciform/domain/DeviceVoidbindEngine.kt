@@ -32,6 +32,7 @@ import one.rarebit.voidbind.net.NotifyClient
 import one.rarebit.voidbind.policy.ApprovalPolicy
 import one.rarebit.voidbind.policy.ApprovalPolicyManager
 import one.rarebit.voidbind.crypto.MiniJson
+import java.io.InterruptedIOException
 import java.net.URI
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -273,7 +274,7 @@ class DeviceVoidbindEngine(
                         PairInviteDisplay(
                             inviteId = "INV · ${invitation.relaySession.uppercase().take(8).chunked(4).joinToString(" ")}",
                             qrPayload = invitation.inviteQr,
-                            expiresInSeconds = 300,
+                            expiresInSeconds = INVITE_TTL_SECONDS,
                         ),
                     )
                 }
@@ -388,6 +389,13 @@ class DeviceVoidbindEngine(
         // check()/error() in this engine: "Only the device that created the identity can
         // add new devices", "no identity" — a precondition, not a network problem.
         EngineResult.Failed(EngineFailure(e.message ?: "Couldn't start the pairing.", EngineFailure.Kind.INTERNAL, retryable = false))
+    } catch (e: InterruptedIOException) {
+        // The blocking relay call was interrupted (the thread, not the network): this is
+        // NOT "can't reach the relay" — the relay never answered badly. Distinct kind so
+        // the dialog doesn't send the user to check Wi-Fi.
+        EngineResult.Failed(EngineFailure("The pairing was interrupted. Start again with a fresh invite.", EngineFailure.Kind.CANCELLED, retryable = true))
+    } catch (e: InterruptedException) {
+        EngineResult.Failed(EngineFailure("The pairing was interrupted. Start again with a fresh invite.", EngineFailure.Kind.CANCELLED, retryable = true))
     } catch (e: Throwable) {
         EngineResult.Failed(PairingFailures.classify(e, relayBase).toEngineFailure())
     }
@@ -608,12 +616,12 @@ class DeviceVoidbindEngine(
         val usr = KeyRef.ed25519(persisted.userPublicKey).render()
         val view = Membership.evaluate(usr, persisted.ops, clock())
         if (view.isMember(device.deviceId.render())) {
-            return DeviceAuthorization(transport, device, persisted.enrolmentCert, persisted.ops, clock)
+            return DeviceAuthorization(transport, device, persisted.enrolmentCert, persisted.ops, clock, maxWaitMillis = INVITE_TTL_SECONDS * 1000L)
         }
         check(store.hasUserKey()) {
             "This device is no longer a member of the identity, so it can't add devices. Re-admit it from another device, or restore from the recovery secret."
         }
-        return DeviceAuthorization(transport, requireUser(), clock, knownOps = persisted.ops)
+        return DeviceAuthorization(transport, requireUser(), clock, knownOps = persisted.ops, maxWaitMillis = INVITE_TTL_SECONDS * 1000L)
     }
 
     private fun requireUser(): UserIdentity = sessionUser ?: run {
@@ -658,6 +666,16 @@ class DeviceVoidbindEngine(
     }
 
     companion object {
+        /**
+         * How long a minted invite waits for the new device, and the initiator's relay
+         * poll bound: the relay's session TTL (voidbind-go `relay.DefaultSessionTTL`,
+         * 10 min on the heyarr node). The new device may have to be created first — a
+         * key behind a fingerprint in another app — so the wait is human-paced, not
+         * transport-paced (the library default of 60 s stranded every same-phone
+         * enrolment: the initiator gave up before the responder posted its commit).
+         */
+        const val INVITE_TTL_SECONDS = 600
+
         /**
          * The default pairing relay when Settings holds no override — the heyarr node's
          * `/pair` mount on the Bartley Ridge LAN. `https://relay.thesim.family` is the

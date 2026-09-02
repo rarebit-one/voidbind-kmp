@@ -20,8 +20,8 @@ android {
         // BiometricPrompt/CryptoObject API and a provider that carries Ed25519.
         minSdk = 33
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.5.3"
+        versionCode = 9
+        versionName = "0.6.0"
 
         // Engine selection at BUILD time, no source edit: `-PdeviceEngine=true` (or
         // `deviceEngine=true` in gradle.properties) selects the real hardware-backed
@@ -95,6 +95,8 @@ dependencies {
     // Pure-JVM unit tests (deep-link routing); no Android runtime needed.
     testImplementation("junit:junit:4.13.2")
     testImplementation(kotlin("test"))
+    // The invite state machine (pairing/InviteCoordinator) is driven on a test dispatcher.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
 
 // RpPairManifestQueriesTest reads the manifest at runtime; make it a task input so an

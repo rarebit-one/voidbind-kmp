@@ -6,6 +6,13 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The invite keep-alive (ADR-0007): a dataSync foreground service holds the process
+         while a minted invite waits on the relay for the new device (the user is in the
+         relying-party app creating its key). POST_NOTIFICATIONS is for its "Waiting for the
+         new device to join…" notification; the service runs even when it is not granted. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Package visibility (Android 11+) for the REVERSE same-device handoff
          (ADR-0006): after "Add a device" mints an invite, the Connect screen offers
@@ -64,6 +71,12 @@
                 <data android:scheme="voidbind" />
             </intent-filter>
         </activity>
+
+        <!-- Holds the process while an invite waits for the new device (ADR-0007). -->
+        <service
+            android:name=".pairing.PairInviteService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <!-- Self-hosted ntfy / UnifiedPush wake receiver — Voidbind's ONLY background
              push path (no FCM/Google). A UnifiedPush distributor broadcasts these
