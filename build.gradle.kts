@@ -19,8 +19,12 @@ group = "one.rarebit.voidbind"
 // `one.rarebit.voidbind:voidbind-client`. 0.2.0 adds `VoidbindDeepLink` (the
 // same-device app-to-app handoff URI, ADR-0003). 0.2.1 adds the non-throwing
 // `*Catching` pairing steps + `PairingOutcome` (a relay you cannot reach is an
-// error the UI renders, not a crash) and the typed `RelayHttpException`.
-version = "0.2.1"
+// error the UI renders, not a crash) and the typed `RelayHttpException`. 0.4.0 adds
+// `auth/` — the Device-scheme possession proof (`PossessionProof`), the
+// `Authorization: Device <cert>~<proof>` credential with its reuse window
+// (`DeviceCredential`) and the transport-agnostic re-mint-and-retry-once policy
+// (`DeviceAuthPolicy`), so every relying-party app shares ONE implementation.
+version = "0.4.0"
 
 repositories {
     mavenCentral()
