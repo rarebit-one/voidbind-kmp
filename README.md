@@ -40,6 +40,12 @@ platform APIs, no third-party deps:
   app on the SAME phone to open the authenticator instead of showing a QR. See
   "Same-device handoff" below.
 - **`KeyRef`** — `ed25519:<hex>` / `x25519:<hex>` key rendering.
+- **`auth/`** — the **`Device` authorization scheme** a relying party's API accepts
+  from an enrolled device: `PossessionProof` (byte-exact port of voidbind-go
+  `enrolment.SignPossession`/`VerifyPossession`), `DeviceCredential`
+  (`Authorization: Device <cert>~<proof>` with a reuse window + `refresh()`), and
+  `DeviceAuthPolicy` (re-mint and retry once on `401`, transport-agnostic). See
+  "Presenting a device credential" below.
 - **`DeviceKeyStore`** — `expect class` for the hardware signing key (Secure
   Enclave on iOS, StrongBox on Android; software-only on the JVM, for tests).
 
@@ -134,7 +140,7 @@ coordinators, `LoginQr`/`WebLogin` + the challenge-v2 number-match), **plus** th
 relying-party apps depend on it over the wire instead of re-implementing the login
 seam.
 
-- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.2.0` (Gradle resolves
+- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.4.0` (Gradle resolves
   the right variant per target: `-jvm`, `-android`, `-iosarm64`,
   `-iossimulatorarm64`).
 - **Registry:** GitHub Packages — `https://maven.pkg.github.com/rarebit-one/voidbind-kmp`
@@ -222,6 +228,58 @@ startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))   // then keep polling
 `VoidbindDeepLink.pairUri(inviteTuple, callback)` does the same for a pairing invite
 (the authenticator joins as the **new** device — the same role as scanning the invite).
 See [`docs/adr/0003-app-to-app-deeplink-handoff.md`](docs/adr/0003-app-to-app-deeplink-handoff.md).
+
+### Presenting a device credential
+
+Once a device is enrolled it calls a relying party's API (heyarr's `/api/v1`, All
+Thing) directly as that device — no session token — under the **`Device`**
+authorization scheme:
+
+```
+Authorization: Device <cert>~<proof>
+```
+
+- `<cert>` is the enrolment cert token the device persisted from pairing/enrolment.
+- `<proof>` is a **possession proof**: the device signs, with its hardware-sealed
+  key, `{"v":2,"crt":base64url(sha256(cert)),"iat":…,"exp":…}` (compact JSON, that
+  order; the body IS the signed message) and renders it `base64url(body).base64url(sig)`.
+  A cert says a user vouches for a device key; the proof shows the caller *holds*
+  that key, bound to this very cert. It is stateless and short-lived — **120 s** by
+  default — and the server honours it with **+30 s not-yet-valid tolerance and
+  strict expiry** (voidbind-go `PossessionTTL` / `PossessionSkew`).
+- `~` is the enrolment separator (outside the base64url alphabet, so unambiguous).
+
+`auth/` is the one implementation every relying-party app shares — a byte-exact port
+of voidbind-go v0.5.0 `enrolment.SignPossession`/`VerifyPossession`, pinned by Go-minted
+golden vectors (`src/jvmTest/resources/vectors/`):
+
+```kotlin
+import one.rarebit.voidbind.auth.*
+
+// The signer is the sealed device key — the same DeviceKeyStore seam the flows use.
+val credential = DeviceCredential(
+    certToken = persistedCertToken,
+    signer = DeviceKeyStore.getOrCreate("device").asSigner(),
+    clock = { System.currentTimeMillis() / 1000 },   // unix seconds
+    // ttlSeconds = 120, reuseForSeconds = 90 (ttl − skew) are the defaults
+)
+
+// Any HTTP stack: stamp the header, and re-mint + retry ONCE on a 401.
+val response = DeviceAuthPolicy.execute(credential, statusOf = { it.status }) { header ->
+    transport.get(url, headers = mapOf(DeviceCredential.HEADER to header))
+}
+```
+
+- **`credential.headerValue()`** returns the live `Device …` value, reusing one proof
+  for `reuseForSeconds` (so a biometric-gated key is not prompted per request) and
+  minting a fresh one once the window lapses; **`credential.refresh()`** forces a fresh
+  proof (after a `401`, or on wake).
+- **`DeviceAuthPolicy`** is transport-agnostic (no OkHttp, no coroutine runtime):
+  `next(status, attempt)` is the pure decision, `execute` the generic `inline` driver
+  (its `send` lambda may block or suspend). A relying party answers every refusal with
+  the same `401`, so "re-mint once, then surface it" is the whole strategy.
+- **Pure pieces** for tests and servers: `PossessionProof.mint/verify/parse/certHash`,
+  `DeviceCredential.format/parse/headerValue/mint`.
 
 ## Build
 
