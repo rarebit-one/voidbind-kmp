@@ -16,32 +16,49 @@ import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.VpnKey
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import one.rarebit.cruciform.BuildConfig
 import one.rarebit.cruciform.domain.IdentityState
 import one.rarebit.cruciform.domain.TrustedSite
+import one.rarebit.cruciform.platform.RelayConfig
 import one.rarebit.voidbind.policy.ApprovalPolicy
 import one.rarebit.cruciform.ui.components.HSpace
 import one.rarebit.cruciform.ui.components.IconCircle
 import one.rarebit.cruciform.ui.components.OutlineButton
+import one.rarebit.cruciform.ui.components.PrimaryButton
 import one.rarebit.cruciform.ui.components.RowItem
 import one.rarebit.cruciform.ui.components.ScreenPadding
 import one.rarebit.cruciform.ui.components.SectionLabel
@@ -54,7 +71,17 @@ import one.rarebit.cruciform.ui.components.CruciformMark
 import one.rarebit.cruciform.ui.theme.VbColors
 import one.rarebit.cruciform.ui.theme.VbType
 
-/** Settings (Mockup 8): identity header, device, trusted sites, recovery, about. */
+/**
+ * Settings (Mockup 8): identity header, device, pairing relay, trusted sites, recovery,
+ * about.
+ *
+ * The **Pairing relay** field edits where THIS phone mints "Add a device" invites
+ * ([relayUrl], the persisted value; [relayIsDefault] when no override is stored).
+ * [onSaveRelay] validates + persists and returns the verdict so an invalid URL is
+ * shown inline and never written; [onResetRelay] drops the override. [focusRelay]
+ * is set when the user arrived via the error dialog's "Change relay" — the field
+ * takes focus (and scrolls into view) once, then [onRelayFocused] clears the flag.
+ */
 @Composable
 fun SettingsScreen(
     state: IdentityState.Active,
@@ -69,6 +96,12 @@ fun SettingsScreen(
     onSecurity: () -> Unit,
     onLicenses: () -> Unit,
     modifier: Modifier = Modifier,
+    relayUrl: String = RelayConfig.DEFAULT_RELAY,
+    relayIsDefault: Boolean = true,
+    onSaveRelay: (String) -> RelayConfig.Validation = { RelayConfig.validate(it) },
+    onResetRelay: () -> Unit = {},
+    focusRelay: Boolean = false,
+    onRelayFocused: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -138,6 +171,20 @@ fun SettingsScreen(
                     Icon(Icons.Rounded.Lock, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(18.dp))
                 }
             }
+        }
+
+        VSpace(24)
+        SectionLabel("Pairing")
+        VSpace(10)
+        VbCard(modifier = Modifier.fillMaxWidth()) {
+            RelayField(
+                relayUrl = relayUrl,
+                relayIsDefault = relayIsDefault,
+                onSave = onSaveRelay,
+                onReset = onResetRelay,
+                focus = focusRelay,
+                onFocused = onRelayFocused,
+            )
         }
 
         VSpace(24)
@@ -218,6 +265,107 @@ fun SettingsScreen(
             Icon(Icons.Rounded.Shield, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))
             HSpace(8)
             Text("Your keys never leave your devices.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+/**
+ * The "Pairing relay" editor. Local draft text seeded from the persisted [relayUrl]
+ * (re-seeded whenever that changes — a Save or a Reset); validation is inline via
+ * [RelayConfig.validate] as the user types, and Save writes only a `Valid` verdict.
+ * Nothing here talks to the network: the relay is dialled at invite time.
+ */
+@Composable
+private fun RelayField(
+    relayUrl: String,
+    relayIsDefault: Boolean,
+    onSave: (String) -> RelayConfig.Validation,
+    onReset: () -> Unit,
+    focus: Boolean,
+    onFocused: () -> Unit,
+) {
+    var draft by remember(relayUrl) { mutableStateOf(relayUrl) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    val focusRequester = remember { FocusRequester() }
+    val verdict = RelayConfig.validate(draft)
+    val liveError = (verdict as? RelayConfig.Validation.Invalid)?.reason
+    val dirty = (verdict as? RelayConfig.Validation.Valid)?.url != relayUrl
+    val error = saveError ?: liveError.takeIf { dirty }
+
+    LaunchedEffect(focus) {
+        if (focus) {
+            focusRequester.requestFocus()
+            onFocused()
+        }
+    }
+
+    Column(Modifier.padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconCircle(Icons.Rounded.Hub, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f))
+            HSpace(14)
+            Column(Modifier.weight(1f)) {
+                Text("Pairing relay", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
+                Text(
+                    "Where this phone mints Add-a-device invites. A device joining an invite uses the relay in the invite.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = VbColors.TextSecondary,
+                )
+            }
+            HSpace(8)
+            StatusPill(
+                text = if (relayIsDefault) "Default" else "Custom",
+                accent = if (relayIsDefault) VbColors.Mint else VbColors.Amber,
+                leadingIcon = Icons.Rounded.Hub,
+            )
+        }
+        VSpace(14)
+        OutlinedTextField(
+            value = draft,
+            onValueChange = { draft = it; saveError = null },
+            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            label = { Text("Relay URL") },
+            placeholder = { Text(RelayConfig.DEFAULT_RELAY) },
+            isError = error != null,
+            singleLine = true,
+            textStyle = TextStyle(fontFamily = FontFamily.Monospace),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.None,
+                autoCorrectEnabled = false,
+                keyboardType = KeyboardType.Uri,
+            ),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = VbColors.Mint,
+                unfocusedBorderColor = VbColors.Outline,
+                cursorColor = VbColors.Mint,
+                focusedLabelColor = VbColors.Mint,
+            ),
+        )
+        VSpace(8)
+        Text(
+            error ?: "Default: ${RelayConfig.DEFAULT_RELAY}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (error != null) VbColors.Coral else VbColors.TextMuted,
+        )
+        VSpace(12)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PrimaryButton(
+                "Save",
+                onClick = {
+                    when (val result = onSave(draft)) {
+                        is RelayConfig.Validation.Valid -> { saveError = null; draft = result.url }
+                        is RelayConfig.Validation.Invalid -> saveError = result.reason
+                    }
+                },
+                enabled = dirty && liveError == null,
+                modifier = Modifier.weight(1f),
+            )
+            OutlineButton(
+                "Reset to default",
+                onClick = { saveError = null; onReset(); draft = RelayConfig.DEFAULT_RELAY },
+                enabled = !relayIsDefault || draft != RelayConfig.DEFAULT_RELAY,
+                accent = VbColors.TextSecondary,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

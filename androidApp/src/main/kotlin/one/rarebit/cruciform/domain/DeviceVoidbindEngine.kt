@@ -19,6 +19,7 @@ import one.rarebit.voidbind.UserIdentity
 import one.rarebit.cruciform.platform.ApprovalPolicyStore
 import one.rarebit.cruciform.platform.BiometricAuthenticator
 import one.rarebit.cruciform.platform.IdentityStore
+import one.rarebit.cruciform.platform.RelayConfig
 import one.rarebit.voidbind.crypto.Hex
 import one.rarebit.voidbind.flow.DeviceAuthorization
 import one.rarebit.voidbind.flow.DevicePairing
@@ -66,7 +67,12 @@ class DeviceVoidbindEngine(
     private val policyStore: ApprovalPolicyStore,
     private val transport: HttpTransport,
     private val biometric: BiometricAuthenticator,
-    private val relayBase: String,
+    /**
+     * The pairing-relay base this device MINTS invites through, read on every call —
+     * a provider, not a value, so Settings → "Pairing relay" takes effect on the next
+     * "Add a device" without recreating the engine (`RelaySettings.current`).
+     */
+    private val relay: () -> String,
     private val notifyBase: String = DEFAULT_NOTIFY,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
     /** Relying parties that serve `POST /membership/{usr}`; a remove is pushed to each, best-effort. */
@@ -74,6 +80,16 @@ class DeviceVoidbindEngine(
 ) : VoidbindEngine {
 
     private val deviceAlias = "device"
+
+    /** The configured relay, resolved now (Settings may have changed it since the last call). */
+    private val relayBase: String get() = relay()
+
+    /**
+     * The relay a pending invite was MINTED against. The handshake/confirm steps
+     * classify their failures against this, not [relayBase], so a Settings change
+     * mid-flow cannot mislabel which relay dropped.
+     */
+    private var inviteRelay: String? = null
 
     // The per-RP approval policy + audit trail. Pure commonMain brain; [policyStore]
     // supplies persistence. It records consent AROUND the unchanged hardware signature.
@@ -242,6 +258,10 @@ class DeviceVoidbindEngine(
     // handler as a main-thread FATAL. Nothing may throw out of these blocks.
 
     override suspend fun startPairInvite(): EngineResult<PairInviteDisplay> = withContext(Dispatchers.IO) {
+        // Read the relay ONCE per invite: Settings → "Pairing relay" is consulted here, at
+        // invite time, so a change applies to the next invite with no restart.
+        val relayBase = relayBase
+        inviteRelay = relayBase
         engineCatching(relayBase) {
             val authorization = memberAuthorization()
             when (val outcome = authorization.inviteCatching(relayBase)) {
@@ -262,7 +282,7 @@ class DeviceVoidbindEngine(
     }
 
     override suspend fun awaitPairHandshake(): EngineResult<PairSession> = withContext(Dispatchers.IO) {
-        engineCatching(relayBase) {
+        engineCatching(inviteRelay ?: relayBase) {
             val (authorization, invitation) = pendingAuthorization
                 ?: return@engineCatching internalFailure("No pairing invite is in progress.")
             // Blocks (polls the relay) until the new device joins and both sides
@@ -314,7 +334,7 @@ class DeviceVoidbindEngine(
     }
 
     override suspend fun confirmPairing(): EngineResult<Unit> = withContext(Dispatchers.IO) {
-        engineCatching(relayBase) {
+        engineCatching(inviteRelay ?: relayBase) {
             val join = pendingJoin
             if (join != null) {
                 if (!biometric.authenticate("Confirm pairing", "Approve on this device")) {
@@ -638,8 +658,13 @@ class DeviceVoidbindEngine(
     }
 
     companion object {
-        /** A sensible default relay base for the family homelab; override at construction. */
-        const val DEFAULT_RELAY = "https://relay.thesim.family"
+        /**
+         * The default pairing relay when Settings holds no override — the heyarr node's
+         * `/pair` mount on the Bartley Ridge LAN. `https://relay.thesim.family` is the
+         * intended public relay once it is deployed; it is not reachable today, which is
+         * why it is no longer the default (see [RelayConfig.DEFAULT_RELAY]).
+         */
+        const val DEFAULT_RELAY = RelayConfig.DEFAULT_RELAY
 
         /** Default notify-plane base (POST/DELETE /v1/subscriptions); override at construction. */
         const val DEFAULT_NOTIFY = "https://notify.thesim.family"

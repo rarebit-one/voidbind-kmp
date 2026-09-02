@@ -35,8 +35,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: gradle assemble app (debug)
-        run: ./gradlew :androidApp:assembleDebug --no-daemon --stacktrace
+      - name: gradle assemble app (debug) + pure-JVM unit tests
+        run: ./gradlew :androidApp:assembleDebug :androidApp:testDebugUnitTest --no-daemon --stacktrace
 
   # The Secure-Enclave `actual` is Kotlin/Native; only a macOS runner has the
   # toolchain that compiles the iOS targets.
