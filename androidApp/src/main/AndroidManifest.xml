@@ -7,6 +7,22 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Package visibility (Android 11+) for the REVERSE same-device handoff
+         (ADR-0006): after "Add a device" mints an invite, the Connect screen offers
+         "Send to <app> on this phone" for each relying-party app that registers a
+         pair-callback scheme and is actually installed. These entries let
+         resolveActivity() see them; the registry lives in handoff/RpPairHandoff.kt. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="heyarr-mobile" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="allthing" />
+        </intent>
+    </queries>
+
     <application
         android:name=".CruciformApp"
         android:allowBackup="false"

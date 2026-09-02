@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -38,6 +39,7 @@ import one.rarebit.cruciform.domain.PairSession
 import one.rarebit.cruciform.domain.RecoveryBackup
 import one.rarebit.cruciform.domain.ScannedCode
 import one.rarebit.cruciform.handoff.Handoff
+import one.rarebit.cruciform.handoff.RpPairLauncher
 import one.rarebit.cruciform.domain.SitePolicyView
 import one.rarebit.cruciform.ui.screens.ApprovalActivityScreen
 import one.rarebit.cruciform.ui.screens.DevicesScreen
@@ -517,10 +519,19 @@ fun CruciformNavHost(
                             )
                         }
                     }
+                    // The REVERSE same-device handoff (ADR-0006): RP apps on this phone
+                    // that take the invite by deep link. Resolved once per invite; the
+                    // handshake above keeps waiting on the relay while the RP joins, so
+                    // returning here lands on VERIFY with the SAS.
+                    val context = LocalContext.current
+                    val sameDeviceTargets = remember(inv.inviteId) { RpPairLauncher.resolvable(context) }
                     PairConnectScreen(
                         invite = inv,
                         onBack = { nav.popBackStack() },
                         onScanInstead = { nav.navigate(Routes.SCAN) },
+                        sameDeviceTargets = sameDeviceTargets,
+                        onSendTo = { target -> RpPairLauncher.sendTo(context, target, inv.qrPayload) },
+                        onShare = { RpPairLauncher.share(context, inv.qrPayload) },
                     )
                 }
             }

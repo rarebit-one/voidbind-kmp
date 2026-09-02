@@ -23,6 +23,7 @@ This is the runbook, plus the map of what still has to be built to reach the ful
 | iOS app shell (SwiftUI) | 🚧 scaffold (`iosApp/`); full screen set on-device |
 | Live web QR-login vs All Thing / heyarr | ⏳ device test (below) |
 | Same-device app-to-app deep link (`voidbind:login?…` from an RP app) | ✅ approval sheet proven on-device via `adb am start` against a live heyarr node (Test 5) |
+| Reverse same-device handoff (ADR-0006): "Send to `<app>` on this phone" from the invite screen | ✅ buttons resolve per installed RP; **end-to-end (RP joins → SAS on both apps → confirm here) needs the human finger (Test 6)** |
 | Membership op-set (ADR-0005): any member adds the next; Devices list + Remove | ✅ library proven vs live voidbind-go (14/14 vectors, phone→phone through the Go relay, Go RP honours `ops`); **on-device: upgrade-in-place + Devices list proven; a real second-phone pair/remove needs a second phone (Test 4b)** |
 
 The commonMain "device brain" (identity derivation, self-enrolment, the
@@ -166,3 +167,32 @@ adb shell am start -a android.intent.action.VIEW \
 4. A malformed link (`voidbind:login?rp=x`, a `callback=https://…`) opens nothing /
    drops the callback — the URI is untrusted input. Debug builds allow cleartext HTTP so
    the plain-http LAN node works; release builds do not.
+
+## Test 6 — reverse same-device handoff: Cruciform hands its invite to an RP app (ADR-0006)
+
+One phone with Cruciform and an RP app that registers a pair callback (heyarr-mobile
+`heyarr-mobile://pair`, All Thing `allthing://pair`). The RP holds its own device key and
+needs THIS authenticator to admit it; it cannot scan the screen it shares.
+
+```sh
+./gradlew -PdeviceEngine=true :androidApp:assembleDebug
+adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk     # never uninstall — upgrade in place
+```
+
+1. Settings → **Devices** → **Add a device**. The Connect screen shows the invite QR and,
+   below it, **"Send to heyarr on this phone"** — one button per registered RP that is
+   installed (`RpPairLauncher.resolvable`), plus **"Share invite…"** (Sharesheet). With no
+   such app installed, only "Share invite…" shows.
+2. Tap **Send to heyarr**: heyarr-mobile foregrounds on its Enrol screen in *Joining…*
+   (its `DevicePairing.begin` against the relay named in the invite), then shows its
+   **7-digit security code** large. If heyarr has no device key yet it parks the invite,
+   asks for the key (fingerprint), then joins.
+3. Switch back to Cruciform (recent apps): the invite screen has advanced to **VERIFY**
+   with its own 7-digit code — the handshake completed when heyarr joined.
+4. Compare the two codes. **Yes, they match** → biometric → the admission is sealed to
+   heyarr's device key and delivered; heyarr's screen moves to *Enrolled* and registers
+   at the node (`POST /enrol` with `ops`). Settings → Devices on Cruciform now lists the
+   phone twice: this device, and "heyarr-mobile on <model>" admitted by this device.
+5. Negative: **Share invite…** to any text target shows the raw `voidbind:pair?…` tuple
+   and nothing else; a login tuple can never be sent through this door (`uriFor`
+   refuses it); cancelling on VERIFY leaves heyarr's join to time out with no admission.

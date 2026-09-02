@@ -14,7 +14,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,9 +33,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import one.rarebit.cruciform.domain.PairInviteDisplay
+import one.rarebit.cruciform.handoff.RpPairTarget
 import one.rarebit.cruciform.ui.components.AppTopBar
 import one.rarebit.cruciform.ui.components.HSpace
 import one.rarebit.cruciform.ui.components.OutlineButton
+import one.rarebit.cruciform.ui.components.PrimaryButton
 import one.rarebit.cruciform.ui.components.QrImage
 import one.rarebit.cruciform.ui.components.ScreenPadding
 import one.rarebit.cruciform.ui.components.SecureScreen
@@ -42,13 +46,24 @@ import one.rarebit.cruciform.ui.components.VbCard
 import one.rarebit.cruciform.ui.theme.VbColors
 import one.rarebit.cruciform.ui.theme.VbType
 
-/** Pair a device, step 1 CONNECT (Mockup 5): show the one-time encrypted invite. */
+/**
+ * Pair a device, step 1 CONNECT (Mockup 5): show the one-time encrypted invite.
+ *
+ * [sameDeviceTargets] are the relying-party apps installed on THIS phone that take a
+ * pairing invite by deep link (ADR-0006) — one "Send to <app> on this phone" button
+ * each, and none when the list is empty. [onShare] is the Sharesheet fallback for an
+ * app we do not know. The rest of the flow is unchanged: once the new device joins,
+ * this screen advances to VERIFY and the SAS is confirmed HERE, biometric-gated.
+ */
 @Composable
 fun PairConnectScreen(
     invite: PairInviteDisplay,
     onBack: () -> Unit,
     onScanInstead: () -> Unit,
     modifier: Modifier = Modifier,
+    sameDeviceTargets: List<RpPairTarget> = emptyList(),
+    onSendTo: (RpPairTarget) -> Unit = {},
+    onShare: () -> Unit = {},
 ) {
     SecureScreen()
     var remaining by remember { mutableIntStateOf(invite.expiresInSeconds) }
@@ -89,7 +104,38 @@ fun PairConnectScreen(
                 Text("The invite is encrypted and can be used once.", style = MaterialTheme.typography.bodyMedium, color = VbColors.Mint)
             }
 
-            VSpace(16)
+            if (sameDeviceTargets.isNotEmpty()) {
+                VSpace(18)
+                Text("ON THIS PHONE", style = VbType.SectionLabel, color = VbColors.TextMuted)
+                VSpace(8)
+                Text(
+                    "An app on this phone can't scan this screen — send it the invite instead. " +
+                        "It will show a security code; come back here to compare and approve.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = VbColors.TextSecondary,
+                )
+                VSpace(10)
+                sameDeviceTargets.forEach { target ->
+                    PrimaryButton(
+                        "Send to ${target.appName} on this phone",
+                        onClick = { onSendTo(target) },
+                        leadingIcon = Icons.Rounded.Smartphone,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    VSpace(8)
+                }
+            }
+
+            VSpace(8)
+            OutlineButton(
+                "Share invite…",
+                onClick = onShare,
+                accent = VbColors.TextSecondary,
+                leadingIcon = Icons.Rounded.Share,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            VSpace(10)
             OutlineButton(
                 "Scan an invite instead",
                 onClick = onScanInstead,

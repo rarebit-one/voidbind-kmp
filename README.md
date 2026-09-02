@@ -229,6 +229,12 @@ startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))   // then keep polling
 (the authenticator joins as the **new** device — the same role as scanning the invite).
 See [`docs/adr/0003-app-to-app-deeplink-handoff.md`](docs/adr/0003-app-to-app-deeplink-handoff.md).
 
+The **reverse** direction — Cruciform hands the invite it minted ("Add a device") to an RP
+app on the same phone — uses the RP's *own* scheme, `heyarr-mobile://pair?invite=<encoded
+voidbind:pair tuple>` / `allthing://pair?invite=…`, from a small app-side registry
+(`androidApp/…/handoff/RpPairHandoff.kt`), with a Sharesheet fallback; the SAS is still
+confirmed on Cruciform. See [`docs/adr/0006-rp-pair-handoff-same-device.md`](docs/adr/0006-rp-pair-handoff-same-device.md).
+
 ### Presenting a device credential
 
 Once a device is enrolled it calls a relying party's API (heyarr's `/api/v1`, All
