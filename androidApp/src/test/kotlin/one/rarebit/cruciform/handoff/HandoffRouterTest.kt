@@ -45,7 +45,7 @@ class HandoffRouterTest {
 
     @Test
     fun pairInviteRoutesToPair() {
-        val invite = "voidbind:pair?relay=http%3A%2F%2Frelay&salt=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff&session=sess1&v=2"
+        val invite = "voidbind:pair?relay=http%3A%2F%2Frelay&salt=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff&session=sess1&usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4&v=3"
         val h = HandoffRouter.fromDeepLink(HandoffRouter.ACTION_VIEW, "$invite&callback=myapp%3A%2F%2Fpaired", seq = 3)!!
         assertEquals(Handoff.Kind.PAIR, h.kind)
         assertEquals(invite, h.tuple)

@@ -184,7 +184,7 @@ object SampleData {
 
     val pairInvite = PairInviteDisplay(
         inviteId = "INV · 8F2C 91A7",
-        qrPayload = "voidbind:pair?v=2&relay=wss://relay.thesim.family&session=8f2c91a7&salt=…",
+        qrPayload = "voidbind:pair?v=3&relay=wss://relay.thesim.family&session=8f2c91a7&salt=…&usr=ed25519:…",
         expiresInSeconds = 278,
     )
 

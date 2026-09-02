@@ -7,12 +7,14 @@ import one.rarebit.voidbind.crypto.Hex
  * device) renders for the responder (the new device) to scan. It carries the
  * out-of-band session bootstrap over the VISUAL channel:
  *
- *     voidbind:pair?v=2&relay=<origin>&session=<id>&salt=<hex>
+ *     voidbind:pair?v=3&relay=<origin>&session=<id>&salt=<hex>&usr=<ed25519:hex>
  *
- * The salt is hex so it survives a QR/text round-trip unchanged. Scanning the
- * invite off the real initiator's screen is what authenticates these values — a
- * network attacker cannot substitute them without also defeating the SAS
- * ([Pairing]).
+ * The salt is hex so it survives a QR/text round-trip unchanged. v3 (ADR-0005 /
+ * voidbind-go ADR-0007) adds `usr`: the identity (genesis key) the new device is
+ * being enrolled into, so the responder can evaluate the initiator's membership
+ * BEFORE deriving the SAS. Scanning the invite off the real initiator's screen is
+ * what authenticates these values — a network attacker cannot substitute them
+ * without also defeating the SAS ([Pairing]).
  *
  * This is the exact wire contract of voidbind-go's `pairflow.EncodeInvite` /
  * `DecodeInvite` — canonical (voidbind-go leads; see CLAUDE.md). [encode]
@@ -25,27 +27,34 @@ object Invite {
     const val SCHEME = "voidbind"
 
     /** The invite payload version; a future field change becomes a parse failure. */
-    const val VERSION = "2"
+    const val VERSION = "3"
 
     private const val PREFIX = "$SCHEME:pair?"
 
-    /** The parsed parts of an invite. */
-    class Parsed(val relay: String, val session: String, val salt: ByteArray)
+    /**
+     * The parsed parts of an invite. [user] is the identity (`ed25519:<hex>`) the
+     * new device will be a member of — it travels over the visual channel like the
+     * salt, and the SAS then binds the initiator's device key to that identity via
+     * the membership evaluation.
+     */
+    class Parsed(val relay: String, val session: String, val salt: ByteArray, val user: String)
 
     /**
-     * Render the invite the responder scans. Refuses an empty relay/session or a
-     * salt below the freshness floor ([Pairing.MIN_SALT_LEN]), matching the Go
-     * side's guards.
+     * Render the invite the responder scans. Refuses an empty relay/session, a
+     * salt below the freshness floor ([Pairing.MIN_SALT_LEN]) or an unparseable
+     * [usr], matching the Go side's guards.
      */
-    fun encode(relay: String, session: String, salt: ByteArray): String {
+    fun encode(relay: String, session: String, salt: ByteArray, usr: String): String {
         require(relay.isNotEmpty() && session.isNotEmpty()) { "invite needs a relay and a session" }
         require(salt.size >= Pairing.MIN_SALT_LEN) { "invite salt is too short (${salt.size} < ${Pairing.MIN_SALT_LEN})" }
+        requireUser(usr)
         // Go's url.Values.Encode() writes keys in sorted order; match it so the
         // rendered string is byte-identical across the two implementations.
         val params = listOf(
             "relay" to relay,
             "salt" to Hex.encode(salt),
             "session" to session,
+            "usr" to usr,
             "v" to VERSION,
         )
         val query = params.joinToString("&") { (k, v) -> "${queryEscape(k)}=${queryEscape(v)}" }
@@ -54,7 +63,8 @@ object Invite {
 
     /**
      * Parse an invite URI back into its parts, refusing a wrong scheme, wrong
-     * version, malformed salt, or a salt below the freshness floor.
+     * version, malformed salt, a salt below the freshness floor, or a missing /
+     * unparseable user.
      */
     fun decode(uri: String): Parsed {
         require(uri.startsWith(PREFIX)) { "not a $SCHEME pairing invite" }
@@ -77,7 +87,16 @@ object Invite {
         require(relay.isNotEmpty() && session.isNotEmpty()) { "invite missing relay or session" }
         val salt = Hex.decode(fields["salt"].orEmpty())
         require(salt.size >= Pairing.MIN_SALT_LEN) { "invite salt is too short (${salt.size} < ${Pairing.MIN_SALT_LEN})" }
-        return Parsed(relay, session, salt)
+        val usr = fields["usr"].orEmpty()
+        requireUser(usr)
+        return Parsed(relay, session, salt, usr)
+    }
+
+    private fun requireUser(usr: String) {
+        val ref = try { KeyRef.parse(usr) } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("invite user: ${e.message}")
+        }
+        require(ref.alg == Labels.ALG_ED25519 && ref.bytes.size == 32) { "invite user: not an ed25519 key" }
     }
 
     /**

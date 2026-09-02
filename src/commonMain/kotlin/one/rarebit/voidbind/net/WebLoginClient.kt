@@ -113,8 +113,10 @@ class WebLoginClient(
      * `omitempty`), so the same call serves both.
      */
     fun approve(id: String, assertion: WebLogin.Assertion) {
+        // Field order follows voidbind-go's Assertion struct (cert, ops, sig, match_number).
         val fields = buildList<Pair<String, Any>> {
             add("cert" to assertion.cert)
+            if (assertion.ops.isNotEmpty()) add("ops" to assertion.ops)
             add("sig" to assertion.sig)
             assertion.matchNumber?.let { add("match_number" to it) }
         }

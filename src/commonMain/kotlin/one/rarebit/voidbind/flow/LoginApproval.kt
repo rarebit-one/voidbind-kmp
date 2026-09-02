@@ -25,8 +25,15 @@ import one.rarebit.voidbind.net.WebLoginHttpException
 class LoginApproval(
     private val http: HttpTransport,
     private val device: DeviceIdentity,
-    /** This device's enrolment cert token; the signing key MUST be the one it names. */
+    /** This device's admitting op (or v1/v2 cert) token; the signing key MUST be the one it names. */
     private val enrolmentCert: String,
+    /**
+     * The membership ops this device knows (ADR-0005) — presented beside the
+     * credential so an RP that has never met the member that admitted this device
+     * can evaluate the admission. Empty for a genesis-admitted device on an RP that
+     * pinned the identity (the cert alone is the whole proof).
+     */
+    private val knownOps: List<String> = emptyList(),
 ) {
     /**
      * What the approval sheet shows the human. [audience] is the RP origin the
@@ -135,7 +142,7 @@ class LoginApproval(
         require(!request.isNumberMatch) {
             "this is a number-matching login — approve(request, chosenNumber)"
         }
-        val assertion = WebLogin.signAssertion(request.challenge, enrolmentCert) { message ->
+        val assertion = WebLogin.signAssertion(request.challenge, enrolmentCert, ops = knownOps) { message ->
             device.sign(message)
         }
         WebLoginClient(http, request.rp).approve(request.loginId, assertion)
@@ -155,7 +162,7 @@ class LoginApproval(
         require(chosenNumber in request.candidates) {
             "chosen number $chosenNumber is not one of the candidates shown"
         }
-        val assertion = WebLogin.signAssertionV2(request.challenge, chosenNumber, enrolmentCert) { message ->
+        val assertion = WebLogin.signAssertionV2(request.challenge, chosenNumber, enrolmentCert, ops = knownOps) { message ->
             device.sign(message)
         }
         WebLoginClient(http, request.rp).approve(request.loginId, assertion)

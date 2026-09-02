@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
 class PairingErrorTest {
 
     private val relay = "http://192.168.16.224:7777/pair"
-    private val invite = Invite.Parsed(relay, "deadbeef", ByteArray(32) { 7 })
+    private val invite = Invite.Parsed(relay, "deadbeef", ByteArray(32) { 7 }, "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4")
 
     private fun device(): DeviceIdentity {
         val enc = DeviceIdentity.generateEncryptionKey()
@@ -76,7 +76,7 @@ class PairingErrorTest {
     @Test
     fun joinWithNoRouteToTheRelayIsUnreachableNotACrash() {
         // Mirrors the captured SocketTimeoutException("failed to connect to /192.168.16.224 (port 7777)").
-        val pairing = DevicePairing(ThrowingTransport { RuntimeException("failed to connect to /192.168.16.224 (port 7777)") }, device())
+        val pairing = DevicePairing(ThrowingTransport { RuntimeException("failed to connect to /192.168.16.224 (port 7777)") }, device(), { 1L })
         val outcome = pairing.beginCatching(invite) // must NOT throw
         val failed = assertIs<PairingOutcome.Failed>(outcome)
         assertEquals(PairingFailureKind.UNREACHABLE, failed.kind)
@@ -88,7 +88,7 @@ class PairingErrorTest {
     @Test
     fun joinWhenTheRelayRefusesIsRejectedNotACrash() {
         for (status in listOf(404, 409, 500)) {
-            val pairing = DevicePairing(StatusTransport(status), device())
+            val pairing = DevicePairing(StatusTransport(status), device(), { 1L })
             val failed = assertIs<PairingOutcome.Failed>(pairing.beginCatching(invite), "HTTP $status must not throw")
             assertEquals(PairingFailureKind.REJECTED, failed.kind, "HTTP $status should be REJECTED")
             assertTrue(failed.message.contains("HTTP $status"))
@@ -98,7 +98,7 @@ class PairingErrorTest {
     @Test
     fun joinWhenTheInitiatorNeverShowsUpIsATimeout() {
         // A single poll step above the 60s relay wait so the test does not spin.
-        val pairing = DevicePairing(LonelyTransport(), device(), pollIntervalMillis = 120_000)
+        val pairing = DevicePairing(LonelyTransport(), device(), { 1L }, pollIntervalMillis = 120_000)
         val failed = assertIs<PairingOutcome.Failed>(pairing.beginCatching(invite))
         assertEquals(PairingFailureKind.TIMEOUT, failed.kind)
         assertTrue(failed.message.contains("fresh invite"))
@@ -106,7 +106,7 @@ class PairingErrorTest {
 
     @Test
     fun joinFromAMalformedInviteStringIsProtocolNotACrash() {
-        val pairing = DevicePairing(ThrowingTransport { RuntimeException("never reached") }, device())
+        val pairing = DevicePairing(ThrowingTransport { RuntimeException("never reached") }, device(), { 1L })
         val failed = assertIs<PairingOutcome.Failed>(pairing.beginCatching("voidbind:pair?relay=&session="))
         assertEquals(PairingFailureKind.PROTOCOL, failed.kind)
         val failed2 = assertIs<PairingOutcome.Failed>(pairing.beginCatching("not a voidbind uri at all"))
@@ -115,7 +115,7 @@ class PairingErrorTest {
 
     @Test
     fun theThrowingBeginStillThrowsForCallersThatCatch() {
-        val pairing = DevicePairing(ThrowingTransport { RuntimeException("boom") }, device())
+        val pairing = DevicePairing(ThrowingTransport { RuntimeException("boom") }, device(), { 1L })
         assertFailsWith<RuntimeException> { pairing.begin(invite) }
     }
 
