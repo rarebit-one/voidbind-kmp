@@ -8,3 +8,6 @@ build/
 *.iml
 .kotlin/
 local.properties
+
+# Claude Code worktree workflow
+.worktrees/
