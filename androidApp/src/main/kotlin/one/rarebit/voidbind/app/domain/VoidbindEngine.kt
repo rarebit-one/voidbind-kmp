@@ -90,24 +90,36 @@ interface VoidbindEngine {
     suspend fun unregisterFromPush()
 
     // --- Pairing --------------------------------------------------------------
+    //
+    // Every pairing step touches the relay over a BLOCKING transport and MUST NOT throw
+    // for a transport/IO failure: no route to the relay, connection refused, TLS, a
+    // timeout, a cleartext-blocked URL, a relay refusal, a peer that never joins, or a
+    // cancelled biometric prompt all resolve to [EngineResult.Failed] carrying a
+    // user-facing [EngineFailure] — so the UI renders an error with a Retry instead of
+    // the app dying with an uncaught main-thread exception (the on-device crash: a
+    // `SocketTimeoutException` out of [joinPairInvite] with the phone on cellular).
 
     /** As the existing device: mint a pairing invite to display as a QR. */
-    suspend fun startPairInvite(): PairInviteDisplay
+    suspend fun startPairInvite(): EngineResult<PairInviteDisplay>
 
     /**
      * As the existing device, after [startPairInvite] rendered the invite: block
      * until the new device joins the relay, run the commit-before-reveal handshake,
      * and return the 7-digit SAS to compare. Signs nothing — the human gate on the
      * VERIFY screen precedes [confirmPairing], which authorises. Blocking (polls the
-     * relay); throws if the invite expires unjoined.
+     * relay); an invite that expires unjoined is a `Failed` of kind TIMEOUT.
      */
-    suspend fun awaitPairHandshake(): PairSession
+    suspend fun awaitPairHandshake(): EngineResult<PairSession>
 
-    /** As the new device: join a scanned invite and run the handshake to the SAS. */
-    suspend fun joinPairInvite(code: ScannedCode.PairInvite): PairSession
+    /**
+     * As the new device: join a scanned (or deep-linked) invite and run the handshake to
+     * the SAS. Calling it again with the same [code] after a `Failed` re-joins the same
+     * invite — that is what the UI's Retry does.
+     */
+    suspend fun joinPairInvite(code: ScannedCode.PairInvite): EngineResult<PairSession>
 
     /** After the human confirms the SAS matches: authorise/receive the sealed cert. */
-    suspend fun confirmPairing()
+    suspend fun confirmPairing(): EngineResult<Unit>
 
     // --- Settings actions -----------------------------------------------------
 

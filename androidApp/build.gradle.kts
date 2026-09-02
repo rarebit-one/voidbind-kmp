@@ -20,8 +20,8 @@ android {
         // BiometricPrompt/CryptoObject API and a provider that carries Ed25519.
         minSdk = 33
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
 
         // Engine selection at BUILD time, no source edit: `-PdeviceEngine=true` (or
         // `deviceEngine=true` in gradle.properties) selects the real hardware-backed

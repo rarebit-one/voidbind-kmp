@@ -21,6 +21,9 @@ import one.rarebit.voidbind.crypto.Hex
 import one.rarebit.voidbind.flow.DeviceAuthorization
 import one.rarebit.voidbind.flow.DevicePairing
 import one.rarebit.voidbind.flow.LoginApproval
+import one.rarebit.voidbind.flow.PairingFailureKind
+import one.rarebit.voidbind.flow.PairingFailures
+import one.rarebit.voidbind.flow.PairingOutcome
 import one.rarebit.voidbind.net.HttpTransport
 import one.rarebit.voidbind.net.NotifyClient
 import one.rarebit.voidbind.policy.ApprovalPolicy
@@ -211,68 +214,161 @@ class DeviceVoidbindEngine(
     }
 
     // --- Pairing --------------------------------------------------------------
+    //
+    // Every step below runs the BLOCKING relay transport on Dispatchers.IO and converts
+    // any failure into an EngineResult.Failed ON THAT THREAD, inside the withContext
+    // block. That is the load-bearing part of the on-device crash fix: a call-site
+    // runCatching in the UI did not save the app, because once the calling coroutine
+    // (a LaunchedEffect) had been cancelled, the SocketTimeoutException the blocking
+    // call threw 15s later had no caller to be delivered to and went to the uncaught
+    // handler as a main-thread FATAL. Nothing may throw out of these blocks.
 
-    override suspend fun startPairInvite(): PairInviteDisplay = withContext(Dispatchers.IO) {
-        val authorization = DeviceAuthorization(transport, requireUser(), clock)
-        val invitation = authorization.invite(relayBase)
-        pendingAuthorization = authorization to invitation
-        PairInviteDisplay(
-            inviteId = "INV · ${invitation.relaySession.uppercase().take(8).chunked(4).joinToString(" ")}",
-            qrPayload = invitation.inviteQr,
-            expiresInSeconds = 300,
-        )
-    }
-
-    override suspend fun awaitPairHandshake(): PairSession = withContext(Dispatchers.IO) {
-        val (authorization, invitation) = pendingAuthorization ?: error("no pairing invite in progress")
-        // Blocks (polls the relay) until the new device joins and both sides
-        // commit → reveal → open; returns the SAS. Signs nothing yet — the human
-        // matches this against the new device's screen, then confirmPairing()
-        // authorises. handshake() flips the initiator's `handshook` flag so the
-        // subsequent authorise() on the SAME invitation is valid.
-        val sas = authorization.handshake(invitation)
-        PairSession(
-            thisDeviceName = defaultDeviceName(),
-            peerDeviceName = "New device",
-            securityCode = formatSas(sas),
-        )
-    }
-
-    override suspend fun joinPairInvite(code: ScannedCode.PairInvite): PairSession = withContext(Dispatchers.IO) {
-        val ks = withDeviceAuth { DeviceKeyStore.getOrCreate(deviceAlias) }
-        val enc = existingEncKey() ?: DeviceIdentity.generateEncryptionKey()
-        val device = DeviceIdentity(ks.publicKey().bytes, enc.publicKey, enc.privateKey) { ks.sign(it) }
-        val pairing = DevicePairing(transport, device)
-        val handshake = pairing.begin(code.raw)
-        pendingJoin = PendingJoin(pairing, handshake, enc)
-        PairSession(
-            thisDeviceName = defaultDeviceName(),
-            peerDeviceName = "New device",
-            securityCode = formatSas(handshake.sas),
-        )
-    }
-
-    override suspend fun confirmPairing() = withContext(Dispatchers.IO) {
-        val join = pendingJoin
-        if (join != null) {
-            require(biometric.authenticate("Confirm pairing", "Approve on this device")) { "Authentication cancelled." }
-            val cert = join.pairing.confirm(join.handshake)
-            val userPub = Cert.parse(cert).cert.user.bytes
-            store.saveJoined(cert, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
-            pendingJoin = null
-            sessionUser = null // a joined device holds no user key
-            _identity.value = loadState()
-            return@withContext
+    override suspend fun startPairInvite(): EngineResult<PairInviteDisplay> = withContext(Dispatchers.IO) {
+        engineCatching(relayBase) {
+            val authorization = DeviceAuthorization(transport, requireUser(), clock)
+            when (val outcome = authorization.inviteCatching(relayBase)) {
+                is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
+                is PairingOutcome.Ready -> {
+                    val invitation = outcome.value
+                    pendingAuthorization = authorization to invitation
+                    EngineResult.Ready(
+                        PairInviteDisplay(
+                            inviteId = "INV · ${invitation.relaySession.uppercase().take(8).chunked(4).joinToString(" ")}",
+                            qrPayload = invitation.inviteQr,
+                            expiresInSeconds = 300,
+                        ),
+                    )
+                }
+            }
         }
-        val authorization = pendingAuthorization
-        if (authorization != null) {
-            require(biometric.authenticate("Authorise new device", "Approve on this device")) { "Authentication cancelled." }
-            authorization.first.authorise(authorization.second)
-            pendingAuthorization = null
-            return@withContext
-        }
-        error("no pairing in progress")
     }
+
+    override suspend fun awaitPairHandshake(): EngineResult<PairSession> = withContext(Dispatchers.IO) {
+        engineCatching(relayBase) {
+            val (authorization, invitation) = pendingAuthorization
+                ?: return@engineCatching internalFailure("No pairing invite is in progress.")
+            // Blocks (polls the relay) until the new device joins and both sides
+            // commit → reveal → open; returns the SAS. Signs nothing yet — the human
+            // matches this against the new device's screen, then confirmPairing()
+            // authorises. handshake() flips the initiator's `handshook` flag so the
+            // subsequent authorise() on the SAME invitation is valid.
+            when (val outcome = authorization.handshakeCatching(invitation)) {
+                is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
+                is PairingOutcome.Ready -> EngineResult.Ready(
+                    PairSession(
+                        thisDeviceName = defaultDeviceName(),
+                        peerDeviceName = "New device",
+                        securityCode = formatSas(outcome.value),
+                    ),
+                )
+            }
+        }
+    }
+
+    override suspend fun joinPairInvite(code: ScannedCode.PairInvite): EngineResult<PairSession> = withContext(Dispatchers.IO) {
+        engineCatching(code.relay) {
+            val ks = withDeviceAuth { DeviceKeyStore.getOrCreate(deviceAlias) }
+            val enc = existingEncKey() ?: DeviceIdentity.generateEncryptionKey()
+            val device = DeviceIdentity(ks.publicKey().bytes, enc.publicKey, enc.privateKey) { ks.sign(it) }
+            val pairing = DevicePairing(transport, device)
+            // beginCatching turns the blocking relay handshake's every failure (no route,
+            // refused, TLS, timeout, relay non-2xx, a commitment that does not open) into a
+            // classified outcome instead of throwing — the SocketTimeoutException that
+            // killed the app arrived through exactly this call.
+            when (val outcome = pairing.beginCatching(code.raw)) {
+                is PairingOutcome.Failed -> {
+                    pendingJoin = null
+                    EngineResult.Failed(outcome.toEngineFailure())
+                }
+                is PairingOutcome.Ready -> {
+                    val handshake = outcome.value
+                    pendingJoin = PendingJoin(pairing, handshake, enc)
+                    EngineResult.Ready(
+                        PairSession(
+                            thisDeviceName = defaultDeviceName(),
+                            peerDeviceName = "New device",
+                            securityCode = formatSas(handshake.sas),
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun confirmPairing(): EngineResult<Unit> = withContext(Dispatchers.IO) {
+        engineCatching(relayBase) {
+            val join = pendingJoin
+            if (join != null) {
+                if (!biometric.authenticate("Confirm pairing", "Approve on this device")) {
+                    return@engineCatching cancelledFailure()
+                }
+                return@engineCatching when (val outcome = join.pairing.confirmCatching(join.handshake)) {
+                    is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
+                    is PairingOutcome.Ready -> {
+                        val cert = outcome.value
+                        val userPub = Cert.parse(cert).cert.user.bytes
+                        store.saveJoined(cert, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
+                        pendingJoin = null
+                        sessionUser = null // a joined device holds no user key
+                        _identity.value = loadState()
+                        EngineResult.Ready(Unit)
+                    }
+                }
+            }
+            val authorization = pendingAuthorization
+            if (authorization != null) {
+                if (!biometric.authenticate("Authorise new device", "Approve on this device")) {
+                    return@engineCatching cancelledFailure()
+                }
+                return@engineCatching when (val outcome = authorization.first.authoriseCatching(authorization.second)) {
+                    is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
+                    is PairingOutcome.Ready -> {
+                        pendingAuthorization = null
+                        EngineResult.Ready(Unit)
+                    }
+                }
+            }
+            internalFailure("No pairing is in progress.")
+        }
+    }
+
+    /**
+     * The last line of defence for a pairing step: whatever [block] throws that the
+     * library's `*Catching` layer did not already classify (a keystore error, a missing
+     * precondition, a bug) becomes a `Failed` here, on the IO thread, so it can never
+     * escape the coroutine. The biometric gate's "cancelled" signal gets its own kind.
+     */
+    private inline fun <T> engineCatching(relayBase: String, block: () -> EngineResult<T>): EngineResult<T> = try {
+        block()
+    } catch (e: AuthenticationRequiredException) {
+        cancelledFailure()
+    } catch (e: IllegalStateException) {
+        // check()/error() in this engine: "Only the device that created the identity can
+        // add new devices", "no identity" — a precondition, not a network problem.
+        EngineResult.Failed(EngineFailure(e.message ?: "Couldn't start the pairing.", EngineFailure.Kind.INTERNAL, retryable = false))
+    } catch (e: Throwable) {
+        EngineResult.Failed(PairingFailures.classify(e, relayBase).toEngineFailure())
+    }
+
+    private fun <T> internalFailure(message: String): EngineResult<T> =
+        EngineResult.Failed(EngineFailure(message, EngineFailure.Kind.INTERNAL, retryable = false))
+
+    private fun <T> cancelledFailure(): EngineResult<T> =
+        EngineResult.Failed(EngineFailure("Authentication cancelled.", EngineFailure.Kind.CANCELLED, retryable = false))
+
+    private fun PairingOutcome.Failed.toEngineFailure(): EngineFailure = EngineFailure(
+        message = message,
+        kind = when (kind) {
+            PairingFailureKind.UNREACHABLE -> EngineFailure.Kind.UNREACHABLE
+            PairingFailureKind.TIMEOUT -> EngineFailure.Kind.TIMEOUT
+            PairingFailureKind.REJECTED -> EngineFailure.Kind.REJECTED
+            PairingFailureKind.PROTOCOL -> EngineFailure.Kind.PROTOCOL
+        },
+        // Unreachable: retry the same step once the network is back. Timeout/rejected:
+        // a fresh invite is needed, so the UI's retry re-mints/re-scans (still "retryable"
+        // from the human's point of view). Protocol: never against the same session.
+        retryable = kind != PairingFailureKind.PROTOCOL,
+    )
 
     // --- Settings -------------------------------------------------------------
 

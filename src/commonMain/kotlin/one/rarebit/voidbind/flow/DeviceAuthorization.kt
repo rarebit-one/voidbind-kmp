@@ -37,6 +37,8 @@ class DeviceAuthorization(
         val inviteQr: String,
         val relaySession: String,
         internal val initiator: PairflowInitiator,
+        /** The relay this invitation lives on — named in a `*Catching` failure. */
+        internal val relayBase: String = "",
     )
 
     /**
@@ -55,8 +57,32 @@ class DeviceAuthorization(
             issuedAt = clock(),
             lifetimeSeconds = certLifetimeSeconds,
         )
-        return Invitation(Invite.encode(relayBase, session, salt), session, initiator)
+        return Invitation(Invite.encode(relayBase, session, salt), session, initiator, relayBase)
     }
+
+    /**
+     * Like [invite], but a relay that cannot be reached (no route, refused, TLS, timeout,
+     * cleartext-blocked) or that refuses to open a session resolves to a
+     * [PairingOutcome.Failed] the caller renders — it never throws, so the "Add a
+     * device" tap cannot crash the app when the phone has no route to the relay.
+     */
+    fun inviteCatching(relayBase: String, salt: ByteArray = randomSalt()): PairingOutcome<Invitation> =
+        PairingFailures.catching(relayBase) { invite(relayBase, salt) }
+
+    /**
+     * Like [handshake], but a transport failure, a relay refusal, an invite that expires
+     * unjoined ([PairingFailureKind.TIMEOUT]) or a commitment that does not open resolves
+     * to a [PairingOutcome.Failed] instead of throwing.
+     */
+    fun handshakeCatching(invitation: Invitation): PairingOutcome<String> =
+        PairingFailures.catching(invitation.relayBase) { handshake(invitation) }
+
+    /**
+     * Like [authorise], but a transport failure or relay refusal while delivering the
+     * sealed cert resolves to a [PairingOutcome.Failed] instead of throwing.
+     */
+    fun authoriseCatching(invitation: Invitation): PairingOutcome<Unit> =
+        PairingFailures.catching(invitation.relayBase) { authorise(invitation) }
 
     /** Run the handshake once the new device joins; return the SAS to compare. */
     @Throws(Exception::class)

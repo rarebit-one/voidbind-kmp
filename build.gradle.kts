@@ -17,8 +17,10 @@ plugins {
 group = "one.rarebit.voidbind"
 // Bump on any wire-affecting or API-affecting change; the coordinates are
 // `one.rarebit.voidbind:voidbind-client`. 0.2.0 adds `VoidbindDeepLink` (the
-// same-device app-to-app handoff URI, ADR-0003).
-version = "0.2.0"
+// same-device app-to-app handoff URI, ADR-0003). 0.2.1 adds the non-throwing
+// `*Catching` pairing steps + `PairingOutcome` (a relay you cannot reach is an
+// error the UI renders, not a crash) and the typed `RelayHttpException`.
+version = "0.2.1"
 
 repositories {
     mavenCentral()
