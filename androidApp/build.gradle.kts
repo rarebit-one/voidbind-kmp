@@ -20,8 +20,8 @@ android {
         // BiometricPrompt/CryptoObject API and a provider that carries Ed25519.
         minSdk = 33
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.5.2"
+        versionCode = 8
+        versionName = "0.5.3"
 
         // Engine selection at BUILD time, no source edit: `-PdeviceEngine=true` (or
         // `deviceEngine=true` in gradle.properties) selects the real hardware-backed
@@ -95,4 +95,12 @@ dependencies {
     // Pure-JVM unit tests (deep-link routing); no Android runtime needed.
     testImplementation("junit:junit:4.13.2")
     testImplementation(kotlin("test"))
+}
+
+// RpPairManifestQueriesTest reads the manifest at runtime; make it a task input so an
+// edit to <queries> re-runs the unit tests instead of hitting Gradle's up-to-date cache.
+tasks.withType<Test>().configureEach {
+    inputs.file(layout.projectDirectory.file("src/main/AndroidManifest.xml"))
+        .withPropertyName("androidManifestForQueriesTest")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
