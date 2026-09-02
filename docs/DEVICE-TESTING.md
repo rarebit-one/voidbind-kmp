@@ -22,6 +22,7 @@ This is the runbook, plus the map of what still has to be built to reach the ful
 | Android app shell (Compose) | 🚧 in progress (peer session — `androidApp/`) |
 | iOS app shell (SwiftUI) | 🚧 scaffold (`iosApp/`); full screen set on-device |
 | Live web QR-login vs All Thing / heyarr | ⏳ device test (below) |
+| Same-device app-to-app deep link (`voidbind:login?…` from an RP app) | ✅ approval sheet proven on-device via `adb am start` against a live heyarr node (Test 5) |
 
 The commonMain "device brain" (identity derivation, self-enrolment, the
 `LoginApproval` / `DevicePairing` / `DeviceAuthorization` coordinators, the QR
@@ -108,3 +109,32 @@ Two devices (or one device + the `voidbind pair-*` CLI as the counterpart).
 3. Assert: the SAS matches only when the two devices are the real pair; a
    mismatched/rushed SAS yields no enrolment; the delivered cert verifies against
    the user key and binds the new device.
+
+## Test 5 — same-device handoff: an RP app opens the authenticator by deep link
+
+No second phone. The RP app on the SAME phone launches `voidbind:login?rp=&id=` (the
+`qr` string its broker returned, optionally `&callback=<app-scheme-uri>`); the
+authenticator shows the normal approval sheet and finishes back to the caller (ADR-0003).
+Simulate the RP with `adb` against a live node:
+
+```sh
+# build + install the REAL engine (the phone must already hold an enrolled identity)
+./gradlew -PdeviceEngine=true :androidApp:assembleDebug
+adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
+
+# mint a login on the RP (a heyarr dev node on the LAN), then hand it to the authenticator
+ID=$(curl -s -X POST http://192.168.16.224:7777/login | sed -E 's/.*"id":"([^"]+)".*/\1/')
+adb shell am start -a android.intent.action.VIEW \
+  -d "voidbind:login?rp=http%3A%2F%2F192.168.16.224%3A7777&id=$ID&callback=heyarr%3A%2F%2Flogin%2Fdone"
+```
+
+1. The approval sheet opens (cold start AND with the app already open — `singleTask`
+   + `onNewIntent`) showing the **rp origin** `192.168.16.224:7777` and a live expiry;
+   nothing was approved by the link itself. A v2 challenge shows the number grid.
+2. Tap **Deny**: the activity finishes; the previous app is back in front; no callback
+   is launched; `GET /login/$ID` never reports approved.
+3. Repeat with a fresh id and tap **Approve** → biometric → the RP's broker poll reports
+   approved and (only now) the `callback` is launched bare, if an app handles it.
+4. A malformed link (`voidbind:login?rp=x`, a `callback=https://…`) opens nothing /
+   drops the callback — the URI is untrusted input. Debug builds allow cleartext HTTP so
+   the plain-http LAN node works; release builds do not.

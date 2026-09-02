@@ -31,6 +31,10 @@ platform APIs, no third-party deps:
   (byte-identical to voidbind-go's `weblogin.EncodeLogin`), and a single
   `VoidbindQr.parse` the Scan screen calls to dispatch a scanned code to the
   login-approval or pairing flow.
+- **`VoidbindDeepLink`** — the **same-device app-to-app handoff** URI (ADR-0003): the
+  QR tuple plus an optional `callback=<private-app-scheme-uri>`, for a relying-party
+  app on the SAME phone to open the authenticator instead of showing a QR. See
+  "Same-device handoff" below.
 - **`KeyRef`** — `ed25519:<hex>` / `x25519:<hex>` key rendering.
 - **`DeviceKeyStore`** — `expect class` for the hardware signing key (Secure
   Enclave on iOS, StrongBox on Android; software-only on the JVM, for tests).
@@ -126,7 +130,7 @@ coordinators, `LoginQr`/`WebLogin` + the challenge-v2 number-match), **plus** th
 relying-party apps depend on it over the wire instead of re-implementing the login
 seam.
 
-- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.1.0` (Gradle resolves
+- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.2.0` (Gradle resolves
   the right variant per target: `-jvm`, `-android`, `-iosarm64`,
   `-iossimulatorarm64`).
 - **Registry:** GitHub Packages — `https://maven.pkg.github.com/rarebit-one/voidbind-kmp`
@@ -170,12 +174,50 @@ dependencyResolutionManagement {
 
 ```kotlin
 // app/build.gradle.kts — the single dependency line that replaces the login seam
-implementation("one.rarebit.voidbind:voidbind-client:0.1.0")
+implementation("one.rarebit.voidbind:voidbind-client:0.2.0")
 ```
 
 Adding this lets `allthing-android` / `heyarr-mobile` **delete their thin
 wire-compatible `login/` seam** and call the real `WebLoginClient` / `LoginQr` /
 `LoginApproval` directly.
+
+### Same-device handoff (app-to-app deep link)
+
+An RP app running on the **same phone** as the Voidbind authenticator does not need a
+second phone to scan its QR. It launches the authenticator with the same tuple its
+broker returned, and resumes when the authenticator finishes (the Singpass
+app-to-app model — ONE authenticator, N RPs). The contract:
+
+```
+voidbind:login?rp=<origin>&id=<login-id>[&callback=<private-app-scheme-uri>]
+voidbind:pair?v=2&relay=&session=&salt=<hex>[&callback=<private-app-scheme-uri>]
+```
+
+- The tuple is **exactly** the `qr` string from `POST /login` (byte-identical to
+  voidbind-go's `weblogin.EncodeLogin`); `callback` is the only addition.
+- The authenticator runs its normal approval: fetches the challenge from `rp`, **shows
+  the origin** (and the number-match grid for a v2 challenge), and signs hardware-gated
+  only after the user taps Approve + biometrics. **A deep link can never auto-approve.**
+- After the user decides, the authenticator **finishes** so the RP's task resumes. The
+  RP learns the outcome **only** by polling its broker (`GET /login/{id}`) — nothing
+  about the login is ever passed back through the link.
+- `callback`, if present and well-formed (a private app scheme — not `http(s)`,
+  `javascript`, `file`, `content`, `intent`, `voidbind`), is launched **bare**, only
+  after a **successful** approval, so the RP can foreground itself. Treat it as a hint:
+  it is dropped if malformed, never launched on deny, and ignored if no app handles it.
+
+Build the URI with the helper so the wire is never re-encoded by hand:
+
+```kotlin
+// RP app (Android), after POST /login returned {id, qr}:
+val uri = VoidbindDeepLink.loginUriFromTuple(qr, callback = "heyarr://login/done")
+startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))   // then keep polling GET /login/{id}
+// (the authenticator is not installed → ActivityNotFoundException: fall back to showing the QR)
+```
+
+`VoidbindDeepLink.pairUri(inviteTuple, callback)` does the same for a pairing invite
+(the authenticator joins as the **new** device — the same role as scanning the invite).
+See [`docs/adr/0003-app-to-app-deeplink-handoff.md`](docs/adr/0003-app-to-app-deeplink-handoff.md).
 
 ## Build
 

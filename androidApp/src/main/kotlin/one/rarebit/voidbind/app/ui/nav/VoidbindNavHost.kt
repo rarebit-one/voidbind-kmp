@@ -35,6 +35,7 @@ import one.rarebit.voidbind.app.domain.PairInviteDisplay
 import one.rarebit.voidbind.app.domain.PairSession
 import one.rarebit.voidbind.app.domain.RecoveryBackup
 import one.rarebit.voidbind.app.domain.ScannedCode
+import one.rarebit.voidbind.app.handoff.Handoff
 import one.rarebit.voidbind.app.domain.SitePolicyView
 import one.rarebit.voidbind.app.ui.screens.ApprovalActivityScreen
 import one.rarebit.voidbind.app.ui.screens.HomeScreen
@@ -71,8 +72,18 @@ object Routes {
  */
 private data class LoginErrorState(val message: String, val expired: Boolean = false)
 
+/**
+ * [handoff] is a login/pairing the activity was woken into from outside (a push ping
+ * or another app's `voidbind:` deep link); the graph runs the SAME approval flow a
+ * scan does and reports the decision through [onHandoffFinished] — which, for a
+ * deep link, finishes the activity so the calling app resumes.
+ */
 @Composable
-fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
+fun VoidbindNavHost(
+    viewModel: AppViewModel,
+    handoff: Handoff? = null,
+    onHandoffFinished: (Handoff, approved: Boolean) -> Unit = { _, _ -> },
+) {
     val nav = rememberNavController()
     val engine = viewModel.engine
     val identityState by viewModel.identity.collectAsStateWithLifecycle()
@@ -93,6 +104,9 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
     var pairSession by remember { mutableStateOf<PairSession?>(null) }
     var pairInvite by remember { mutableStateOf<PairInviteDisplay?>(null) }
     var revealBackup by remember { mutableStateOf<RecoveryBackup?>(null) }
+    // The handoff whose approval/pairing is currently on screen; its decision is routed
+    // to onHandoffFinished instead of plain goHome (a deep-link caller is waiting).
+    var activeHandoff by remember { mutableStateOf<Handoff?>(null) }
 
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
@@ -120,24 +134,50 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
         popUpTo(nav.graph.id) { inclusive = true }
     }
 
-    // A push wake: the UnifiedPush receiver launched us with the opaque login tuple.
-    // Fetch the (number-matching) request and open the approval — the same LOGIN
-    // destination a scan uses, so the number grid vs. plain-approve branch is shared.
-    LaunchedEffect(wakeTuple, start) {
-        val tuple = wakeTuple ?: return@LaunchedEffect
-        val code = engine.parseScanned(tuple)
-        if (code is ScannedCode.WebLogin) {
-            loginCode = code
-            // fetchLoginRequest never throws for a fetch failure; the runCatching is a final
-            // guard so no unexpected throw in this effect can become a main-thread FATAL.
-            when (val result = runCatching { engine.fetchLoginRequest(code) }.getOrNull()) {
-                is LoginRequestResult.Ready -> {
-                    loginRequest = result.request
-                    nav.navigate(Routes.LOGIN)
+    /**
+     * Route a decision on the LOGIN / PAIR_VERIFY screen: a deep-link handoff returns
+     * to the calling app (the activity finishes — no navigation here); a push wake or
+     * an in-app scan goes Home.
+     */
+    fun decided(approved: Boolean) {
+        val h = activeHandoff
+        activeHandoff = null
+        if (h != null) onHandoffFinished(h, approved)
+        if (h == null || !h.returnsToCaller) goHome()
+    }
+
+    // A wake from outside — a push ping, or another app's `voidbind:` deep link (the
+    // same-device handoff). The tuple is the bare QR string, so this is EXACTLY the scan
+    // path: fetch the request from the RP (the origin is shown, nothing auto-approves)
+    // and open the same LOGIN destination, so the number-match (v2) grid vs.
+    // plain-approve branch is shared. A pair invite joins as the new device → VERIFY.
+    LaunchedEffect(handoff, start) {
+        val h = handoff ?: return@LaunchedEffect
+        activeHandoff = h
+        when (val code = engine.parseScanned(h.tuple)) {
+            is ScannedCode.WebLogin -> {
+                loginCode = code
+                // fetchLoginRequest never throws for a fetch failure; the runCatching is a final
+                // guard so no unexpected throw in this effect can become a main-thread FATAL.
+                when (val result = runCatching { engine.fetchLoginRequest(code) }.getOrNull()) {
+                    is LoginRequestResult.Ready -> {
+                        loginRequest = result.request
+                        nav.navigate(Routes.LOGIN)
+                    }
+                    is LoginRequestResult.Failed -> loginError = LoginErrorState(result.message, result.expired)
+                    null -> loginError = LoginErrorState("Couldn't reach the site.")
                 }
-                is LoginRequestResult.Failed -> loginError = LoginErrorState(result.message, result.expired)
-                null -> loginError = LoginErrorState("Couldn't reach the site.")
             }
+            is ScannedCode.PairInvite -> {
+                when (val session = runCatching { engine.joinPairInvite(code) }.getOrNull()) {
+                    null -> loginError = LoginErrorState("Couldn't join the pairing invite.")
+                    else -> {
+                        pairSession = session
+                        nav.navigate(Routes.PAIR_VERIFY)
+                    }
+                }
+            }
+            is ScannedCode.Unknown -> loginError = LoginErrorState("Not a Voidbind code.")
         }
     }
 
@@ -145,9 +185,17 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
     // not a crash. A stale sign-in code (404/410) is titled "Expired" and reads as "scan a fresh
     // QR"; everything else keeps the generic "Sign-in unavailable".
     loginError?.let { error ->
+        // Dismissing an error raised during a deep-link handoff (the fetch/join failed, or
+        // the approval itself did) returns to the caller, not approved; an in-app error
+        // just closes.
+        val dismiss = {
+            loginError = null
+            val h = activeHandoff
+            if (h != null && h.returnsToCaller) decided(false)
+        }
         AlertDialog(
-            onDismissRequest = { loginError = null },
-            confirmButton = { TextButton(onClick = { loginError = null }) { Text("OK") } },
+            onDismissRequest = dismiss,
+            confirmButton = { TextButton(onClick = dismiss) { Text("OK") } },
             title = { Text(if (error.expired) "Expired" else "Sign-in unavailable") },
             text = { Text(error.message) },
         )
@@ -301,16 +349,19 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                         onDeny = {
                             scope.launch {
                                 runCatching { engine.denyLogin() }
-                                goHome()
+                                decided(false)
                             }
                         },
                         onApprove = { chosen ->
                             scope.launch {
                                 // A refused/failed approval (RP rejects, network drops) is caught so
                                 // it surfaces as an error instead of an uncaught main-thread FATAL.
-                                runCatching { loginCode?.let { engine.approveNumberMatch(it, chosen) } }
+                                val ok = runCatching { loginCode?.let { engine.approveNumberMatch(it, chosen) } }
                                     .onFailure { loginError = LoginErrorState("Couldn't complete the sign-in.") }
-                                goHome()
+                                    .isSuccess
+                                // A failed approval during a deep-link handoff keeps the error on
+                                // screen; dismissing it returns to the caller.
+                                if (ok || activeHandoff?.returnsToCaller != true) decided(ok)
                             }
                         },
                     )
@@ -323,14 +374,15 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                             onDeny = {
                                 scope.launch {
                                     runCatching { engine.denyLogin() }
-                                    goHome()
+                                    decided(false)
                                 }
                             },
                             onApprove = {
                                 scope.launch {
-                                    runCatching { loginCode?.let { engine.approveLogin(it) } }
+                                    val ok = runCatching { loginCode?.let { engine.approveLogin(it) } }
                                         .onFailure { loginError = LoginErrorState("Couldn't complete the sign-in.") }
-                                    goHome()
+                                        .isSuccess
+                                    if (ok || activeHandoff?.returnsToCaller != true) decided(ok)
                                 }
                             },
                             policy = loginPolicy,
@@ -380,11 +432,15 @@ fun VoidbindNavHost(viewModel: AppViewModel, wakeTuple: String? = null) {
                 } else {
                     PairVerifyScreen(
                         session = ses,
-                        onCancel = { goHome() },
+                        onCancel = { decided(false) },
                         onConfirm = {
                             scope.launch {
-                                engine.confirmPairing()
-                                goHome()
+                                val ok = runCatching { engine.confirmPairing() }
+                                    .onFailure { loginError = LoginErrorState("Couldn't complete the pairing.") }
+                                    .isSuccess
+                                // A failed approval during a deep-link handoff keeps the error on
+                                // screen; dismissing it returns to the caller.
+                                if (ok || activeHandoff?.returnsToCaller != true) decided(ok)
                             }
                         },
                     )

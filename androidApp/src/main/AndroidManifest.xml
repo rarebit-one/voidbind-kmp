@@ -22,13 +22,25 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.Voidbind"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|density|uiMode|smallestScreenSize"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Same-device app-to-app handoff: a relying-party app on THIS phone opens
+                 the authenticator with the same `voidbind:login?rp=&id=` tuple its QR
+                 would carry (optionally `&callback=<app-scheme-uri>`), or a
+                 `voidbind:pair?…` invite. The activity is singleTask so a warm app gets
+                 the link via onNewIntent and finish() returns straight to the caller.
+                 See docs/adr/0003-app-to-app-deeplink-handoff.md. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="voidbind" />
             </intent-filter>
         </activity>
 

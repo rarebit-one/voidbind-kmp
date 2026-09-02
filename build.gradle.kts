@@ -15,9 +15,10 @@ plugins {
 }
 
 group = "one.rarebit.voidbind"
-// First consumable (non-SNAPSHOT) release of the shared client. Bump on any
-// wire-affecting change; the coordinates are `one.rarebit.voidbind:voidbind-client`.
-version = "0.1.0"
+// Bump on any wire-affecting or API-affecting change; the coordinates are
+// `one.rarebit.voidbind:voidbind-client`. 0.2.0 adds `VoidbindDeepLink` (the
+// same-device app-to-app handoff URI, ADR-0003).
+version = "0.2.0"
 
 repositories {
     mavenCentral()
