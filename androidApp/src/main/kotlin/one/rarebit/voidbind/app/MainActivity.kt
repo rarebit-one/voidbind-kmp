@@ -1,7 +1,10 @@
 package one.rarebit.voidbind.app
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +20,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import one.rarebit.voidbind.app.domain.DeviceVoidbindEngine
 import one.rarebit.voidbind.app.domain.PreviewVoidbindEngine
 import one.rarebit.voidbind.app.domain.VoidbindEngine
+import one.rarebit.voidbind.app.handoff.Handoff
+import one.rarebit.voidbind.app.handoff.HandoffRouter
 import one.rarebit.voidbind.app.platform.AndroidBiometricAuthenticator
 import one.rarebit.voidbind.app.platform.ApprovalPolicyStore
 import one.rarebit.voidbind.app.platform.IdentityStore
@@ -30,26 +35,38 @@ import one.rarebit.voidbind.app.ui.theme.VoidbindTheme
  * A [FragmentActivity] because `BiometricPrompt` binds to one. Chooses the engine:
  * the real [DeviceVoidbindEngine] (hardware key + coordinators over the network,
  * biometric-gated) or the [PreviewVoidbindEngine] (in-memory mockup data). The
- * preview engine is the default so the UI is reviewable without hardware; flip
- * [USE_DEVICE_ENGINE] to run the real thing on a physical StrongBox device.
+ * preview engine is the default so the UI is reviewable without hardware; the real
+ * one is selected at BUILD time with `./gradlew -PdeviceEngine=true …`
+ * ([BuildConfig.USE_DEVICE_ENGINE]) — no source edit.
  *
- * A **push wake** ([UnifiedPushReceiver]) launches this activity with the opaque
- * login tuple as [UnifiedPushReceiver.EXTRA_LOGIN_TUPLE]; it is hoisted into
- * [wakeTuple] (updated on [onNewIntent] too) and handed to the nav graph, which
- * fetches the number-matching request and opens the approval.
+ * Two ways the activity is woken into a login from outside its own UI, both hoisted
+ * into one [handoff] the nav graph consumes (updated on [onNewIntent] too):
+ *
+ * - a **push wake** ([UnifiedPushReceiver]) with the opaque tuple in
+ *   [UnifiedPushReceiver.EXTRA_LOGIN_TUPLE] — the app stays open afterwards;
+ * - a **same-device deep link** (`ACTION_VIEW voidbind:login?…` / `voidbind:pair?…`)
+ *   from a relying-party app on this phone — the identical approval flow, and then
+ *   [finishHandoff] returns to the caller (finishing this activity, and launching the
+ *   RP's optional private-scheme `callback` bare after a successful approval). The
+ *   activity is `singleTask` so a warm app receives the link via [onNewIntent].
  */
 class MainActivity : FragmentActivity() {
 
-    private var wakeTuple by mutableStateOf<String?>(null)
+    private var handoff by mutableStateOf<Handoff?>(null)
+    private var handoffSeq = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        wakeTuple = intent?.getStringExtra(UnifiedPushReceiver.EXTRA_LOGIN_TUPLE)
+        // A cold start from a deep link / push: route the launching intent. On a
+        // recreation (rotation) the intent is the same one, but the handoff state is
+        // fresh — re-routing it re-fires the approval, which is the right thing (the
+        // flow state it held was ephemeral).
+        handoff = routeIntent(intent)
         setContent {
             VoidbindTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     val engine: VoidbindEngine = remember {
-                        if (USE_DEVICE_ENGINE) {
+                        if (BuildConfig.USE_DEVICE_ENGINE) {
                             DeviceVoidbindEngine(
                                 store = IdentityStore(applicationContext),
                                 policyStore = ApprovalPolicyStore(applicationContext),
@@ -68,7 +85,7 @@ class MainActivity : FragmentActivity() {
                         PushEndpointStore(applicationContext).current()?.let { engine.registerForPush(it) }
                     }
                     val vm: AppViewModel = viewModel { AppViewModel(engine) }
-                    VoidbindNavHost(vm, wakeTuple = wakeTuple)
+                    VoidbindNavHost(vm, handoff = handoff, onHandoffFinished = ::finishHandoff)
                 }
             }
         }
@@ -77,16 +94,48 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // A warm app woken by a fresh push: surface the new login.
-        intent.getStringExtra(UnifiedPushReceiver.EXTRA_LOGIN_TUPLE)?.let { wakeTuple = it }
+        // A warm app woken by a fresh push or a fresh deep link: surface the new login.
+        routeIntent(intent)?.let { handoff = it }
+    }
+
+    /**
+     * The push extra wins if present (the receiver built it from a parsed ping); else a
+     * `voidbind:` VIEW deep link. The URI is untrusted input from another app — the
+     * router parses it as strictly as a scan and drops a malformed callback.
+     */
+    private fun routeIntent(intent: Intent?): Handoff? {
+        intent ?: return null
+        val seq = ++handoffSeq
+        return HandoffRouter.fromPush(intent.getStringExtra(UnifiedPushReceiver.EXTRA_LOGIN_TUPLE), seq)
+            ?: HandoffRouter.fromDeepLink(intent.action, intent.dataString, seq)
+    }
+
+    /**
+     * The human decided (or the login could not be shown). For a deep-link handoff:
+     * launch the RP's callback — bare, nothing appended — only after a SUCCESSFUL
+     * approval, then finish so the caller's task resumes (it learns the outcome from
+     * its own broker poll, never from us). A push wake stays in the app.
+     */
+    private fun finishHandoff(done: Handoff, approved: Boolean) {
+        if (handoff?.seq == done.seq) handoff = null
+        if (!done.returnsToCaller) return
+        val callback = done.callback
+        if (approved && callback != null) {
+            try {
+                startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(callback))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            } catch (e: ActivityNotFoundException) {
+                Log.w(TAG, "callback has no handler; caller will resume by itself")
+            } catch (e: SecurityException) {
+                Log.w(TAG, "callback refused by the system; caller will resume by itself")
+            }
+        }
+        finishAndRemoveTask()
     }
 
     private companion object {
-        /**
-         * The real hardware engine is not the default yet: its StrongBox + biometric
-         * behaviour is device-tested, not verifiable on an emulator or in CI (see
-         * docs/DEVICE-TESTING.md), and the reviewable UI should not depend on it.
-         */
-        const val USE_DEVICE_ENGINE = false
+        const val TAG = "VoidbindHandoff"
     }
 }

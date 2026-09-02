@@ -21,6 +21,15 @@ The screens follow the product mockups one-to-one:
 | Recovery backup | Display + acknowledge the bech32m recovery secret (screenshots blocked) |
 | Settings | Device name, biometric approval, trusted sites (revoke), recovery, about |
 
+Two ways the app is opened *into* a login from outside its own UI, both running the
+identical approval flow a scan does: a **push wake** (`UnifiedPushReceiver`, self-hosted
+ntfy/UnifiedPush) and a **same-device deep link** — a relying-party app on this phone
+launching `voidbind:login?rp=&id=[&callback=]` (`ACTION_VIEW`, the activity is
+`singleTask`, so a warm app gets it via `onNewIntent`). After the deep-link decision the
+activity finishes so the caller resumes; a well-formed private-scheme `callback` is
+launched bare only after a successful approval. Routing lives in `handoff/`
+(`HandoffRouter`, pure Kotlin, unit-tested) — see ADR-0003.
+
 ## Architecture
 
 - **`domain/`** — UI-facing models (`Identity`, `DeviceInfo`, `TrustedSite`,
@@ -43,17 +52,28 @@ The screens follow the product mockups one-to-one:
   runs and can be reviewed against the mockups before the hardware/coordinators are
   wired. It is scaffolding, clearly labelled, and every value in it is placeholder
   content, not a real identity.
-- **`DeviceVoidbindEngine`** (next slice) — the real backend: `UserIdentity`
+- **`DeviceVoidbindEngine`** — the real backend: `UserIdentity`
   create/restore, the hardware `DeviceKeyStore` signing key + a sealed-at-rest X25519
   encryption-key store → `DeviceIdentity`, `Enrolment.selfEnrol`, and the
   `LoginApproval` / `DevicePairing` / `DeviceAuthorization` coordinators over an
-  OkHttp `HttpTransport`, with `BiometricPrompt` gating each signature. Swapping it in
-  is a one-line change in `MainActivity`.
+  OkHttp `HttpTransport`, with `BiometricPrompt` gating each signature.
+
+The engine is chosen at **build time** — no source edit:
+
+```sh
+./gradlew :androidApp:assembleDebug                     # preview engine (default; CI)
+./gradlew -PdeviceEngine=true :androidApp:assembleDebug # real hardware engine (device testing)
+```
+
+(`deviceEngine` → `BuildConfig.USE_DEVICE_ENGINE`; `deviceEngine=true` in
+`gradle.properties` also works.) Debug builds additionally allow cleartext HTTP
+(`src/debug/AndroidManifest.xml`) so a plain-http LAN test node can be used.
 
 ## Building
 
 ```sh
-./gradlew :androidApp:assembleDebug     # build the debug APK
+./gradlew :androidApp:assembleDebug            # build the debug APK (preview engine)
+./gradlew :androidApp:testDebugUnitTest        # pure-JVM unit tests (deep-link routing)
 ```
 
 `local.properties` must point `sdk.dir` at your Android SDK (gitignored).

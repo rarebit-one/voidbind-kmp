@@ -20,12 +20,20 @@ android {
         // BiometricPrompt/CryptoObject API and a provider that carries Ed25519.
         minSdk = 33
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+
+        // Engine selection at BUILD time, no source edit: `-PdeviceEngine=true` (or
+        // `deviceEngine=true` in gradle.properties) selects the real hardware-backed
+        // DeviceVoidbindEngine; the default (false) keeps the PreviewVoidbindEngine so
+        // CI and UI review never depend on a StrongBox/TEE device.
+        val deviceEngine = providers.gradleProperty("deviceEngine").map { it.toBoolean() }.getOrElse(false)
+        buildConfigField("boolean", "USE_DEVICE_ENGINE", deviceEngine.toString())
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
@@ -83,4 +91,8 @@ dependencies {
 
     // The device engine's HttpTransport actual (relay + RP calls).
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Pure-JVM unit tests (deep-link routing); no Android runtime needed.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation(kotlin("test"))
 }
