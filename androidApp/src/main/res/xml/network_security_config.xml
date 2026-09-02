@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cleartext stays OFF by default (the relay and the notify plane are HTTPS). The
+     one exception is the Bartley Ridge LAN host that runs the heyarr node (:7777)
+     and All Thing (:8080), which serve `POST /membership/{usr}` over plain HTTP on
+     the LAN — the membership push (a remove / a new member's add) is best-effort
+     and carries only signed, public ops, so cleartext to that host leaks nothing. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.16.224</domain>
+    </domain-config>
+</network-security-config>

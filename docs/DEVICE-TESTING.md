@@ -23,6 +23,7 @@ This is the runbook, plus the map of what still has to be built to reach the ful
 | iOS app shell (SwiftUI) | 🚧 scaffold (`iosApp/`); full screen set on-device |
 | Live web QR-login vs All Thing / heyarr | ⏳ device test (below) |
 | Same-device app-to-app deep link (`voidbind:login?…` from an RP app) | ✅ approval sheet proven on-device via `adb am start` against a live heyarr node (Test 5) |
+| Membership op-set (ADR-0005): any member adds the next; Devices list + Remove | ✅ library proven vs live voidbind-go (14/14 vectors, phone→phone through the Go relay, Go RP honours `ops`); **on-device: upgrade-in-place + Devices list proven; a real second-phone pair/remove needs a second phone (Test 4b)** |
 
 The commonMain "device brain" (identity derivation, self-enrolment, the
 `LoginApproval` / `DevicePairing` / `DeviceAuthorization` coordinators, the QR
@@ -109,6 +110,29 @@ Two devices (or one device + the `voidbind pair-*` CLI as the counterpart).
 3. Assert: the SAS matches only when the two devices are the real pair; a
    mismatched/rushed SAS yields no enrolment; the delivered cert verifies against
    the user key and binds the new device.
+
+## Test 4b — any member adds the next device; Settings → Devices; Remove (ADR-0005)
+
+From 0.5.0 the device that taps "Add a device" does NOT need the recovery secret:
+it signs the new device's add op with its own hardware key, citing the heads of the
+membership replica in `IdentityStore` (`ops`). A pre-0.5.0 install migrates on first
+launch — its v2 cert IS a genesis add, so the replica starts as `[cert]`; nothing is
+re-enrolled and nothing is lost.
+1. Upgrade in place (`adb install -r`, never uninstall). Open the app: Home still
+   shows the same identity fingerprint and this device; Settings → **Devices** lists
+   this device, "admitted <date> by genesis (recovery key)".
+2. On a PAIRED (non-owner) install, tap **Add a device**: the invite renders without
+   any secret; a third device that scans it receives an add signed **by the phone**
+   (`Membership.evaluate` on either side finds all three members). The invite is v3
+   (`usr=`), and a responder that expects a different identity gets **no SAS**.
+3. **Remove** another device from Devices: biometric prompt → a `remove` op signed
+   by this device → the row disappears (local evaluation) and the ops are pushed to
+   `POST /membership/{usr}` on the heyarr node (:7777) and All Thing (:8080);
+   a 404 from an RP that has not landed the route yet is tolerated. The removed
+   device is refused at every RP on its next login (its ops travel with the
+   assertion, and the RP's log now holds the remove).
+4. Login still works: the assertion carries `ops` beside the admitting op (see
+   `CoordinatorGoInteropTest`, which proves the Go RP evaluates them).
 
 ## Test 5 — same-device handoff: an RP app opens the authenticator by deep link
 

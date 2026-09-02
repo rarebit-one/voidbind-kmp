@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Settings
@@ -35,6 +36,7 @@ import one.rarebit.cruciform.domain.HardwareBacking
 import one.rarebit.cruciform.domain.Identity
 import one.rarebit.cruciform.domain.TrustedSite
 import one.rarebit.cruciform.ui.components.HSpace
+import one.rarebit.cruciform.ui.components.IconCircle
 import one.rarebit.cruciform.ui.components.IdentityFingerprint
 import one.rarebit.cruciform.ui.components.RowItem
 import one.rarebit.cruciform.ui.components.ScreenPadding
@@ -61,6 +63,7 @@ fun HomeScreen(
     onSettings: () -> Unit,
     onCopyIdentity: () -> Unit,
     onDevice: () -> Unit,
+    onDevices: () -> Unit,
     onSite: (TrustedSite) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -130,6 +133,16 @@ fun HomeScreen(
                 }
                 Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted)
             }
+        }
+        VSpace(10)
+        VbCard(modifier = Modifier.fillMaxWidth()) {
+            RowItem(
+                title = "All devices",
+                subtitle = "Members of this identity · add or remove",
+                onClick = onDevices,
+                leading = { IconCircle(Icons.Rounded.Devices, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) },
+                trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
+            )
         }
 
         VSpace(26)

@@ -105,6 +105,19 @@ class PreviewVoidbindEngine(
 
     override suspend fun confirmPairing(): EngineResult<Unit> { delay(600); return EngineResult.Ready(Unit) }
 
+    private val previewDevices = SampleData.devices.toMutableList()
+
+    override suspend fun devices(): List<MemberDevice> { delay(100); return previewDevices.toList() }
+
+    override suspend fun removeDevice(deviceId: String): EngineResult<Unit> {
+        delay(400)
+        if (previewDevices.firstOrNull { it.id == deviceId }?.isThisDevice == true) {
+            return EngineResult.Failed(EngineFailure("This device can't remove itself.", EngineFailure.Kind.INTERNAL, retryable = false))
+        }
+        previewDevices.removeAll { it.id == deviceId }
+        return EngineResult.Ready(Unit)
+    }
+
     override suspend fun renameDevice(name: String) {
         _identity.update { s ->
             if (s is IdentityState.Active) s.copy(device = s.device.copy(name = name)) else s
@@ -186,6 +199,19 @@ object SampleData {
         inviteId = "INV · 8F2C 91A7",
         qrPayload = "voidbind:pair?v=3&relay=wss://relay.thesim.family&session=8f2c91a7&salt=…&usr=ed25519:…",
         expiresInSeconds = 278,
+    )
+
+    val devices = listOf(
+        MemberDevice(
+            id = "ed25519:a29f67b1000000000000000000000000000000000000000000000000000000a1",
+            fingerprint = "A29F 67B1", isThisDevice = true,
+            admittedByLabel = "genesis (recovery key)", admittedLabel = "1 Sep 2026", expiresLabel = "renews by 30 Nov 2026",
+        ),
+        MemberDevice(
+            id = "ed25519:5c1e88d4000000000000000000000000000000000000000000000000000000b2",
+            fingerprint = "5C1E 88D4", isThisDevice = false,
+            admittedByLabel = "A29F 67B1", admittedLabel = "2 Sep 2026", expiresLabel = "renews by 1 Dec 2026",
+        ),
     )
 
     val pairSession = PairSession(

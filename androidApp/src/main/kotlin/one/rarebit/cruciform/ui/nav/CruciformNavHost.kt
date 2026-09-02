@@ -40,6 +40,7 @@ import one.rarebit.cruciform.domain.ScannedCode
 import one.rarebit.cruciform.handoff.Handoff
 import one.rarebit.cruciform.domain.SitePolicyView
 import one.rarebit.cruciform.ui.screens.ApprovalActivityScreen
+import one.rarebit.cruciform.ui.screens.DevicesScreen
 import one.rarebit.cruciform.ui.screens.HomeScreen
 import one.rarebit.cruciform.ui.screens.LoginApprovalScreen
 import one.rarebit.cruciform.ui.screens.NumberMatchApprovalScreen
@@ -65,6 +66,7 @@ object Routes {
     const val PAIR_VERIFY = "pair_verify"
     const val RECOVERY = "recovery"
     const val ACTIVITY = "activity"
+    const val DEVICES = "devices"
 }
 
 /**
@@ -107,6 +109,8 @@ fun CruciformNavHost(
     // The RP's per-site approval policy, fetched when the approval sheet opens.
     var loginPolicy by remember { mutableStateOf<SitePolicyView?>(null) }
     var approvalActivity by remember { mutableStateOf<List<one.rarebit.cruciform.domain.ApprovalActivity>>(emptyList()) }
+    // The identity's device set (Settings → Devices), evaluated from this device's replica.
+    var memberDevices by remember { mutableStateOf<List<one.rarebit.cruciform.domain.MemberDevice>>(emptyList()) }
     // A failed login-challenge fetch (unreachable/misconfigured RP, TLS, timeout, non-2xx,
     // cleartext-blocked) surfaces here as a dismissible error instead of crashing the app.
     var loginError by remember { mutableStateOf<LoginErrorState?>(null) }
@@ -181,6 +185,14 @@ fun CruciformNavHost(
                     retry = if (result.failure.retryable) ({ joinInvite(code, beforeVerify) }) else null,
                 )
             }
+        }
+    }
+
+    /** Evaluate the device set from this device's replica and open Settings → Devices. */
+    fun openDevices() {
+        scope.launch {
+            memberDevices = runCatching { engine.devices() }.getOrDefault(emptyList())
+            if (route != Routes.DEVICES) nav.navigate(Routes.DEVICES)
         }
     }
 
@@ -347,6 +359,7 @@ fun CruciformNavHost(
                         onSettings = { nav.navigate(Routes.SETTINGS) },
                         onCopyIdentity = { clipboard.setText(AnnotatedString(active.identity.fullKey)) },
                         onDevice = { startInvite() },
+                        onDevices = { openDevices() },
                         onSite = { /* site detail — later */ },
                     )
                 }
@@ -375,6 +388,7 @@ fun CruciformNavHost(
                                 nav.navigate(Routes.ACTIVITY)
                             }
                         },
+                        onDevices = { openDevices() },
                         onAbout = { },
                         onSecurity = { },
                         onLicenses = { },
@@ -563,6 +577,25 @@ fun CruciformNavHost(
                 ApprovalActivityScreen(
                     activity = approvalActivity,
                     onBack = { nav.popBackStack() },
+                )
+            }
+
+            composable(Routes.DEVICES) {
+                DevicesScreen(
+                    devices = memberDevices,
+                    onBack = { nav.popBackStack() },
+                    onAddDevice = { startInvite() },
+                    onRemove = { device ->
+                        scope.launch {
+                            // removeDevice never throws for a transport/biometric failure; a Failed
+                            // (cancelled prompt, not a member, no identity) lands in the dialog.
+                            val result = runCatching { engine.removeDevice(device.id) }.getOrElse { EngineResult.Failed(unexpected(it, "Couldn't remove the device.")) }
+                            when (result) {
+                                is EngineResult.Ready -> memberDevices = engine.devices()
+                                is EngineResult.Failed -> engineError = EngineErrorState(result.failure)
+                            }
+                        }
+                    },
                 )
             }
         }

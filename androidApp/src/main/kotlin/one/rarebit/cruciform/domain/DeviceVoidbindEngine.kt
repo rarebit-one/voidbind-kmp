@@ -7,11 +7,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import one.rarebit.voidbind.AuthenticationRequiredException
-import one.rarebit.voidbind.Cert
 import one.rarebit.voidbind.DeviceIdentity
 import one.rarebit.voidbind.DeviceKeyStore
 import one.rarebit.voidbind.Enrolment
+import one.rarebit.voidbind.KeyRef
 import one.rarebit.voidbind.LoginQr
+import one.rarebit.voidbind.Membership
+import one.rarebit.voidbind.MembershipOp
 import one.rarebit.voidbind.RecoverySecret
 import one.rarebit.voidbind.UserIdentity
 import one.rarebit.cruciform.platform.ApprovalPolicyStore
@@ -28,7 +30,11 @@ import one.rarebit.voidbind.net.HttpTransport
 import one.rarebit.voidbind.net.NotifyClient
 import one.rarebit.voidbind.policy.ApprovalPolicy
 import one.rarebit.voidbind.policy.ApprovalPolicyManager
+import one.rarebit.voidbind.crypto.MiniJson
 import java.net.URI
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * The real [VoidbindEngine]: wires the app UI to the library's commonMain device
@@ -46,6 +52,14 @@ import java.net.URI
  * on an emulator or in CI. Both pairing directions are now UI-driven: the responder
  * (join → VERIFY → confirm) and the initiator (invite → [awaitPairHandshake] →
  * VERIFY → authorise).
+ *
+ * MEMBERSHIP (ADR-0005): this device is one member of the identity's device set.
+ * "Add a device" is available to ANY member — the initiator signs the new device's
+ * add op with its own hardware key, citing the heads of the replica in
+ * [IdentityStore]; the recovery secret is only the genesis fallback for a device
+ * whose own admission has lapsed. Login assertions present the replica (`ops`);
+ * Settings → Devices evaluates it and can sign a `remove` (biometric-gated) that is
+ * pushed to the relying parties in [membershipRps].
  */
 class DeviceVoidbindEngine(
     private val store: IdentityStore,
@@ -55,6 +69,8 @@ class DeviceVoidbindEngine(
     private val relayBase: String,
     private val notifyBase: String = DEFAULT_NOTIFY,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
+    /** Relying parties that serve `POST /membership/{usr}`; a remove is pushed to each, best-effort. */
+    private val membershipRps: List<String> = DEFAULT_MEMBERSHIP_RPS,
 ) : VoidbindEngine {
 
     private val deviceAlias = "device"
@@ -126,7 +142,9 @@ class DeviceVoidbindEngine(
     override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequestResult = withContext(Dispatchers.IO) {
         val persisted = store.load()
             ?: return@withContext LoginRequestResult.Failed("No identity on this device.")
-        val approval = LoginApproval(transport, buildDevice(), persisted.enrolmentCert)
+        // The assertion presents the replica (`ops`) beside the admitting op, so an RP
+        // that never met the member that admitted this device can still evaluate it.
+        val approval = LoginApproval(transport, buildDevice(), persisted.enrolmentCert, knownOps = persisted.ops)
         // beginCatching converts every transport/IO failure and non-2xx into an Outcome.Failed
         // instead of throwing, so an unreachable/misconfigured RP surfaces as a login error and
         // never becomes an uncaught main-thread FATAL. The extra runCatching is belt-and-braces:
@@ -225,7 +243,7 @@ class DeviceVoidbindEngine(
 
     override suspend fun startPairInvite(): EngineResult<PairInviteDisplay> = withContext(Dispatchers.IO) {
         engineCatching(relayBase) {
-            val authorization = DeviceAuthorization(transport, requireUser(), clock)
+            val authorization = memberAuthorization()
             when (val outcome = authorization.inviteCatching(relayBase)) {
                 is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
                 is PairingOutcome.Ready -> {
@@ -305,11 +323,11 @@ class DeviceVoidbindEngine(
                 return@engineCatching when (val outcome = join.pairing.confirmCatching(join.handshake)) {
                     is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
                     is PairingOutcome.Ready -> {
-                        // PR 3 persists the whole admission (op + ops); until then the
-                        // admitting op takes the cert slot — it IS the credential.
-                        val cert = outcome.value.op
-                        val userPub = one.rarebit.voidbind.MembershipOp.verify(cert).let { one.rarebit.voidbind.KeyRef.parse(it.user).bytes }
-                        store.saveJoined(cert, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
+                        // The admission: this device's admitting op (its credential) plus
+                        // the ops that authorise it (its replica from here on).
+                        val admission = outcome.value
+                        val userPub = KeyRef.parse(MembershipOp.verify(admission.op).user).bytes
+                        store.saveJoined(admission.op, admission.ops, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
                         pendingJoin = null
                         sessionUser = null // a joined device holds no user key
                         _identity.value = loadState()
@@ -322,13 +340,15 @@ class DeviceVoidbindEngine(
                 if (!biometric.authenticate("Authorise new device", "Approve on this device")) {
                     return@engineCatching cancelledFailure()
                 }
-                return@engineCatching when (val outcome = authorization.first.authoriseCatching(authorization.second)) {
-                    is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
-                    is PairingOutcome.Ready -> {
-                        pendingAuthorization = null
-                        EngineResult.Ready(Unit)
-                    }
-                }
+                // authorise() SIGNS the add with this device's hardware key (a member
+                // initiator) — so it runs under withDeviceAuth, which re-prompts if the
+                // keystore's auth window has lapsed; any throw lands in engineCatching.
+                val ops = withDeviceAuth { authorization.first.authorise(authorization.second) }
+                store.recordOps(ops)
+                pendingAuthorization = null
+                pushMembership(ops) // best-effort: the RPs learn the new member now, not at its first login
+                _identity.value = loadState()
+                return@engineCatching EngineResult.Ready(Unit)
             }
             internalFailure("No pairing is in progress.")
         }
@@ -371,6 +391,89 @@ class DeviceVoidbindEngine(
         // from the human's point of view). Protocol: never against the same session.
         retryable = kind != PairingFailureKind.PROTOCOL,
     )
+
+    // --- Devices (membership, ADR-0005) ---------------------------------------
+
+    override suspend fun devices(): List<MemberDevice> = withContext(Dispatchers.IO) {
+        val persisted = store.load() ?: return@withContext emptyList()
+        val usr = KeyRef.ed25519(persisted.userPublicKey).render()
+        val self = KeyRef.ed25519(DeviceKeyStore.getOrCreate(deviceAlias).publicKey().bytes).render()
+        val view = Membership.evaluate(usr, persisted.ops, clock())
+        view.members.values
+            .sortedWith(compareBy<Membership.Member> { it.device != self }.thenBy { it.admittedAt })
+            .map { m ->
+                val admitting = view.accepted[m.admittedBy]
+                MemberDevice(
+                    id = m.device,
+                    fingerprint = shortFingerprint(KeyRef.parse(m.device).bytes),
+                    isThisDevice = m.device == self,
+                    admittedByLabel = when {
+                        admitting == null -> "unknown"
+                        admitting.genesis -> "genesis (recovery key)"
+                        admitting.by == self -> "this device"
+                        else -> shortFingerprint(KeyRef.parse(admitting.by).bytes)
+                    },
+                    admittedLabel = dateLabel(m.admittedAt),
+                    expiresLabel = "renews by ${dateLabel(m.expiresAt)}",
+                )
+            }
+    }
+
+    override suspend fun removeDevice(deviceId: String): EngineResult<Unit> = withContext(Dispatchers.IO) {
+        engineCatching(relayBase) {
+            val persisted = store.load() ?: return@engineCatching internalFailure("No identity on this device.")
+            val ks = DeviceKeyStore.getOrCreate(deviceAlias)
+            val selfPub = ks.publicKey().bytes
+            val self = KeyRef.ed25519(selfPub).render()
+            if (deviceId == self) return@engineCatching internalFailure("This device can't remove itself. Remove it from another device.")
+            val usr = KeyRef.ed25519(persisted.userPublicKey).render()
+            val now = clock()
+            val view = Membership.evaluate(usr, persisted.ops, now)
+            if (!view.isMember(self)) return@engineCatching internalFailure("This device is no longer a member, so it can't remove others.")
+            if (!view.isMember(deviceId)) return@engineCatching internalFailure("That device is not a member any more.")
+            if (!biometric.authenticate("Remove device", "Sign the removal with this device")) {
+                return@engineCatching cancelledFailure()
+            }
+            // The remove is signed by THIS device's hardware key, citing the replica's heads —
+            // the causal evidence that it was a member when it said so (ADR-0005 rule 2).
+            val removeOp = withDeviceAuth {
+                MembershipOp.sign(
+                    { ks.sign(it) }, selfPub, usr, MembershipOp.Kind.REMOVE,
+                    dev = deviceId, deviceEnc = "", prev = view.heads, issuedAt = now,
+                )
+            }
+            store.recordOps(listOf(removeOp))
+            val ops = store.knownOps()
+            check(!Membership.evaluate(usr, ops, now).isMember(deviceId)) { "the removal did not take effect locally" }
+            pushMembership(ops)
+            _identity.value = loadState()
+            EngineResult.Ready(Unit)
+        }
+    }
+
+    /**
+     * Push the replica to every relying party this app knows (`POST /membership/{usr}
+     * {"ops":[…]}` — heyarr-core / All Thing), so a remove reaches them now rather than
+     * at some device's next authenticated call. Best-effort by design: an RP that is
+     * unreachable, or does not serve the route yet (404), is skipped — the ops still
+     * travel with every login assertion. Returns how many RPs accepted.
+     */
+    private fun pushMembership(ops: List<String>): Int {
+        val persisted = store.load() ?: return 0
+        val usr = KeyRef.ed25519(persisted.userPublicKey).render()
+        val body = MiniJson.encodeObject(listOf("ops" to one.rarebit.voidbind.WebLogin.presentable(ops))).encodeToByteArray()
+        var accepted = 0
+        for (rp in membershipRps) {
+            val ok = runCatching {
+                transport.post(rp.trimEnd('/') + "/membership/" + usr, body, "application/json").status in 200..299
+            }.getOrDefault(false)
+            if (ok) accepted++
+        }
+        return accepted
+    }
+
+    private fun dateLabel(unixSeconds: Long): String =
+        SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(unixSeconds * 1000))
 
     // --- Settings -------------------------------------------------------------
 
@@ -471,8 +574,30 @@ class DeviceVoidbindEngine(
         return DeviceIdentity.EncryptionKey(priv, pub)
     }
 
+    /**
+     * The authority for "Add a device": THIS device as a member (ADR-0005 — no secret
+     * involved), signing with its hardware key and citing the heads of its replica.
+     * Only if its own ops no longer find it a member (its add lapsed, or it was
+     * removed) does an install that holds the recovery secret fall back to GENESIS,
+     * which is the one authority that can re-admit — a Restore-based install is
+     * exactly that case.
+     */
+    private fun memberAuthorization(): DeviceAuthorization {
+        val persisted = store.load() ?: error("No identity on this device.")
+        val device = buildDevice()
+        val usr = KeyRef.ed25519(persisted.userPublicKey).render()
+        val view = Membership.evaluate(usr, persisted.ops, clock())
+        if (view.isMember(device.deviceId.render())) {
+            return DeviceAuthorization(transport, device, persisted.enrolmentCert, persisted.ops, clock)
+        }
+        check(store.hasUserKey()) {
+            "This device is no longer a member of the identity, so it can't add devices. Re-admit it from another device, or restore from the recovery secret."
+        }
+        return DeviceAuthorization(transport, requireUser(), clock, knownOps = persisted.ops)
+    }
+
     private fun requireUser(): UserIdentity = sessionUser ?: run {
-        check(store.hasUserKey()) { "Only the device that created the identity can add new devices." }
+        check(store.hasUserKey()) { "This device holds no recovery secret." }
         val bytes = store.recoverySecret() ?: error("user key is not available")
         UserIdentity.fromSecret(RecoverySecret.of(bytes)).also { sessionUser = it }
     }
@@ -518,5 +643,15 @@ class DeviceVoidbindEngine(
 
         /** Default notify-plane base (POST/DELETE /v1/subscriptions); override at construction. */
         const val DEFAULT_NOTIFY = "https://notify.thesim.family"
+
+        /**
+         * Relying parties that (will) serve `POST /membership/{usr}`: the heyarr node and
+         * All Thing on hyperion-1 (Bartley Ridge LAN). Best-effort targets for a pushed
+         * remove/add; a 404 from one that has not landed the route yet is tolerated.
+         */
+        val DEFAULT_MEMBERSHIP_RPS: List<String> = listOf(
+            "http://192.168.16.224:7777",
+            "http://192.168.16.224:8080",
+        )
     }
 }
