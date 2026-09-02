@@ -3,7 +3,7 @@
     <!-- A no-action-bar, dark, edge-to-edge shell theme. Parented on the platform
          Material theme (not Material Components) so the app needs no extra
          com.google.android.material dependency — all real styling is Compose. -->
-    <style name="Theme.Voidbind" parent="@android:style/Theme.Material.NoActionBar">
+    <style name="Theme.Cruciform" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/void_black</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>

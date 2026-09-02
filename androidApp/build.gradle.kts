@@ -11,17 +11,17 @@ plugins {
 }
 
 android {
-    namespace = "one.rarebit.voidbind.app"
+    namespace = "one.rarebit.cruciform"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "one.rarebit.voidbind"
+        applicationId = "one.rarebit.cruciform"
         // minSdk 33 mirrors the library: StrongBox (API 28+) plus the modern
         // BiometricPrompt/CryptoObject API and a provider that carries Ed25519.
         minSdk = 33
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.3.0"
 
         // Engine selection at BUILD time, no source edit: `-PdeviceEngine=true` (or
         // `deviceEngine=true` in gradle.properties) selects the real hardware-backed

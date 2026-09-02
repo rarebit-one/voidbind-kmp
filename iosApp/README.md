@@ -1,6 +1,8 @@
-# Voidbind iOS app
+# Cruciform iOS app
 
-The SwiftUI device authenticator. It links the KMP library as `Voidbind.xcframework`
+The SwiftUI device authenticator, **Cruciform** (the app; *Voidbind* is the protocol —
+ADR-0004). The Xcode target is `Cruciform`, bundle id `one.rarebit.cruciform`; the
+Swift sources still live under `Voidbind/`, the folder named for the framework. It links the KMP library as `Voidbind.xcframework`
 and provides the two platform pieces the library needs on iOS: the **Swift
 `SecureEnclaveSealer`** (seals the Ed25519 signing seed to a Secure-Enclave P-256
 key) and a **`URLSessionHttpTransport`**. Everything else — identity derivation,
@@ -10,15 +12,15 @@ pairing, web-login, cert crypto — lives in the shared library.
 
 The Xcode project is generated from [`project.yml`](project.yml) with
 [XcodeGen](https://github.com/yonom/XcodeGen) (`brew install xcodegen`), so
-`Voidbind.xcodeproj` is **not** checked in — regenerate it after a clone:
+`Cruciform.xcodeproj` is **not** checked in — regenerate it after a clone:
 
 ```sh
 cd iosApp
-xcodegen generate            # writes Voidbind.xcodeproj from project.yml
+xcodegen generate            # writes Cruciform.xcodeproj from project.yml
 # The scheme's pre-build phase runs `assembleVoidbindDebugXCFramework` if the
 # framework is missing; you can also build it up front from the repo root:
 #   ./gradlew assembleVoidbindDebugXCFramework
-xcodebuild -scheme Voidbind -project Voidbind.xcodeproj -sdk iphonesimulator \
+xcodebuild -scheme Cruciform -project Cruciform.xcodeproj -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' ARCHS=arm64 EXCLUDED_ARCHS=x86_64 build
 ```
 
@@ -31,19 +33,19 @@ Install + launch in a booted arm64 Simulator:
 ```sh
 DEV=$(xcrun simctl list devices available | grep -m1 'iPhone 17 Pro (' | grep -oE '[0-9A-F-]{36}')
 xcrun simctl boot "$DEV"
-APP=$(find iosApp/build/DerivedData/Build/Products/Debug-iphonesimulator -maxdepth 1 -name Voidbind.app)
+APP=$(find iosApp/build/DerivedData/Build/Products/Debug-iphonesimulator -maxdepth 1 -name Cruciform.app)
 xcrun simctl install "$DEV" "$APP"
-xcrun simctl launch  "$DEV" one.rarebit.voidbind
+xcrun simctl launch  "$DEV" one.rarebit.cruciform
 xcrun simctl io "$DEV" screenshot onboarding.png
 ```
 
 Verified on the iOS 26.2 Simulator (Xcode 26.2): the app builds, installs,
 launches, and renders the onboarding screen (Create / Restore).
 
-Project facts: bundle id `one.rarebit.voidbind`, deployment target iOS 16, links
+Project facts: target + display name `Cruciform`, bundle id `one.rarebit.cruciform`, deployment target iOS 16, links
 `Voidbind.xcframework` **Embed & Sign**, `NSFaceIDUsageDescription` +
 `NSCameraUsageDescription` in `Info.plist`. The app's Swift module is
-`VoidbindApp` (not `Voidbind`) so `import Voidbind` resolves to the framework and
+`CruciformApp` (not `Voidbind`) so `import Voidbind` resolves to the framework and
 not the app target itself.
 
 > ⚠️ CI verifies the KMP library (`jvmTest` + Android + the iOS klibs) and the
@@ -100,8 +102,8 @@ network:
 ```sh
 DEV=<booted arm64 simulator udid>
 for s in onboarding recovery home scan login pair-connect pair-verify settings; do
-  xcrun simctl terminate "$DEV" one.rarebit.voidbind 2>/dev/null
-  SIMCTL_CHILD_VOIDBIND_PREVIEW_SCREEN=$s xcrun simctl launch "$DEV" one.rarebit.voidbind
+  xcrun simctl terminate "$DEV" one.rarebit.cruciform 2>/dev/null
+  SIMCTL_CHILD_VOIDBIND_PREVIEW_SCREEN=$s xcrun simctl launch "$DEV" one.rarebit.cruciform
   sleep 2; xcrun simctl io "$DEV" screenshot "$s.png"
 done
 ```
@@ -139,15 +141,15 @@ cd ..                                   # repo root
 There is no `.xcodeproj` checked in yet (it is generated on the machine that has
 Xcode). To stand it up:
 
-1. **New Xcode project** → iOS App, SwiftUI, name it `Voidbind`, bundle id e.g.
-   `one.rarebit.voidbind`. Add the `Voidbind/*.swift` files here to the target.
+1. **New Xcode project** → iOS App, SwiftUI, name it `Cruciform`, bundle id
+   `one.rarebit.cruciform`. Add the `Voidbind/*.swift` files here to the target.
 2. **Link the framework**: drag `build/XCFrameworks/release/Voidbind.xcframework`
    into the target → *Frameworks, Libraries, and Embedded Content* → **Embed & Sign**.
    (Add a Run Script or a Gradle build phase to re-run `assembleVoidbindReleaseXCFramework`
    so the framework tracks the library.)
 3. **Capabilities / entitlements**:
    - Face ID usage string: add `NSFaceIDUsageDescription` to `Info.plist`
-     ("Authenticate to use your Voidbind device key").
+     ("Authenticate to use your Cruciform device key").
    - Keychain sharing is not required (items are app-scoped, this-device-only).
 4. **Signing**: a real Secure Enclave needs a device build (the Simulator has no
    Enclave — the sealer's provision/unseal only truly exercise on hardware).

@@ -1,8 +1,12 @@
 # voidbind-kmp
 
-Voidbind — the **Kotlin Multiplatform device authenticator**: hardware-backed
+Voidbind — the **Kotlin Multiplatform device-authenticator library**: hardware-backed
 device keys, commit-before-reveal pairing, and account recovery, sharing **one
 wire contract** with [`voidbind-go`](https://github.com/rarebit-one/voidbind-go).
+The first-party authenticator **app** built on it is **Cruciform**
+([`androidApp/`](androidApp/README.md), [`iosApp/`](iosApp/README.md)) — *Voidbind*
+names the protocol and the `voidbind:` scheme, *Cruciform* names the app
+([ADR-0004](docs/adr/0004-authenticator-named-cruciform.md)).
 
 Voidbind is a device-authentication protocol extracted from **heyarr**.
 `voidbind-go` holds the wire contract (the source of truth); this repo is the
