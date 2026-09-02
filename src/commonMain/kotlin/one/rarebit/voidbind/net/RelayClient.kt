@@ -22,11 +22,20 @@ class RelayClient(
     val session: String,
     val role: String,
     private val pollIntervalMillis: Long = 150,
-    private val maxWaitMillis: Long = 60_000,
+    /**
+     * How long [fetch] keeps polling an absent peer slot before giving up with
+     * [RelayTimeout]. A flow that waits for a HUMAN (an initiator waiting for the new
+     * device to join, which may first have to create its key behind a fingerprint)
+     * should bound this by the relay's session TTL, not the default.
+     */
+    private val maxWaitMillis: Long = DEFAULT_MAX_WAIT_MILLIS,
 ) {
     companion object {
         const val ROLE_INITIATOR = "initiator"
         const val ROLE_RESPONDER = "responder"
+
+        /** The historical poll bound (60 s) — fine for a peer already in the handshake. */
+        const val DEFAULT_MAX_WAIT_MILLIS: Long = 60_000
 
         /** Ask the relay to open a session and return its id. */
         fun createSession(http: HttpTransport, base: String): String {

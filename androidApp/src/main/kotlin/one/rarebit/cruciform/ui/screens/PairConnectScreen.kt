@@ -64,10 +64,22 @@ fun PairConnectScreen(
     sameDeviceTargets: List<RpPairTarget> = emptyList(),
     onSendTo: (RpPairTarget) -> Unit = {},
     onShare: () -> Unit = {},
+    /**
+     * Seconds left on the invite's relay session, supplied by the owner of the invite
+     * (the app-scoped coordinator, ADR-0007) so it is the SAME clock whether this screen
+     * is entered fresh, recomposed, or returned to from the relying-party app. Null →
+     * count down locally from [PairInviteDisplay.expiresInSeconds] (previews).
+     */
+    remainingSeconds: Int? = null,
+    /** A one-line status under the timer, e.g. "Waiting for the new device to join…". */
+    status: String? = null,
 ) {
     SecureScreen()
-    var remaining by remember { mutableIntStateOf(invite.expiresInSeconds) }
-    LaunchedEffect(Unit) { while (remaining > 0) { delay(1000); remaining -= 1 } }
+    var localRemaining by remember { mutableIntStateOf(invite.expiresInSeconds) }
+    LaunchedEffect(remainingSeconds == null) {
+        if (remainingSeconds == null) while (localRemaining > 0) { delay(1000); localRemaining -= 1 }
+    }
+    val remaining = remainingSeconds ?: localRemaining
 
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         AppTopBar(title = "Pair a device", onBack = onBack)
@@ -93,6 +105,10 @@ fun PairConnectScreen(
                         Icon(Icons.Rounded.Schedule, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))
                         HSpace(6)
                         Text("Expires in ${format(remaining)}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+                    }
+                    if (status != null) {
+                        VSpace(6)
+                        Text(status, style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center)
                     }
                 }
             }

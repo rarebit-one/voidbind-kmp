@@ -22,6 +22,7 @@ import one.rarebit.cruciform.domain.PreviewVoidbindEngine
 import one.rarebit.cruciform.domain.VoidbindEngine
 import one.rarebit.cruciform.handoff.Handoff
 import one.rarebit.cruciform.handoff.HandoffRouter
+import one.rarebit.cruciform.pairing.ServiceKeepAlive
 import one.rarebit.cruciform.platform.AndroidBiometricAuthenticator
 import one.rarebit.cruciform.platform.ApprovalPolicyStore
 import one.rarebit.cruciform.platform.IdentityStore
@@ -87,7 +88,16 @@ class MainActivity : FragmentActivity() {
                     LaunchedEffect(engine) {
                         PushEndpointStore(applicationContext).current()?.let { engine.registerForPush(it) }
                     }
-                    val vm: AppViewModel = viewModel { AppViewModel(engine) }
+                    // The invite coordinator (ADR-0007) lives in the ViewModel scope with a
+                    // foreground-service keep-alive, so a minted invite keeps waiting on the
+                    // relay while the user is in the relying-party app on this phone.
+                    val vm: AppViewModel = viewModel {
+                        AppViewModel(
+                            engine,
+                            relayUrl = RelaySettings(applicationContext)::current,
+                            keepAlive = ServiceKeepAlive(applicationContext),
+                        )
+                    }
                     CruciformNavHost(vm, handoff = handoff, onHandoffFinished = ::finishHandoff)
                 }
             }

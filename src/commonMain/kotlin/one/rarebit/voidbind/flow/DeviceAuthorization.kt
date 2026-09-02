@@ -39,6 +39,13 @@ class DeviceAuthorization private constructor(
     private val authority: () -> PairflowAuthority,
     private val clock: () -> Long,
     private val pollIntervalMillis: Long,
+    /**
+     * How long [handshake] waits for the new device to join the relay before it fails
+     * with [PairingFailureKind.TIMEOUT]. The new device may have to be created first
+     * (a key behind a fingerprint, on another app), so an app should pass the relay's
+     * session TTL here rather than the transport-sized default.
+     */
+    private val maxWaitMillis: Long,
 ) {
     /**
      * A MEMBER device authorising: [device] holds the hardware signing key and the
@@ -53,11 +60,13 @@ class DeviceAuthorization private constructor(
         knownOps: List<String>,
         clock: () -> Long,
         pollIntervalMillis: Long = 150,
+        maxWaitMillis: Long = RelayClient.DEFAULT_MAX_WAIT_MILLIS,
     ) : this(
         http,
         { PairflowAuthority.Device(device.asSigner(), device.signPublicKey, device.encPublicKey, admittingOp, knownOps) },
         clock,
         pollIntervalMillis,
+        maxWaitMillis,
     )
 
     /**
@@ -72,11 +81,13 @@ class DeviceAuthorization private constructor(
         certLifetimeSeconds: Long = Enrolment.DEFAULT_LIFETIME_SECONDS,
         pollIntervalMillis: Long = 150,
         knownOps: List<String> = emptyList(),
+        maxWaitMillis: Long = RelayClient.DEFAULT_MAX_WAIT_MILLIS,
     ) : this(
         http,
         { PairflowAuthority.Genesis(identity.signer(), identity.userPublicKey, knownOps, certLifetimeSeconds) },
         clock,
         pollIntervalMillis,
+        maxWaitMillis,
     )
 
     /** An opened pairing session: the [inviteQr] to render + the state the later steps resume. */
@@ -102,7 +113,7 @@ class DeviceAuthorization private constructor(
         // under its own ops is refused here, before a session is opened.
         val auth = authority()
         val session = RelayClient.createSession(http, relayBase)
-        val relay = RelayClient(http, relayBase, session, RelayClient.ROLE_INITIATOR, pollIntervalMillis)
+        val relay = RelayClient(http, relayBase, session, RelayClient.ROLE_INITIATOR, pollIntervalMillis, maxWaitMillis)
         val initiator = PairflowInitiator(relay, auth, salt, now)
         return Invitation(Invite.encode(relayBase, session, salt, initiator.userId), session, initiator, relayBase)
     }

@@ -1,5 +1,6 @@
 package one.rarebit.cruciform.ui.nav
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +30,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import one.rarebit.cruciform.AppViewModel
 import one.rarebit.cruciform.domain.EngineFailure
@@ -35,7 +38,7 @@ import one.rarebit.cruciform.domain.EngineResult
 import one.rarebit.cruciform.domain.IdentityState
 import one.rarebit.cruciform.domain.LoginRequest
 import one.rarebit.cruciform.domain.LoginRequestResult
-import one.rarebit.cruciform.domain.PairInviteDisplay
+import one.rarebit.cruciform.pairing.InviteCoordinator
 import one.rarebit.cruciform.domain.PairSession
 import one.rarebit.cruciform.domain.RecoveryBackup
 import one.rarebit.cruciform.domain.ScannedCode
@@ -92,6 +95,8 @@ private data class EngineErrorState(
     val failure: EngineFailure,
     val retry: (() -> Unit)? = null,
     val relayUrl: String? = null,
+    /** Runs when the dialog closes without Retry (OK / Cancel / Change relay). */
+    val onDismiss: (() -> Unit)? = null,
 )
 
 /**
@@ -109,6 +114,11 @@ fun CruciformNavHost(
     val nav = rememberNavController()
     val engine = viewModel.engine
     val identityState by viewModel.identity.collectAsStateWithLifecycle()
+    // The initiator's invite lifecycle (ADR-0007): app-scoped, observed here, never
+    // restarted by a screen. Its handshake keeps polling the relay while the user is in
+    // the relying-party app; this graph reacts to its state transitions below.
+    val invites = viewModel.invites
+    val inviteState by invites.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     val appContext = LocalContext.current.applicationContext
@@ -135,8 +145,8 @@ fun CruciformNavHost(
     // dismissible error WITH a Retry, instead of crashing the app. Every engine pairing
     // entry point returns an EngineResult; this is where a Failed lands.
     var engineError by remember { mutableStateOf<EngineErrorState?>(null) }
+    // The responder's (join) session; the initiator's lives in [inviteState].
     var pairSession by remember { mutableStateOf<PairSession?>(null) }
-    var pairInvite by remember { mutableStateOf<PairInviteDisplay?>(null) }
     var revealBackup by remember { mutableStateOf<RecoveryBackup?>(null) }
     // The handoff whose approval/pairing is currently on screen; its decision is routed
     // to onHandoffFinished instead of plain goHome (a deep-link caller is waiting).
@@ -213,28 +223,44 @@ fun CruciformNavHost(
     }
 
     /**
-     * Mint a pairing invite as the existing device and show it; Retry re-mints. This is
-     * the one step that dials THIS phone's configured relay, so a relay that can't be
-     * reached (or refuses — a wrong mount path 404s) names the configured URL and
-     * offers "Change relay".
+     * "Add a device": make sure an invite is live and show it. The coordinator mints
+     * one only when none is minting / waiting / joined — pressing this twice, or coming
+     * back from the RP app, never spends a fresh relay session. Failures surface through
+     * [inviteState] (below): a relay that can't be reached at MINT names the configured
+     * URL and offers "Change relay".
      */
     fun startInvite() {
-        scope.launch {
-            val relayUrl = relaySettings.current()
-            val result = runCatching { engine.startPairInvite() }.getOrElse { EngineResult.Failed(unexpected(it)) }
-            when (result) {
-                is EngineResult.Ready -> {
-                    pairInvite = result.value
-                    if (route != Routes.PAIR_CONNECT) nav.navigate(Routes.PAIR_CONNECT)
+        invites.ensureInvite()
+        if (route != Routes.PAIR_CONNECT && route != Routes.PAIR_VERIFY) nav.navigate(Routes.PAIR_CONNECT)
+    }
+
+    // React to the invite lifecycle, wherever the user is in the graph: the new device
+    // joined (possibly while this app was in the background) → VERIFY with the SAS; a
+    // step failed → the dialog, whose Retry re-runs the RIGHT step (a fresh invite after
+    // a spent session, a re-confirm after a delivery failure); admitted → done.
+    LaunchedEffect(inviteState) {
+        when (val st = inviteState) {
+            is InviteCoordinator.State.Joined -> {
+                if (route != Routes.PAIR_VERIFY) {
+                    nav.navigate(Routes.PAIR_VERIFY) {
+                        popUpTo(Routes.PAIR_CONNECT) { inclusive = true }
+                    }
                 }
-                is EngineResult.Failed -> engineError = EngineErrorState(
-                    result.failure,
-                    retry = if (result.failure.retryable) ({ startInvite() }) else null,
-                    relayUrl = relayUrl.takeIf {
-                        result.failure.kind == EngineFailure.Kind.UNREACHABLE || result.failure.kind == EngineFailure.Kind.REJECTED
-                    },
-                )
             }
+            is InviteCoordinator.State.Failed -> engineError = EngineErrorState(
+                st.failure,
+                retry = if (st.failure.retryable) ({ invites.retry() }) else null,
+                relayUrl = st.relayUrl.takeIf {
+                    st.phase == InviteCoordinator.Phase.MINT &&
+                        (st.failure.kind == EngineFailure.Kind.UNREACHABLE || st.failure.kind == EngineFailure.Kind.REJECTED)
+                },
+                onDismiss = { invites.dismissFailure() },
+            )
+            is InviteCoordinator.State.Admitted -> {
+                invites.reset()
+                decided(true)
+            }
+            else -> Unit
         }
     }
 
@@ -293,6 +319,7 @@ fun CruciformNavHost(
     engineError?.let { error ->
         val dismiss = {
             engineError = null
+            error.onDismiss?.invoke()
             val h = activeHandoff
             if (h != null && h.returnsToCaller) decided(false)
         }
@@ -302,6 +329,7 @@ fun CruciformNavHost(
         // simply dropped (nothing was minted), and "Add a device" can be tried again.
         val changeRelay = {
             engineError = null
+            error.onDismiss?.invoke()
             focusRelay = true
             if (route != Routes.SETTINGS) nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
         }
@@ -558,53 +586,72 @@ fun CruciformNavHost(
             }
 
             composable(Routes.PAIR_CONNECT) {
-                val inv = pairInvite
-                if (inv == null) {
-                    LaunchedEffect(Unit) { goHome() }
-                } else {
-                    // The initiator shows the invite AND, concurrently, blocks on the
-                    // relay handshake (its commit must be posted for the new device's
-                    // fetch to complete). When the new device joins and the SAS is
-                    // derived, advance to VERIFY; a timeout/expiry returns home. The
-                    // effect is cancelled if the user leaves this screen first.
-                    LaunchedEffect(inv) {
-                        val result = runCatching { engine.awaitPairHandshake() }.getOrElse { EngineResult.Failed(unexpected(it)) }
-                        when (result) {
-                            is EngineResult.Ready -> {
-                                pairSession = result.value
-                                nav.navigate(Routes.PAIR_VERIFY) {
-                                    popUpTo(Routes.PAIR_CONNECT) { inclusive = true }
-                                }
+                // This screen only OBSERVES the app-scoped invite (ADR-0007). Leaving and
+                // coming back — or the process being backgrounded while the RP app creates
+                // its key — restarts nothing: the handshake job keeps polling the relay and
+                // the countdown is the coordinator's clock, not this composition's.
+                val st = inviteState
+                val inv = st.invite
+                when {
+                    st is InviteCoordinator.State.Idle -> LaunchedEffect(Unit) { nav.popBackStack() }
+                    inv == null -> Loading() // Minting (or a mint failure: the dialog is up, then Idle pops)
+                    else -> {
+                        val context = LocalContext.current
+                        // The REVERSE same-device handoff (ADR-0006): RP apps on this phone that
+                        // take the invite by deep link. Resolved once per invite. Sending never
+                        // re-mints: the invite is the coordinator's, and it is still waiting on
+                        // the relay while the RP joins, so returning here lands on VERIFY.
+                        val sameDeviceTargets = remember(inv.inviteId) { RpPairLauncher.resolvable(context) }
+                        var remaining by remember(inv.inviteId) { mutableIntStateOf(invites.remainingSeconds()) }
+                        LaunchedEffect(inv.inviteId) {
+                            while (true) {
+                                remaining = invites.remainingSeconds()
+                                delay(1000)
                             }
-                            // The relay dropped, or nobody joined before the invite expired: say
-                            // so, and let Retry mint a fresh invite (the old session is spent).
-                            is EngineResult.Failed -> engineError = EngineErrorState(
-                                result.failure,
-                                retry = if (result.failure.retryable) ({ startInvite() }) else null,
-                            )
                         }
+                        // Leaving this screen on purpose — the top-bar Back or the system back
+                        // gesture — cancels the invite (drops the wait + the keep-alive). Only the
+                        // human does this; switching apps is not leaving.
+                        val leave = { invites.cancel(); nav.popBackStack(); Unit }
+                        BackHandler(onBack = leave)
+                        PairConnectScreen(
+                            invite = inv,
+                            onBack = leave,
+                            onScanInstead = { nav.navigate(Routes.SCAN) },
+                            sameDeviceTargets = sameDeviceTargets,
+                            onSendTo = { target -> RpPairLauncher.sendTo(context, target, inv.qrPayload) },
+                            onShare = { RpPairLauncher.share(context, inv.qrPayload) },
+                            remainingSeconds = remaining,
+                            status = when (st) {
+                                is InviteCoordinator.State.Waiting -> "Waiting for the new device to join… you can switch apps; this keeps waiting."
+                                is InviteCoordinator.State.Failed -> null
+                                else -> "The new device joined — comparing the security code…"
+                            },
+                        )
                     }
-                    // The REVERSE same-device handoff (ADR-0006): RP apps on this phone
-                    // that take the invite by deep link. Resolved once per invite; the
-                    // handshake above keeps waiting on the relay while the RP joins, so
-                    // returning here lands on VERIFY with the SAS.
-                    val context = LocalContext.current
-                    val sameDeviceTargets = remember(inv.inviteId) { RpPairLauncher.resolvable(context) }
-                    PairConnectScreen(
-                        invite = inv,
-                        onBack = { nav.popBackStack() },
-                        onScanInstead = { nav.navigate(Routes.SCAN) },
-                        sameDeviceTargets = sameDeviceTargets,
-                        onSendTo = { target -> RpPairLauncher.sendTo(context, target, inv.qrPayload) },
-                        onShare = { RpPairLauncher.share(context, inv.qrPayload) },
-                    )
                 }
             }
 
             composable(Routes.PAIR_VERIFY) {
-                val ses = pairSession
+                // The initiator's session comes from the coordinator (it stays valid across a
+                // return from the RP app); the responder's from the join path.
+                val initiator = when (val st = inviteState) {
+                    is InviteCoordinator.State.Joined -> st.session
+                    is InviteCoordinator.State.Confirming -> st.session
+                    is InviteCoordinator.State.Failed -> st.resume?.session
+                    else -> null
+                }
+                val ses = initiator ?: pairSession
                 if (ses == null) {
                     LaunchedEffect(Unit) { goHome() }
+                } else if (initiator != null) {
+                    PairVerifyScreen(
+                        session = ses,
+                        onCancel = { invites.cancel(); decided(false) },
+                        // confirm() → Admitted (decided(true) above) or Failed (the dialog,
+                        // Retry re-confirms the SAME session — no re-mint).
+                        onConfirm = { invites.confirm() },
+                    )
                 } else {
                     PairVerifyScreen(
                         session = ses,
