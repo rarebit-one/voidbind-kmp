@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext stays OFF by default (the relay and the notify plane are HTTPS). The
-     one exception is the Bartley Ridge LAN host that runs the heyarr node (:7777)
-     and All Thing (:8080), which serve `POST /membership/{usr}` over plain HTTP on
-     the LAN — the membership push (a remove / a new member's add) is best-effort
-     and carries only signed, public ops, so cleartext to that host leaks nothing. -->
+<!-- Cleartext stays OFF by default (the notify plane and the intended public relay,
+     relay.thesim.family, are HTTPS). The one exception is the Bartley Ridge LAN host
+     that runs the heyarr node (:7777) and All Thing (:8080): it serves
+     `POST /membership/{usr}` over plain HTTP on the LAN — the membership push (a
+     remove / a new member's add) is best-effort and carries only signed, public ops —
+     and the heyarr node's `/pair` mount on :7777 is the DEFAULT pairing relay
+     (RelayConfig.DEFAULT_RELAY) until the public one is deployed. The relay only
+     carries the encrypted pairing transcript, so cleartext to that host leaks nothing.
+     A relay typed into Settings → "Pairing relay" on any OTHER host must be https. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">

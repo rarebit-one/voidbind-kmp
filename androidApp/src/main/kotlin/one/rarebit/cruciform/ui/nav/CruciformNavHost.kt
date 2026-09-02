@@ -1,6 +1,7 @@
 package one.rarebit.cruciform.ui.nav
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -40,6 +41,7 @@ import one.rarebit.cruciform.domain.RecoveryBackup
 import one.rarebit.cruciform.domain.ScannedCode
 import one.rarebit.cruciform.handoff.Handoff
 import one.rarebit.cruciform.handoff.RpPairLauncher
+import one.rarebit.cruciform.platform.RelaySettings
 import one.rarebit.cruciform.domain.SitePolicyView
 import one.rarebit.cruciform.ui.screens.ApprovalActivityScreen
 import one.rarebit.cruciform.ui.screens.DevicesScreen
@@ -82,8 +84,15 @@ private data class LoginErrorState(val message: String, val expired: Boolean = f
  * A pairing (or other engine) failure to show as a dismissible dialog. [retry], when
  * present, re-runs the SAME step (re-join the same invite, re-mint the invite,
  * re-confirm) — the engine returns these as values, so nothing here ever throws.
+ * [relayUrl] is set when the failure is against THIS phone's configured pairing relay
+ * (minting an invite — not joining someone else's, whose relay is in the invite):
+ * the dialog then names that URL and offers "Change relay" → Settings.
  */
-private data class EngineErrorState(val failure: EngineFailure, val retry: (() -> Unit)? = null)
+private data class EngineErrorState(
+    val failure: EngineFailure,
+    val retry: (() -> Unit)? = null,
+    val relayUrl: String? = null,
+)
 
 /**
  * [handoff] is a login/pairing the activity was woken into from outside (a push ping
@@ -102,6 +111,11 @@ fun CruciformNavHost(
     val identityState by viewModel.identity.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
+    val appContext = LocalContext.current.applicationContext
+    // Settings → "Pairing relay": persisted; the engine reads it at invite time.
+    val relaySettings = remember(appContext) { RelaySettings(appContext) }
+    // Set by the error dialog's "Change relay": Settings focuses the relay field once.
+    var focusRelay by remember { mutableStateOf(false) }
 
     // Ephemeral flow state carried between destinations (nav args are strings; these
     // are the already-fetched objects a pushed screen renders). Lost on process death,
@@ -198,9 +212,15 @@ fun CruciformNavHost(
         }
     }
 
-    /** Mint a pairing invite as the existing device and show it; Retry re-mints. */
+    /**
+     * Mint a pairing invite as the existing device and show it; Retry re-mints. This is
+     * the one step that dials THIS phone's configured relay, so a relay that can't be
+     * reached (or refuses — a wrong mount path 404s) names the configured URL and
+     * offers "Change relay".
+     */
     fun startInvite() {
         scope.launch {
+            val relayUrl = relaySettings.current()
             val result = runCatching { engine.startPairInvite() }.getOrElse { EngineResult.Failed(unexpected(it)) }
             when (result) {
                 is EngineResult.Ready -> {
@@ -210,6 +230,9 @@ fun CruciformNavHost(
                 is EngineResult.Failed -> engineError = EngineErrorState(
                     result.failure,
                     retry = if (result.failure.retryable) ({ startInvite() }) else null,
+                    relayUrl = relayUrl.takeIf {
+                        result.failure.kind == EngineFailure.Kind.UNREACHABLE || result.failure.kind == EngineFailure.Kind.REJECTED
+                    },
                 )
             }
         }
@@ -274,6 +297,14 @@ fun CruciformNavHost(
             if (h != null && h.returnsToCaller) decided(false)
         }
         val retry = error.retry
+        val relayUrl = error.relayUrl
+        // "Change relay" → Settings with the relay field focused; the failed invite is
+        // simply dropped (nothing was minted), and "Add a device" can be tried again.
+        val changeRelay = {
+            engineError = null
+            focusRelay = true
+            if (route != Routes.SETTINGS) nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
+        }
         AlertDialog(
             onDismissRequest = dismiss,
             confirmButton = {
@@ -283,9 +314,23 @@ fun CruciformNavHost(
                     TextButton(onClick = dismiss) { Text("OK") }
                 }
             },
-            dismissButton = if (retry != null) ({ TextButton(onClick = dismiss) { Text("Cancel") } }) else null,
+            dismissButton = when {
+                relayUrl != null -> ({
+                    Row {
+                        TextButton(onClick = changeRelay) { Text("Change relay") }
+                        if (retry != null) TextButton(onClick = dismiss) { Text("Cancel") }
+                    }
+                })
+                retry != null -> ({ TextButton(onClick = dismiss) { Text("Cancel") } })
+                else -> null
+            },
             title = { Text(titleFor(error.failure.kind)) },
-            text = { Text(error.failure.message) },
+            text = {
+                Text(
+                    if (relayUrl != null) "${error.failure.message}\n\nPairing relay: $relayUrl"
+                    else error.failure.message,
+                )
+            },
         )
     }
 
@@ -370,8 +415,28 @@ fun CruciformNavHost(
             composable(Routes.SETTINGS) {
                 val active = identityState as? IdentityState.Active
                 if (active != null) {
+                    // The persisted relay, re-read after every Save/Reset so the field and
+                    // the Default/Custom pill track the store (the engine reads the store
+                    // itself, at invite time).
+                    var relayUrl by remember { mutableStateOf(relaySettings.current()) }
+                    var relayIsDefault by remember { mutableStateOf(relaySettings.isDefault()) }
                     SettingsScreen(
                         state = active,
+                        relayUrl = relayUrl,
+                        relayIsDefault = relayIsDefault,
+                        onSaveRelay = { input ->
+                            relaySettings.set(input).also {
+                                relayUrl = relaySettings.current()
+                                relayIsDefault = relaySettings.isDefault()
+                            }
+                        },
+                        onResetRelay = {
+                            relaySettings.reset()
+                            relayUrl = relaySettings.current()
+                            relayIsDefault = true
+                        },
+                        focusRelay = focusRelay,
+                        onRelayFocused = { focusRelay = false },
                         onRename = { /* rename dialog — later */ },
                         onToggleBiometric = { scope.launch { engine.setBiometricApproval(it) } },
                         onRevoke = { site -> scope.launch { engine.revokeSite(site.id) } },
