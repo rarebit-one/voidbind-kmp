@@ -15,22 +15,17 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Package visibility (Android 11+) for the REVERSE same-device handoff
-         (ADR-0006): after "Add a device" mints an invite, the Connect screen offers
-         "Send to <app> on this phone" for each relying-party app that registers a
-         pair-callback scheme and is actually installed. These entries let
-         resolveActivity() see them; the registry lives in handoff/RpPairHandoff.kt.
-         The <data> MUST match the RP's filter: each RP registers `scheme://pair`
-         (scheme + host), and a scheme-only query does not grant visibility to a
-         host-bearing filter (that gap hid the button in 0.5.1/0.5.2). Kept in step
-         by handoff/RpPairManifestQueriesTest. -->
+         (ADR-0006), discovery per ADR-0009: after "Add a device" mints an invite, the
+         Connect screen offers "Send to <app> on this phone" for each relying-party app
+         that advertises the shared RP_HANDOFF category. This ONE generic query grants
+         visibility to every such RP — a new RP needs no Cruciform release, it just adds
+         the category to its manifest. Replaces the former per-scheme <data> entries
+         (heyarr-mobile://pair, allthing://pair), which each needed a matching registry
+         line here. Kept in step by handoff/RpPairManifestQueriesTest. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="heyarr-mobile" android:host="pair" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="allthing" android:host="pair" />
+            <category android:name="one.rarebit.voidbind.category.RP_HANDOFF" />
         </intent>
     </queries>
 

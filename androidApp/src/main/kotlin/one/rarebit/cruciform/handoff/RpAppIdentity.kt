@@ -12,11 +12,11 @@ import android.util.Log
  * *heyarr* on this phone to act as you?").
  *
  * The resolution is deliberately narrow and goes through the SAME `<queries>` package
- * visibility the "Send to <app>" button already needs: we resolve the known RP pair
- * targets (`RpPairHandoff.KNOWN`) and keep the one whose package matches the caller
- * Android named. So an app can only be *labelled* here if it is a registered relying
- * party AND it actually handles the pair scheme — an unknown caller gets a generic
- * label, never a borrowed one.
+ * visibility the "Send to <app>" button already needs: we resolve the RP apps that
+ * advertise same-phone handoff (`RpPairLauncher.adverts`, ADR-0009) and keep the one
+ * whose package matches the caller Android named. So an app can only be *labelled* here
+ * if it is a self-advertised relying party AND it actually handles the pair scheme — an
+ * unknown caller gets a generic label, never a borrowed one.
  *
  * None of this is a security check: the decision is made by
  * [SamePhonePairCallback.decide] against the relay, and an unidentified caller whose
@@ -39,26 +39,30 @@ data class RpAppIdentity(
         fun unknown(): RpAppIdentity = RpAppIdentity(label = "This app", scheme = null, packageName = null)
 
         /**
-         * Identify [callerPackage] (from `Activity.referrer`) as a known relying party.
-         * Falls back to the package's own label, then to [unknown].
+         * Identify [callerPackage] (from `Activity.referrer`) as a self-advertised
+         * relying party (ADR-0009): match it against the discovered adverts and, when
+         * found, take its advertised scheme + label. Falls back to the package's own
+         * label, then to [unknown].
          */
         fun resolve(context: Context, callerPackage: String?): RpAppIdentity {
             if (callerPackage.isNullOrBlank()) return unknown()
             val pm = context.packageManager
-            val target = RpPairHandoff.KNOWN.firstOrNull { t ->
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(RpPairLauncher.probeUri(t)))
-                pm.queryIntentActivities(intent, 0).any { it.activityInfo?.packageName == callerPackage }
-            }
+            val advert = RpPairHandoff.advertForPackage(RpPairLauncher.adverts(context), callerPackage)
             val icon = runCatching { pm.getApplicationIcon(callerPackage) }.getOrNull()
-            if (target != null) return RpAppIdentity(target.appName, target.scheme, callerPackage, icon)
-            val label = runCatching {
-                pm.getApplicationLabel(pm.getApplicationInfo(callerPackage, 0)).toString()
-            }.getOrElse {
-                Log.d(TAG, "no label for $callerPackage (${it.javaClass.simpleName})")
+            if (advert != null) {
+                val scheme = RpPairHandoff.targetFrom(advert)?.scheme
+                val label = advert.label?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: pm.appLabelOrNull(callerPackage)
+                return RpAppIdentity(label ?: "This app", scheme, callerPackage, icon)
+            }
+            return RpAppIdentity(pm.appLabelOrNull(callerPackage) ?: "This app", scheme = null, packageName = callerPackage, icon = icon)
+        }
+
+        private fun android.content.pm.PackageManager.appLabelOrNull(pkg: String): String? =
+            runCatching { getApplicationLabel(getApplicationInfo(pkg, 0)).toString() }.getOrElse {
+                Log.d(TAG, "no label for $pkg (${it.javaClass.simpleName})")
                 null
             }
-            return RpAppIdentity(label ?: "This app", scheme = null, packageName = callerPackage, icon = icon)
-        }
 
         /**
          * Launch the RP's `<scheme>://pair-done?session=…` landing so the human ends up
