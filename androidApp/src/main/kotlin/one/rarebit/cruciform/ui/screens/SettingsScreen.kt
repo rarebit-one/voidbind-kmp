@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import one.rarebit.cruciform.BuildConfig
 import one.rarebit.cruciform.domain.IdentityState
 import one.rarebit.cruciform.domain.TrustedSite
+import one.rarebit.cruciform.platform.NotifyConfig
 import one.rarebit.cruciform.platform.RelayConfig
 import one.rarebit.voidbind.policy.ApprovalPolicy
 import one.rarebit.cruciform.ui.components.HSpace
@@ -81,6 +82,11 @@ import one.rarebit.cruciform.ui.theme.VbType
  * shown inline and never written; [onResetRelay] drops the override. [focusRelay]
  * is set when the user arrived via the error dialog's "Change relay" — the field
  * takes focus (and scrolls into view) once, then [onRelayFocused] clears the flag.
+ *
+ * The push plane is configured the same way ([notifyUrl], [notifyIsDefault],
+ * [onSaveNotify], [onResetNotify]) — both are endpoint bases this phone dials, and
+ * both were shipped pointing at names that do not resolve, so both need an escape
+ * hatch that is not a rebuild.
  */
 @Composable
 fun SettingsScreen(
@@ -102,6 +108,10 @@ fun SettingsScreen(
     onResetRelay: () -> Unit = {},
     focusRelay: Boolean = false,
     onRelayFocused: () -> Unit = {},
+    notifyUrl: String = NotifyConfig.DEFAULT_NOTIFY,
+    notifyIsDefault: Boolean = true,
+    onSaveNotify: (String) -> RelayConfig.Validation = { NotifyConfig.validate(it) },
+    onResetNotify: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -177,13 +187,37 @@ fun SettingsScreen(
         SectionLabel("Pairing")
         VSpace(10)
         VbCard(modifier = Modifier.fillMaxWidth()) {
-            RelayField(
-                relayUrl = relayUrl,
-                relayIsDefault = relayIsDefault,
+            EndpointField(
+                title = "Pairing relay",
+                description = "Where this phone mints Add-a-device invites. A device joining an invite uses the relay in the invite.",
+                fieldLabel = "Relay URL",
+                url = relayUrl,
+                defaultUrl = RelayConfig.DEFAULT_RELAY,
+                isDefault = relayIsDefault,
+                validate = RelayConfig::validate,
                 onSave = onSaveRelay,
                 onReset = onResetRelay,
                 focus = focusRelay,
                 onFocused = onRelayFocused,
+            )
+        }
+
+        VSpace(24)
+        SectionLabel("Push")
+        VSpace(10)
+        VbCard(modifier = Modifier.fillMaxWidth()) {
+            EndpointField(
+                title = "Push plane",
+                description = "Where this phone registers to be woken for a login. It carries only the same opaque tuple a QR does — never a key or a challenge.",
+                fieldLabel = "Push plane URL",
+                url = notifyUrl,
+                defaultUrl = NotifyConfig.DEFAULT_NOTIFY,
+                isDefault = notifyIsDefault,
+                validate = NotifyConfig::validate,
+                onSave = onSaveNotify,
+                onReset = onResetNotify,
+                focus = false,
+                onFocused = {},
             )
         }
 
@@ -270,26 +304,33 @@ fun SettingsScreen(
 }
 
 /**
- * The "Pairing relay" editor. Local draft text seeded from the persisted [relayUrl]
- * (re-seeded whenever that changes — a Save or a Reset); validation is inline via
- * [RelayConfig.validate] as the user types, and Save writes only a `Valid` verdict.
- * Nothing here talks to the network: the relay is dialled at invite time.
+ * One endpoint-base editor — the "Pairing relay" and the "Push plane" are the same
+ * control over different settings, so they are one composable rather than two that
+ * drift. Local draft text seeded from the persisted [url] (re-seeded whenever that
+ * changes — a Save or a Reset); [validate] runs inline as the user types, and Save
+ * writes only a `Valid` verdict. Nothing here talks to the network: the relay is
+ * dialled at invite time and the plane at push-registration time.
  */
 @Composable
-private fun RelayField(
-    relayUrl: String,
-    relayIsDefault: Boolean,
+private fun EndpointField(
+    title: String,
+    description: String,
+    fieldLabel: String,
+    url: String,
+    defaultUrl: String,
+    isDefault: Boolean,
+    validate: (String) -> RelayConfig.Validation,
     onSave: (String) -> RelayConfig.Validation,
     onReset: () -> Unit,
     focus: Boolean,
     onFocused: () -> Unit,
 ) {
-    var draft by remember(relayUrl) { mutableStateOf(relayUrl) }
+    var draft by remember(url) { mutableStateOf(url) }
     var saveError by remember { mutableStateOf<String?>(null) }
     val focusRequester = remember { FocusRequester() }
-    val verdict = RelayConfig.validate(draft)
+    val verdict = validate(draft)
     val liveError = (verdict as? RelayConfig.Validation.Invalid)?.reason
-    val dirty = (verdict as? RelayConfig.Validation.Valid)?.url != relayUrl
+    val dirty = (verdict as? RelayConfig.Validation.Valid)?.url != url
     val error = saveError ?: liveError.takeIf { dirty }
 
     LaunchedEffect(focus) {
@@ -304,17 +345,17 @@ private fun RelayField(
             IconCircle(Icons.Rounded.Hub, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f))
             HSpace(14)
             Column(Modifier.weight(1f)) {
-                Text("Pairing relay", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
+                Text(title, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
                 Text(
-                    "Where this phone mints Add-a-device invites. A device joining an invite uses the relay in the invite.",
+                    description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = VbColors.TextSecondary,
                 )
             }
             HSpace(8)
             StatusPill(
-                text = if (relayIsDefault) "Default" else "Custom",
-                accent = if (relayIsDefault) VbColors.Mint else VbColors.Amber,
+                text = if (isDefault) "Default" else "Custom",
+                accent = if (isDefault) VbColors.Mint else VbColors.Amber,
                 leadingIcon = Icons.Rounded.Hub,
             )
         }
@@ -323,8 +364,8 @@ private fun RelayField(
             value = draft,
             onValueChange = { draft = it; saveError = null },
             modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-            label = { Text("Relay URL") },
-            placeholder = { Text(RelayConfig.DEFAULT_RELAY) },
+            label = { Text(fieldLabel) },
+            placeholder = { Text(defaultUrl) },
             isError = error != null,
             singleLine = true,
             textStyle = TextStyle(fontFamily = FontFamily.Monospace),
@@ -342,7 +383,7 @@ private fun RelayField(
         )
         VSpace(8)
         Text(
-            error ?: "Default: ${RelayConfig.DEFAULT_RELAY}",
+            error ?: "Default: $defaultUrl",
             style = MaterialTheme.typography.bodyMedium,
             color = if (error != null) VbColors.Coral else VbColors.TextMuted,
         )
@@ -361,8 +402,8 @@ private fun RelayField(
             )
             OutlineButton(
                 "Reset to default",
-                onClick = { saveError = null; onReset(); draft = RelayConfig.DEFAULT_RELAY },
-                enabled = !relayIsDefault || draft != RelayConfig.DEFAULT_RELAY,
+                onClick = { saveError = null; onReset(); draft = defaultUrl },
+                enabled = !isDefault || draft != defaultUrl,
                 accent = VbColors.TextSecondary,
                 modifier = Modifier.weight(1f),
             )

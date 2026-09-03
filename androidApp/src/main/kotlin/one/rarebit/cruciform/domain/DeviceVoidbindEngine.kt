@@ -19,6 +19,7 @@ import one.rarebit.voidbind.UserIdentity
 import one.rarebit.cruciform.platform.ApprovalPolicyStore
 import one.rarebit.cruciform.platform.BiometricAuthenticator
 import one.rarebit.cruciform.platform.IdentityStore
+import one.rarebit.cruciform.platform.NotifyConfig
 import one.rarebit.cruciform.platform.RelayConfig
 import one.rarebit.voidbind.crypto.Hex
 import one.rarebit.voidbind.flow.DeviceAuthorization
@@ -74,7 +75,13 @@ class DeviceVoidbindEngine(
      * "Add a device" without recreating the engine (`RelaySettings.current`).
      */
     private val relay: () -> String,
-    private val notifyBase: String = DEFAULT_NOTIFY,
+    /**
+     * The push/wake plane base this device REGISTERS its wake endpoint with, read on
+     * every call — a provider, not a value, so Settings → "Push plane" takes effect on
+     * the next registration (the next app open) without recreating the engine
+     * (`NotifySettings.current`).
+     */
+    private val notify: () -> String = { DEFAULT_NOTIFY },
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
     /** Relying parties that serve `POST /membership/{usr}`; a remove is pushed to each, best-effort. */
     private val membershipRps: List<String> = DEFAULT_MEMBERSHIP_RPS,
@@ -84,6 +91,9 @@ class DeviceVoidbindEngine(
 
     /** The configured relay, resolved now (Settings may have changed it since the last call). */
     private val relayBase: String get() = relay()
+
+    /** The configured push plane, resolved now (same reason as [relayBase]). */
+    private val notifyBase: String get() = notify()
 
     /**
      * The relay a pending invite was MINTED against. The handshake/confirm steps
@@ -690,8 +700,14 @@ class DeviceVoidbindEngine(
          */
         const val DEFAULT_RELAY = RelayConfig.DEFAULT_RELAY
 
-        /** Default notify-plane base (POST/DELETE /v1/subscriptions); override at construction. */
-        const val DEFAULT_NOTIFY = "https://notify.thesim.family"
+        /**
+         * The default push/wake plane when Settings holds no override — the
+         * `voidbind-notify` plane on the Bartley Ridge LAN host (:2587).
+         * `https://notify.thesim.family` is the intended public name once it is
+         * deployed; it does not resolve today, which is why it is no longer the
+         * default (see [NotifyConfig.DEFAULT_NOTIFY]).
+         */
+        const val DEFAULT_NOTIFY = NotifyConfig.DEFAULT_NOTIFY
 
         /**
          * Relying parties that (will) serve `POST /membership/{usr}`: the heyarr node and

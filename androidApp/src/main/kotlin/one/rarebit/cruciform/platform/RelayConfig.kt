@@ -24,7 +24,11 @@ object RelayConfig {
      */
     const val DEFAULT_RELAY = "http://192.168.16.224:7777/pair"
 
-    /** What [validate] decided about a typed URL. */
+    /**
+     * What [validate] decided about a typed URL. Shared by every endpoint field in
+     * Settings (the relay and [NotifyConfig]'s push plane), because the rules are the
+     * same rules — an absolute http/https base with a host and nothing else.
+     */
     sealed interface Validation {
         /** [url] is the normalised base to persist (trimmed, no trailing slash). */
         data class Valid(val url: String) : Validation
@@ -39,9 +43,18 @@ object RelayConfig {
      * with its own `/v1/...`, and a `base//v1` would 404). Blank input is invalid —
      * "use the default" is [RelaySettings.reset], not an empty string.
      */
-    fun validate(input: String): Validation {
+    fun validate(input: String): Validation = validateBase(input, noun = "relay", example = DEFAULT_RELAY)
+
+    /**
+     * The shared endpoint-base rules, parameterised only by how the field names itself
+     * in its messages ([noun]) and what a good value looks like ([example]). Every
+     * Settings endpoint field validates through here — the relay above and the push
+     * plane in [NotifyConfig] — so there is one definition of "an acceptable base URL"
+     * rather than one per field that can drift apart.
+     */
+    fun validateBase(input: String, noun: String, example: String): Validation {
         val trimmed = input.trim()
-        if (trimmed.isEmpty()) return Validation.Invalid("Enter the relay URL, or reset to the default.")
+        if (trimmed.isEmpty()) return Validation.Invalid("Enter the $noun URL, or reset to the default.")
         val uri = try {
             URI(trimmed)
         } catch (e: URISyntaxException) {
@@ -52,11 +65,11 @@ object RelayConfig {
             return Validation.Invalid("The URL must start with http:// or https://.")
         }
         if (uri.host.isNullOrBlank() || uri.rawAuthority.isNullOrBlank()) {
-            return Validation.Invalid("The URL needs a host, like http://192.168.16.224:7777/pair.")
+            return Validation.Invalid("The URL needs a host, like $example.")
         }
         if (uri.rawUserInfo != null) return Validation.Invalid("The URL can't carry credentials.")
         if (uri.rawQuery != null || uri.rawFragment != null) {
-            return Validation.Invalid("Enter just the relay base — no ?query or #fragment.")
+            return Validation.Invalid("Enter just the $noun base — no ?query or #fragment.")
         }
         return Validation.Valid(trimmed.trimEnd('/'))
     }
