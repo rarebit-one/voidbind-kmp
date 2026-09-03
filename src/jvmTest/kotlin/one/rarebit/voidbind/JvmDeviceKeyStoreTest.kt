@@ -3,6 +3,7 @@ package one.rarebit.voidbind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
@@ -44,5 +45,34 @@ class JvmDeviceKeyStoreTest {
         val a = DeviceKeyStore.getOrCreate("alias-x")
         val b = DeviceKeyStore.getOrCreate("alias-x")
         assertEquals(a.publicKey(), b.publicKey(), "same alias → same key")
+    }
+
+    @Test
+    fun getOrCreateAcceptsAUserAuthWindowAndCanSign() {
+        // The authorising-key path: a longer window is accepted and the store still signs.
+        val store = DeviceKeyStore.getOrCreate("authorising-alias", userAuthValiditySeconds = 3600)
+        val sig = store.sign("hello".encodeToByteArray())
+        assertEquals(64, sig.size, "Ed25519 signatures are 64 bytes")
+    }
+
+    @Test
+    fun theWindowDefaultsToThirtyAndDoesNotAffectKeyIdentity() {
+        // The one-arg call keeps the strict 30 s default, so it must be identical to
+        // passing 30 explicitly; and on the software JVM the window never changes the key
+        // for a given alias (it is honoured only by the hardware targets).
+        val implicitDefault = DeviceKeyStore.getOrCreate("window-invariance")
+        val explicitThirty = DeviceKeyStore.getOrCreate("window-invariance", userAuthValiditySeconds = 30)
+        val longWindow = DeviceKeyStore.getOrCreate("window-invariance", userAuthValiditySeconds = 3600)
+        assertEquals(implicitDefault.publicKey(), explicitThirty.publicKey(), "one-arg default is 30 s")
+        assertEquals(implicitDefault.publicKey(), longWindow.publicKey(), "window does not alter key identity per alias")
+    }
+
+    @Test
+    fun aDistinctAuthorisingAliasGetsItsOwnKey() {
+        // Apps provision the possession-proof key under a distinct "$base.authorising" alias,
+        // which must be a separate key from the strict per-use base alias.
+        val base = DeviceKeyStore.getOrCreate("dev.base")
+        val authorising = DeviceKeyStore.getOrCreate("dev.base.authorising", userAuthValiditySeconds = 3600)
+        assertNotEquals(base.publicKey(), authorising.publicKey(), "distinct alias → distinct key")
     }
 }

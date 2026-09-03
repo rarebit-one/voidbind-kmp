@@ -32,7 +32,15 @@ group = "one.rarebit.voidbind"
 // (`PairflowAuthority.Device`) or genesis, the responder evaluates the initiator's
 // ops before deriving a SAS, `DevicePairing.confirm` returns the `Admission`
 // {op, ops}, and `LoginApproval`/`WebLogin.Assertion` present `ops`.
-version = "0.5.0"
+// 0.6.0 generalises `DeviceKeyStore.getOrCreate` with a `userAuthValiditySeconds`
+// param (default 30 s, so existing callers are unchanged): a caller can provision a
+// second, distinct-alias wrapping key with a longer user-auth window (e.g.
+// `"$base.authorising"`, 3600 s) so ONE biometric authorises an hour of short
+// possession-proof signing while each minted proof stays short — the client-side fix
+// for heyarr-core#444/#443 (server ceiling returns to 10 min once apps adopt it).
+// Android maps it to `setUserAuthenticationParameters`; iOS to the LAContext reuse
+// duration (platform-capped at 10 min); JVM ignores it (software).
+version = "0.6.0"
 
 repositories {
     mavenCentral()
