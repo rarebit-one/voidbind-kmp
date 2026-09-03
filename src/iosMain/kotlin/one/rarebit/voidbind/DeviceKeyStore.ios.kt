@@ -31,7 +31,18 @@ actual class DeviceKeyStore private constructor(
     }
 
     actual companion object {
-        actual fun getOrCreate(alias: String): DeviceKeyStore {
+        /**
+         * [userAuthValiditySeconds] is the intended post-authentication reuse window. iOS has no
+         * per-key seconds window like Android's `setUserAuthenticationParameters`; the closest
+         * primitive is `LAContext.touchIDAuthenticationAllowableReuseDuration`, which the platform
+         * **caps at 10 min** (`LATouchIDAuthenticationMaximumAllowableReuseDuration = 600`), so the
+         * effective iOS reuse is `min(userAuthValiditySeconds, 600)`. That reuse is applied by the
+         * app-side [SecureEnclaveSealer] (Swift/CryptoKit), which owns the `LAContext`; this seam
+         * only threads the requested window through. iOS apps are not shipping yet, so the cap is
+         * acceptable — a distinct `*.authorising` alias still amortises biometrics up to 10 min,
+         * versus a fresh prompt per proof. See [getOrCreate] and ADR-0001.
+         */
+        actual fun getOrCreate(alias: String, userAuthValiditySeconds: Int): DeviceKeyStore {
             val sealer = VoidbindIos.requireSealer()
             if (sealer.sealExists(alias)) {
                 return DeviceKeyStore(alias, sealer.loadPublicKey(alias))

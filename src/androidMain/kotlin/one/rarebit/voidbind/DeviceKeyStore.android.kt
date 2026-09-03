@@ -89,10 +89,7 @@ actual class DeviceKeyStore private constructor(
         private const val GCM_TAG_BITS = 128
         private const val WRAP_KEY_BITS = 256
 
-        /** Seconds a single user authentication authorises the wrapping key for. */
-        private const val AUTH_WINDOW_SECONDS = 30
-
-        actual fun getOrCreate(alias: String): DeviceKeyStore {
+        actual fun getOrCreate(alias: String, userAuthValiditySeconds: Int): DeviceKeyStore {
             val existing = readSealedOrNull(alias)
             if (existing != null && loadWrapKey(alias) != null) {
                 return DeviceKeyStore(alias, existing.publicKey)
@@ -102,7 +99,7 @@ actual class DeviceKeyStore private constructor(
             // user-auth-gated, so this surfaces AuthenticationRequiredException the
             // same way sign() does.
             val generated = Ed25519Engine.generate()
-            val wrapKey = createWrapKey(alias)
+            val wrapKey = createWrapKey(alias, userAuthValiditySeconds)
             val sealed = try {
                 Cipher.getInstance(TRANSFORMATION).run {
                     init(Cipher.ENCRYPT_MODE, wrapKey)
@@ -125,8 +122,16 @@ actual class DeviceKeyStore private constructor(
 
         private fun wrapKeyAlias(alias: String) = "voidbind.wrap.$alias"
 
-        /** Create the AES-GCM wrapping key, StrongBox-backed where available. */
-        private fun createWrapKey(alias: String): SecretKey {
+        /**
+         * Create the AES-GCM wrapping key, StrongBox-backed where available.
+         *
+         * [userAuthValiditySeconds] is the post-authentication validity window — how long one
+         * biometric / device-credential authorises this wrapping key before the platform demands
+         * a fresh one. A short window (the 30 s default) is the strict per-use posture for
+         * enrol/authorise acts; a long window (e.g. 3600 s under a distinct `*.authorising` alias)
+         * lets one biometric cover an hour of short possession-proof signing. See [getOrCreate].
+         */
+        private fun createWrapKey(alias: String, userAuthValiditySeconds: Int): SecretKey {
             fun spec(strongBox: Boolean) =
                 KeyGenParameterSpec.Builder(
                     wrapKeyAlias(alias),
@@ -138,7 +143,7 @@ actual class DeviceKeyStore private constructor(
                     .setUnlockedDeviceRequired(true)
                     .setUserAuthenticationRequired(true)
                     .setUserAuthenticationParameters(
-                        AUTH_WINDOW_SECONDS,
+                        userAuthValiditySeconds,
                         KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL,
                     )
                     .setIsStrongBoxBacked(strongBox)
