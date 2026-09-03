@@ -87,4 +87,7 @@ initiator's VERIFY screen.
   recent apps proves to be the step users miss. It would be a foregrounding nicety only,
   as ADR-0003's `callback` is.
 - A discovery mechanism (an RP advertising its pair callback via `<meta-data>`) if the
-  registry grows past a handful of first-party apps.
+  registry grows past a handful of first-party apps. **Adopted in ADR-0009 (#39):** the
+  hard-coded `RpPairHandoff.KNOWN` registry and per-scheme `<queries>` entries are replaced
+  by a shared `RP_HANDOFF` intent category + a `pair_scheme` `<meta-data>`, so RPs
+  self-advertise and Cruciform discovers them at runtime.

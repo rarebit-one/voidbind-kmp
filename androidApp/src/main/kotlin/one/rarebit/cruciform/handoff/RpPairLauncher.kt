@@ -3,38 +3,54 @@ package one.rarebit.cruciform.handoff
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.util.Log
 
 /**
- * The Android side of [RpPairHandoff]: which known RP apps are installed on this
- * phone, and firing the invite at one of them (or at the system Sharesheet).
+ * The Android side of [RpPairHandoff]: which RP apps on this phone advertise themselves
+ * as same-phone handoff targets (ADR-0009 discovery), and firing the invite at one of
+ * them (or at the system Sharesheet).
  */
 object RpPairLauncher {
 
     private const val TAG = "RpPairHandoff"
 
     /**
-     * The subset of [RpPairHandoff.KNOWN] some installed app will take, checked with
-     * `resolveActivity` (Android 11+ package visibility needs the manifest `<queries>`
-     * for each scheme). The Connect screen shows one button per hit and none otherwise.
+     * Query the phone for RP apps that advertise same-phone handoff (ADR-0009): a VIEW
+     * intent carrying [RpPairHandoff.CATEGORY_RP_HANDOFF] and no data, resolved with
+     * `GET_META_DATA` so we can read each activity's [RpPairHandoff.META_PAIR_SCHEME].
+     * Android 11+ package visibility needs the one generic `<queries>` entry for the
+     * same category (in `AndroidManifest.xml`). The label is the activity's own
+     * `android:label`; a missing scheme is left null and filtered out downstream.
      */
-    fun resolvable(context: Context, targets: List<RpPairTarget> = RpPairHandoff.KNOWN): List<RpPairTarget> =
-        targets.filter { t ->
-            val probe = probeUri(t)
-            val hit = Intent(Intent.ACTION_VIEW, Uri.parse(probe)).resolveActivity(context.packageManager)
-            // Diagnosable from logcat: `adb logcat -s RpPairHandoff`. A null here with the
-            // RP installed means the manifest <queries> entry no longer matches its filter.
-            Log.d(TAG, "resolvable? ${t.appName} probe=$probe -> ${hit?.flattenToShortString() ?: "null (not visible/installed)"}")
-            hit != null
+    fun adverts(context: Context): List<RpHandoffAdvert> {
+        val pm = context.packageManager
+        val probe = Intent(Intent.ACTION_VIEW).addCategory(RpPairHandoff.CATEGORY_RP_HANDOFF)
+        val resolved = try {
+            pm.queryIntentActivities(probe, PackageManager.GET_META_DATA)
+        } catch (e: Exception) {
+            Log.w(TAG, "advert query failed (${e.javaClass.simpleName})")
+            emptyList()
         }
+        return resolved.mapNotNull { ri ->
+            val ai = ri.activityInfo ?: return@mapNotNull null
+            val scheme = ai.metaData?.getString(RpPairHandoff.META_PAIR_SCHEME)
+            val label = runCatching { ri.loadLabel(pm).toString() }.getOrNull()
+            // Diagnosable from logcat: `adb logcat -s RpPairHandoff`. A resolved activity
+            // with a null scheme is missing (or misnamed) its META_PAIR_SCHEME meta-data.
+            Log.d(TAG, "advert ${ai.packageName} label=$label scheme=$scheme")
+            RpHandoffAdvert(packageName = ai.packageName, label = label, pairScheme = scheme)
+        }
+    }
 
     /**
-     * The URI probed for visibility: the target's `scheme://host` plus a dummy invite
-     * value, so it matches the RP's `scheme` + `host="pair"` filter exactly the way a
-     * real handoff would. The manifest `<queries>` must carry the same scheme AND host.
+     * The discovered "Send to `<app>` on this phone" targets — the [adverts] mapped and
+     * validated by [RpPairHandoff.targetsFrom]. The Connect screen shows one button per
+     * target and none otherwise.
      */
-    fun probeUri(target: RpPairTarget): String = "${target.callbackBase}?${RpPairHandoff.INVITE}=probe"
+    fun resolvable(context: Context): List<RpPairTarget> =
+        RpPairHandoff.targetsFrom(adverts(context))
 
     /**
      * Open [target] with the invite. `FLAG_ACTIVITY_NEW_TASK` so the RP lands in ITS OWN
