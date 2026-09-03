@@ -5,8 +5,8 @@ name: release
 # carries its own prefix and the two triggers can never collide. Builds the release
 # APK signed with the release keystore (repo secrets, mirrored from
 # ~/.config/rarebit-android-signing and 1Password/Sysadmins), then publishes it as
-# the tag's GitHub Release asset. Obtainium on the phone watches these Releases —
-# see obtainium.json — so this workflow IS the update channel.
+# the tag's GitHub Release asset — the artefact the phone installs. (A self-hosted
+# install page + in-app updater is designed in heyarr-core#441; not built yet.)
 #
 # The debug CI (test.yml) is unchanged and remains the merge gate.
 
@@ -91,9 +91,8 @@ jobs:
         run: |
           {
             printf '**Cruciform %s**\n\n' "$VERSION"
-            printf 'Signed release APK — installable and updatable in place via '
-            printf '[Obtainium](https://github.com/ImranR98/Obtainium); add this repo as a '
-            printf 'GitHub source (see `obtainium.json`).\n\n'
+            printf 'Signed release APK. Download and `adb install` it, or open this page\n'
+            printf 'on the phone.\n\n'
             printf -- '- Version: `%s`\n' "$VERSION"
             printf -- '- Tag: `%s`\n' "$TAG"
             printf -- '- Commit: `%s`\n' "$GITHUB_SHA"

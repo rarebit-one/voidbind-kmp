@@ -332,12 +332,12 @@ exported (`UserIdentity`, `DeviceIdentity`, `Enrolment`, `LoginQr`/`VoidbindQr`,
 
 See [`CLAUDE.md`](CLAUDE.md) for the full source map and the wire-contract rules.
 
-## Releases — signed APKs, installed and updated via Obtainium
+## Releases — signed APKs, published per tag
 
 Debug builds are a dead end: they are signed with the throwaway debug key, so they can
 never be updated in place by a real release. Every tagged version is therefore built as
-a **signed release APK** and attached to a GitHub Release, and the phone tracks that
-Release feed through [Obtainium](https://github.com/ImranR98/Obtainium).
+a **signed release APK** and attached to a GitHub Release, which is the artefact the
+phone installs.
 
 ### Cutting a release
 
@@ -381,15 +381,13 @@ export RELEASE_KEY_ALIAS=one.rarebit.cruciform
 ./gradlew :androidApp:assembleRelease -PreleaseVersionName=app-v0.7.2
 ```
 
-### Obtainium
+### Getting it onto a phone
 
-`obtainium.json` is the source config, importable via Obtainium → **Import/Export →
-Import from a file** (or add it by hand: **Add App** → URL
-`https://github.com/rarebit-one/voidbind-kmp`, source GitHub):
+Download the APK from the Release and `adb install` it, or open the Release page on
+the phone. There is deliberately no third-party app-store client in the loop.
 
-- APK filter regex: `cruciform-.*\.apk`
-- Version extraction regex: `^app-v(.*)$`, match group `1`
-- Include pre-releases: off
+How this is *meant* to be distributed — a self-hosted install page plus an in-app
+updater that checks for and applies a new signed build — is being designed in
+[`rarebit-one/heyarr-core#441`](https://github.com/rarebit-one/heyarr-core/issues/441).
+Not built yet; this section is the pointer, not the plan.
 
-Obtainium needs a GitHub token for this **private** repo (Settings → Source-specific →
-GitHub → Personal Access Token).
