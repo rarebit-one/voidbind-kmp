@@ -275,6 +275,9 @@ class DeviceVoidbindEngine(
                             inviteId = "INV · ${invitation.relaySession.uppercase().take(8).chunked(4).joinToString(" ")}",
                             qrPayload = invitation.inviteQr,
                             expiresInSeconds = INVITE_TTL_SECONDS,
+                            // The relay session the invite names: an RP on this phone
+                            // reports it back over the one-tap callback (ADR-0008).
+                            session = invitation.relaySession,
                         ),
                     )
                 }
@@ -298,6 +301,9 @@ class DeviceVoidbindEngine(
                         thisDeviceName = defaultDeviceName(),
                         peerDeviceName = "New device",
                         securityCode = formatSas(outcome.value),
+                        // What the RELAY revealed. The one-tap path (ADR-0008) checks the
+                        // RP's own local report against this; a mismatch signs nothing.
+                        peerDeviceKey = invitation.responderDeviceId,
                     ),
                 )
             }

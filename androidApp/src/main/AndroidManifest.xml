@@ -70,6 +70,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="voidbind" />
             </intent-filter>
+            <!-- `cruciform://pair-joined?session=&dev=&sas=` — the SAME-PHONE one-tap
+                 channel (ADR-0008). A relying-party app we handed an invite to reports,
+                 over this LOCAL intent, the device key and SAS it derived, so the two
+                 apps can settle the SAS comparison the human would otherwise make by
+                 eye across two screens. It is checked against what the relay revealed
+                 (handoff/SamePhonePairCallback) and never adopted; a disagreement fails
+                 the pairing loudly and signs nothing. Cross-device pairing has no such
+                 channel and keeps the human comparison. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cruciform" android:host="pair-joined" />
+            </intent-filter>
         </activity>
 
         <!-- Holds the process while an invite waits for the new device (ADR-0007). -->

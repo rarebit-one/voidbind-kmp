@@ -45,6 +45,22 @@ object RpPairHandoff {
     )
 
     /**
+     * The known target whose scheme is [scheme], or null. Used on the return leg of the
+     * same-phone one-tap path (ADR-0008): a `cruciform://pair-joined` callback names the
+     * app by the package Android reports, and this maps that app's scheme back to the
+     * registry row so the `<scheme>://pair-done` landing can be addressed.
+     *
+     * NOTE (#39): this registry is still a hard-coded whitelist, so a new relying party
+     * needs a Cruciform release to appear here and on the return leg. #39 proposes RPs
+     * self-advertising through a shared intent category, which would replace BOTH this
+     * list and the per-scheme `<queries>` entries with one generic query; the one-tap
+     * callback is deliberately built from the RESOLVED scheme, not a second list, so it
+     * needs no change when that lands.
+     */
+    fun targetForScheme(scheme: String?): RpPairTarget? =
+        scheme?.takeIf { it.isNotBlank() }?.let { s -> KNOWN.firstOrNull { it.scheme.equals(s, ignoreCase = true) } }
+
+    /**
      * Build the URI that hands [inviteTuple] (the exact `voidbind:pair?…` string the QR
      * shows) to [target]. The tuple is percent-encoded as a single query value so its
      * own `?`/`&`/`=` survive; the RP decodes it back to the byte-identical invite.

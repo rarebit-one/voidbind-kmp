@@ -100,6 +100,14 @@ class DeviceAuthorization private constructor(
     ) {
         /** The identity being enrolled into (`ed25519:<hex>`). */
         val userId: String get() = initiator.userId
+
+        /**
+         * The new device's signing key (`ed25519:<hex>`) once [handshake] has opened the
+         * responder's commitment; null before that. Used by the same-phone one-tap path
+         * (ADR-0008) to check the key a relying-party app on THIS phone reports over the
+         * local intent channel against the one the relay revealed.
+         */
+        val responderDeviceId: String? get() = initiator.responderDeviceId
     }
 
     /**

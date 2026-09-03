@@ -157,6 +157,16 @@ class PairflowInitiator(
     /** This initiator's signing key (`ed25519:<hex>`): the member doing the admitting, or genesis. */
     val deviceId: String get() = KeyRef.ed25519(signPub).render()
 
+    /**
+     * The RESPONDER's device signing key (`ed25519:<hex>`) as the relay revealed it, or
+     * null before [handshake] has opened its commitment. This is the key the add op will
+     * name, and — for the same-phone one-tap path (voidbind-kmp ADR-0008) — the value the
+     * relying-party app reports back over the local intent channel, so the two apps can
+     * compare it instead of a human comparing digits. It is a public key, already
+     * committed to before it was revealed; exposing it grants nothing.
+     */
+    val responderDeviceId: String? get() = if (respSign.isEmpty()) null else KeyRef.ed25519(respSign).render()
+
     /** Whether this initiator signs as the genesis key. */
     val genesis: Boolean get() = encPub.isEmpty()
 

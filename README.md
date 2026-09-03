@@ -235,6 +235,15 @@ voidbind:pair tuple>` / `allthing://pair?invite=…`, from a small app-side regi
 (`androidApp/…/handoff/RpPairHandoff.kt`), with a Sharesheet fallback; the SAS is still
 confirmed on Cruciform. See [`docs/adr/0006-rp-pair-handoff-same-device.md`](docs/adr/0006-rp-pair-handoff-same-device.md).
 
+On ONE phone that comparison is then made **by the apps, not by the human**: the RP reports
+what it derived back over a local intent, `cruciform://pair-joined?session=&dev=&sas=`, and
+Cruciform checks it against what the relay revealed for the same session. Match → one sheet
+("Allow *heyarr* on this phone to act as you?") behind the biometric, no code on screen, and
+the RP's `<scheme>://pair-done?session=` afterwards to land the user back where they started;
+mismatch → the pairing fails and nothing is signed. **Cross-device pairing keeps the 7-digit
+SAS** — there is no second channel there. See
+[`docs/adr/0008-same-phone-one-tap-pairing.md`](docs/adr/0008-same-phone-one-tap-pairing.md).
+
 ### Presenting a device credential
 
 Once a device is enrolled it calls a relying party's API (heyarr's `/api/v1`, All

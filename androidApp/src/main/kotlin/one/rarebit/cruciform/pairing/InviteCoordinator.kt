@@ -12,6 +12,7 @@ import one.rarebit.cruciform.domain.EngineResult
 import one.rarebit.cruciform.domain.PairInviteDisplay
 import one.rarebit.cruciform.domain.PairSession
 import one.rarebit.cruciform.domain.VoidbindEngine
+import one.rarebit.cruciform.handoff.SamePhonePairCallback
 
 /**
  * The lifecycle of ONE pairing invite this device mints as the initiator, owned by the
@@ -86,8 +87,37 @@ class InviteCoordinator(
         val live: Boolean get() = this is Minting || this is Waiting || this is Joined || this is Confirming
     }
 
+    /**
+     * The same-phone one-tap channel (ADR-0008): what a relying-party app on THIS phone
+     * has reported over `cruciform://pair-joined`, once checked against the relay.
+     */
+    sealed interface SamePhone {
+        /** No RP on this phone has reported anything for the live invite. */
+        data object None : SamePhone
+
+        /**
+         * An RP reported, and its device key + SAS agree with what the relay revealed.
+         * The human is asked one question — allow this app to act as you? — behind the
+         * biometric, with no code to compare. [callerPackage] is the app that fired the
+         * intent, when Android told us; [rpScheme] is where to send the human back.
+         */
+        data class Verified(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val callerPackage: String?) : SamePhone
+    }
+
     private val _state = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = _state.asStateFlow()
+
+    private val _samePhone = MutableStateFlow<SamePhone>(SamePhone.None)
+    val samePhone: StateFlow<SamePhone> = _samePhone.asStateFlow()
+
+    /**
+     * A report that arrived before the relay reveal did (the RP posted its commit and
+     * called us back faster than our own poll came round). Held, and re-decided the
+     * moment the handshake completes — never acted on early.
+     */
+    private var earlyReport: Pending? = null
+
+    private data class Pending(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val callerPackage: String?)
 
     private var job: Job? = null
     private var keptAlive = false
@@ -135,12 +165,68 @@ class InviteCoordinator(
         job?.cancel()
         job = null
         release()
+        clearSamePhone()
         _state.value = State.Idle
     }
 
     /** After [State.Admitted] was acted on. */
     fun reset() {
-        if (_state.value is State.Admitted) _state.value = State.Idle
+        if (_state.value is State.Admitted) {
+            clearSamePhone()
+            _state.value = State.Idle
+        }
+    }
+
+    /**
+     * A relying-party app on THIS phone reported the pairing it just joined, over the
+     * local `cruciform://pair-joined` intent (ADR-0008). The report is checked against
+     * what the RELAY revealed for the same session — it is never adopted:
+     *
+     * - agrees → [SamePhone.Verified]: the SAS comparison is settled by the two apps,
+     *   and the UI asks the human ONE question behind the biometric;
+     * - too early (the relay handshake has not opened the peer's commitment yet) → the
+     *   report is held and re-decided when it does;
+     * - a different session → ignored entirely; the live invite is untouched;
+     * - disagrees → the invite FAILS loudly and nothing is ever signed. On one phone
+     *   the only way to reach that is a relay substituting a key.
+     *
+     * [callerPackage] / [rpScheme] are what Android told us about the caller; they
+     * decorate the sheet and address the return trip, and are not part of the check.
+     */
+    fun samePhoneJoined(report: SamePhonePairCallback.Joined, rpScheme: String? = null, callerPackage: String? = null) {
+        val session = _state.value.invite?.session
+        val joined = _state.value.let { it as? State.Joined ?: (it as? State.Confirming)?.let { c -> State.Joined(c.invite, c.session) } }
+        when (val d = SamePhonePairCallback.decide(report, session, joined?.session?.peerDeviceKey, joined?.session?.securityCode)) {
+            is SamePhonePairCallback.Decision.Match -> {
+                log("same-phone: ${report.session} verified against the relay (${report.dev.take(16)}…)")
+                earlyReport = null
+                _samePhone.value = SamePhone.Verified(report, rpScheme, callerPackage)
+            }
+            is SamePhonePairCallback.Decision.TooEarly -> {
+                log("same-phone: ${report.session} reported before the relay reveal; holding it")
+                earlyReport = Pending(report, rpScheme, callerPackage)
+            }
+            is SamePhonePairCallback.Decision.OtherSession -> log("same-phone: ignored — ${d.reason}")
+            is SamePhonePairCallback.Decision.Mismatch -> {
+                log("same-phone: REFUSED — ${d.reason}")
+                earlyReport = null
+                _samePhone.value = SamePhone.None
+                job?.cancel()
+                job = null
+                release()
+                _state.value = State.Failed(
+                    EngineFailure(d.reason, EngineFailure.Kind.PROTOCOL, retryable = false),
+                    Phase.WAIT,
+                    relayUrl(),
+                    _state.value.invite,
+                )
+            }
+        }
+    }
+
+    private fun clearSamePhone() {
+        earlyReport = null
+        _samePhone.value = SamePhone.None
     }
 
     /** Seconds left before the invite's relay session expires (0 when there is no live invite). */
@@ -170,6 +256,7 @@ class InviteCoordinator(
 
     private fun mint() {
         job?.cancel()
+        clearSamePhone()
         val relay = relayUrl()
         _state.value = State.Minting
         job = scope.launch {
@@ -190,6 +277,12 @@ class InviteCoordinator(
                     is EngineResult.Ready -> {
                         log("${invite.inviteId}: new device joined, SAS derived")
                         _state.value = State.Joined(invite, hs.value)
+                        // A one-tap report that beat the relay reveal is decided now that
+                        // there IS something to decide it against (ADR-0008).
+                        earlyReport?.let { held ->
+                            earlyReport = null
+                            samePhoneJoined(held.report, held.rpScheme, held.callerPackage)
+                        }
                     }
                     is EngineResult.Failed -> {
                         val f = classifyWait(hs.failure, relay, deadline)
