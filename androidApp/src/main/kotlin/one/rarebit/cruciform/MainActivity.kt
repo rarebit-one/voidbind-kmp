@@ -30,6 +30,7 @@ import one.rarebit.cruciform.platform.AndroidBiometricAuthenticator
 import one.rarebit.cruciform.platform.ApprovalPolicyStore
 import one.rarebit.cruciform.platform.IdentityStore
 import one.rarebit.cruciform.platform.OkHttpTransport
+import one.rarebit.cruciform.platform.NotifySettings
 import one.rarebit.cruciform.platform.RelaySettings
 import one.rarebit.cruciform.platform.push.PushEndpointStore
 import one.rarebit.cruciform.platform.push.UnifiedPushReceiver
@@ -89,6 +90,10 @@ class MainActivity : FragmentActivity() {
                                 // Read at invite time, not captured here: Settings → "Pairing
                                 // relay" applies to the next "Add a device" without a restart.
                                 relay = RelaySettings(applicationContext)::current,
+                                // Same discipline for the push plane: read at
+                                // registration time, so Settings -> "Push plane"
+                                // applies on the next app open without a restart.
+                                notify = NotifySettings(applicationContext)::current,
                             )
                         } else {
                             PreviewVoidbindEngine()

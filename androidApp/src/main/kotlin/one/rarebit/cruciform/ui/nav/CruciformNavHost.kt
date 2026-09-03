@@ -45,6 +45,7 @@ import one.rarebit.cruciform.domain.ScannedCode
 import one.rarebit.cruciform.handoff.Handoff
 import one.rarebit.cruciform.handoff.RpPairLauncher
 import one.rarebit.cruciform.handoff.SamePhoneJoin
+import one.rarebit.cruciform.platform.NotifySettings
 import one.rarebit.cruciform.platform.RelaySettings
 import one.rarebit.cruciform.domain.SitePolicyView
 import one.rarebit.cruciform.ui.screens.ApprovalActivityScreen
@@ -144,6 +145,8 @@ fun CruciformNavHost(
     val appContext = LocalContext.current.applicationContext
     // Settings → "Pairing relay": persisted; the engine reads it at invite time.
     val relaySettings = remember(appContext) { RelaySettings(appContext) }
+    // Settings -> "Push plane": persisted; the engine reads it at push-registration time.
+    val notifySettings = remember(appContext) { NotifySettings(appContext) }
     // Set by the error dialog's "Change relay": Settings focuses the relay field once.
     var focusRelay by remember { mutableStateOf(false) }
 
@@ -498,8 +501,23 @@ fun CruciformNavHost(
                     // itself, at invite time).
                     var relayUrl by remember { mutableStateOf(relaySettings.current()) }
                     var relayIsDefault by remember { mutableStateOf(relaySettings.isDefault()) }
+                    var notifyUrl by remember { mutableStateOf(notifySettings.current()) }
+                    var notifyIsDefault by remember { mutableStateOf(notifySettings.isDefault()) }
                     SettingsScreen(
                         state = active,
+                        notifyUrl = notifyUrl,
+                        notifyIsDefault = notifyIsDefault,
+                        onSaveNotify = { input ->
+                            notifySettings.set(input).also {
+                                notifyUrl = notifySettings.current()
+                                notifyIsDefault = notifySettings.isDefault()
+                            }
+                        },
+                        onResetNotify = {
+                            notifySettings.reset()
+                            notifyUrl = notifySettings.current()
+                            notifyIsDefault = true
+                        },
                         relayUrl = relayUrl,
                         relayIsDefault = relayIsDefault,
                         onSaveRelay = { input ->
