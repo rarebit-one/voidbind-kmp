@@ -1,0 +1,108 @@
+name: release
+
+# Cuts a signed, installable release of the Cruciform authenticator app. Triggered by
+# an `app-v*` tag — the shared LIBRARY publishes on `v*` (publish.yml), so the app
+# carries its own prefix and the two triggers can never collide. Builds the release
+# APK signed with the release keystore (repo secrets, mirrored from
+# ~/.config/rarebit-android-signing and 1Password/Sysadmins), then publishes it as
+# the tag's GitHub Release asset. Obtainium on the phone watches these Releases —
+# see obtainium.json — so this workflow IS the update channel.
+#
+# The debug CI (test.yml) is unchanged and remains the merge gate.
+
+on:
+  push:
+    tags:
+      - "app-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build a release for"
+        required: true
+
+# Only `contents: write` — the app builds against the in-repo library (project(":")),
+# so nothing is resolved from GitHub Packages.
+permissions:
+  contents: write
+
+concurrency:
+  group: release-app-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve the version from the tag
+        id: version
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#app-v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
+
+      - name: Assemble the signed release APK
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          ./gradlew :androidApp:assembleRelease
+          -PreleaseVersionName=${{ steps.version.outputs.tag }}
+          -PdeviceEngine=true
+          --no-daemon --stacktrace
+
+      - name: Name the APK after the release
+        id: apk
+        run: |
+          src=androidApp/build/outputs/apk/release/androidApp-release.apk
+          test -f "$src" || { echo "no APK at $src"; ls -R androidApp/build/outputs/apk || true; exit 1; }
+          out="cruciform-${{ steps.version.outputs.version }}.apk"
+          cp "$src" "$out"
+          echo "path=$out" >> "$GITHUB_OUTPUT"
+
+      - name: Prove it carries the release certificate
+        run: |
+          signer="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          "$signer" verify --print-certs "${{ steps.apk.outputs.path }}"
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          APK: ${{ steps.apk.outputs.path }}
+        run: |
+          {
+            printf '**Cruciform %s**\n\n' "$VERSION"
+            printf 'Signed release APK — installable and updatable in place via '
+            printf '[Obtainium](https://github.com/ImranR98/Obtainium); add this repo as a '
+            printf 'GitHub source (see `obtainium.json`).\n\n'
+            printf -- '- Version: `%s`\n' "$VERSION"
+            printf -- '- Tag: `%s`\n' "$TAG"
+            printf -- '- Commit: `%s`\n' "$GITHUB_SHA"
+            printf -- '- Signed with the Cruciform release key (`apksigner verify` ran in CI).\n'
+            printf -- '- Built with `-PdeviceEngine=true` (release forces the hardware-backed engine).\n'
+          } > notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+            gh release edit "$TAG" --title "Cruciform $VERSION" --notes-file notes.md
+          else
+            gh release create "$TAG" "$APK" --title "Cruciform $VERSION" --notes-file notes.md
+          fi

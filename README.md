@@ -331,3 +331,65 @@ exported (`UserIdentity`, `DeviceIdentity`, `Enrolment`, `LoginQr`/`VoidbindQr`,
 ## Layout
 
 See [`CLAUDE.md`](CLAUDE.md) for the full source map and the wire-contract rules.
+
+## Releases — signed APKs, installed and updated via Obtainium
+
+Debug builds are a dead end: they are signed with the throwaway debug key, so they can
+never be updated in place by a real release. Every tagged version is therefore built as
+a **signed release APK** and attached to a GitHub Release, and the phone tracks that
+Release feed through [Obtainium](https://github.com/ImranR98/Obtainium).
+
+### Cutting a release
+
+```sh
+git tag app-v0.7.2          # `app-v<major>.<minor>.<patch>` — **the `app-v` prefix is load-bearing**: the shared `voidbind-client` library publishes on plain `v*` tags (`publish.yml`), so the app carries its own prefix and the two triggers never collide
+git push origin app-v0.7.2
+```
+
+`.github/workflows/release.yml` picks the tag up, builds `:androidApp:assembleRelease`, verifies the
+APK with `apksigner verify --print-certs`, and publishes the Release with
+`cruciform-0.7.2.apk` attached. `versionName` comes from the tag; `versionCode` is derived from it
+(`major*10000 + minor*100 + patch`), so neither is ever hand-edited.
+
+A release build also **forces the hardware-backed device engine** (`USE_DEVICE_ENGINE = true` in the `release` build type, plus `-PdeviceEngine=true` in CI) — the `PreviewVoidbindEngine` is a debug/CI affordance and must never ship in a signed release.
+
+### Signing
+
+`signingConfigs.release` reads four values, from the environment first and gradle
+properties second — nothing is committed, and `*.jks` is git-ignored:
+
+| Env | Gradle property | What |
+|-----|-----------------|------|
+| `RELEASE_KEYSTORE_BASE64` | `release.keystoreBase64` | the keystore, base64 |
+| `RELEASE_KEYSTORE_PASSWORD` | `release.keystorePassword` | store password |
+| `RELEASE_KEY_ALIAS` | `release.keyAlias` | `one.rarebit.cruciform` |
+| `RELEASE_KEY_PASSWORD` | `release.keyPassword` | key password |
+
+With none of them set the release build type is simply **unsigned** — a local
+`assembleRelease` still works. CI supplies them from the repo secrets of the same
+names. The keystore itself (RSA 4096, 25 years) lives at
+`~/.config/rarebit-android-signing/cruciform.jks` and in **1Password → Sysadmins**.
+Losing it means no user can ever update in place again.
+
+Build a signed APK locally:
+
+```sh
+export RELEASE_KEYSTORE_BASE64=$(base64 -i ~/.config/rarebit-android-signing/cruciform.jks | tr -d '\n')
+export RELEASE_KEYSTORE_PASSWORD=$(cat ~/.config/rarebit-android-signing/cruciform.password)
+export RELEASE_KEY_PASSWORD="$RELEASE_KEYSTORE_PASSWORD"
+export RELEASE_KEY_ALIAS=one.rarebit.cruciform
+./gradlew :androidApp:assembleRelease -PreleaseVersionName=app-v0.7.2
+```
+
+### Obtainium
+
+`obtainium.json` is the source config, importable via Obtainium → **Import/Export →
+Import from a file** (or add it by hand: **Add App** → URL
+`https://github.com/rarebit-one/voidbind-kmp`, source GitHub):
+
+- APK filter regex: `cruciform-.*\.apk`
+- Version extraction regex: `^app-v(.*)$`, match group `1`
+- Include pre-releases: off
+
+Obtainium needs a GitHub token for this **private** repo (Settings → Source-specific →
+GitHub → Personal Access Token).

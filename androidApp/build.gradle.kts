@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     // AGP and the Kotlin Gradle plugin are already on the build classpath from the
     // root library (com.android.library 8.7.3 shares the AGP jar that also carries
@@ -10,6 +12,43 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.20"
 }
 
+// ── Release version + signing ────────────────────────────────────────────────
+// `versionName` comes from the git tag: CI passes `-PreleaseVersionName=$GITHUB_REF_NAME`
+// (the tag, e.g. `app-v0.7.2`); a plain local build falls back to the constant below.
+// `versionCode` is DERIVED from it (major*10000 + minor*100 + patch) so it is
+// monotonic with the tag and never has to be hand-bumped.
+val releaseVersionName: String =
+    providers.gradleProperty("releaseVersionName").orNull
+        ?.trim()?.removePrefix("app-v")?.takeIf { it.isNotEmpty() }
+        ?: "0.7.2"
+
+fun versionCodeOf(name: String): Int {
+    val parts = name.substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
+    return parts.getOrElse(0) { 0 } * 10_000 + parts.getOrElse(1) { 0 } * 100 + parts.getOrElse(2) { 0 }
+}
+
+// Signing material is read from the environment (CI: repo secrets) or gradle
+// properties (locally: ~/.gradle/gradle.properties). NOTHING is ever committed —
+// `*.jks` is git-ignored and the keystore is materialised into build/ from base64.
+// The keys live at ~/.config/rarebit-android-signing/ and in 1Password (Sysadmins).
+fun releaseSecret(env: String, property: String): String? =
+    System.getenv(env)?.takeIf { it.isNotBlank() }
+        ?: providers.gradleProperty(property).orNull?.takeIf { it.isNotBlank() }
+
+val releaseKeystoreBase64 = releaseSecret("RELEASE_KEYSTORE_BASE64", "release.keystoreBase64")
+val releaseKeystorePassword = releaseSecret("RELEASE_KEYSTORE_PASSWORD", "release.keystorePassword")
+val releaseKeyAlias = releaseSecret("RELEASE_KEY_ALIAS", "release.keyAlias")
+val releaseKeyPassword = releaseSecret("RELEASE_KEY_PASSWORD", "release.keyPassword")
+
+// Present only when the base64 keystore was supplied; otherwise the release build
+// type stays unsigned (a local `assembleRelease` still works, it just isn't signed).
+val releaseKeystore: File? = releaseKeystoreBase64?.let { encoded ->
+    layout.buildDirectory.file("release-signing/release.jks").get().asFile.apply {
+        parentFile.mkdirs()
+        writeBytes(Base64.getMimeDecoder().decode(encoded))
+    }
+}
+
 android {
     namespace = "one.rarebit.cruciform"
     compileSdk = 35
@@ -20,8 +59,8 @@ android {
         // BiometricPrompt/CryptoObject API and a provider that carries Ed25519.
         minSdk = 33
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.7.1"
+        versionCode = versionCodeOf(releaseVersionName)
+        versionName = releaseVersionName
 
         // Engine selection at BUILD time, no source edit: `-PdeviceEngine=true` (or
         // `deviceEngine=true` in gradle.properties) selects the real hardware-backed
@@ -41,9 +80,27 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    signingConfigs {
+        create("release") {
+            // Left unconfigured (and unreferenced) when no keystore was supplied.
+            releaseKeystore?.let { keystore ->
+                storeFile = keystore
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // minify stays OFF until proguard rules exist for the reflective bits.
             isMinifyEnabled = false
+            signingConfig = releaseKeystore?.let { signingConfigs.getByName("release") }
+            // A RELEASE build is the real authenticator: force the hardware-backed
+            // DeviceVoidbindEngine regardless of `-PdeviceEngine`. The preview engine
+            // is a debug/CI affordance and must never ship in a signed release.
+            buildConfigField("boolean", "USE_DEVICE_ENGINE", "true")
         }
     }
 }
