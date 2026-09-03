@@ -235,6 +235,16 @@ data class PairSession(
     val peerDeviceName: String,
     /** The 7-digit security code, grouped as `NNN NNNN`. */
     val securityCode: String,
+    /**
+     * The PEER's device signing key (`ed25519:<hex>`) as the relay reveal produced it,
+     * when this side learned it — the initiator does (it is about to name that key in
+     * the add op); the responder does not need it. Null otherwise.
+     *
+     * Not shown to anyone: it is what the same-phone one-tap path (ADR-0008) compares
+     * the relying-party app's own local report against, so the SAS check can be settled
+     * by the two apps instead of by the human.
+     */
+    val peerDeviceKey: String? = null,
 )
 
 /** The invite this device shows when it is the existing (initiator) side. */
@@ -242,4 +252,10 @@ data class PairInviteDisplay(
     val inviteId: String,
     val qrPayload: String,
     val expiresInSeconds: Int,
+    /**
+     * The relay session id this invite opened — the same value the invite tuple carries
+     * as `session=`, so a relying-party app on this phone can name it back to us in its
+     * `cruciform://pair-joined` callback (ADR-0008). Empty when unknown (preview data).
+     */
+    val session: String = "",
 )

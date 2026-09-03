@@ -44,6 +44,7 @@ import one.rarebit.cruciform.domain.RecoveryBackup
 import one.rarebit.cruciform.domain.ScannedCode
 import one.rarebit.cruciform.handoff.Handoff
 import one.rarebit.cruciform.handoff.RpPairLauncher
+import one.rarebit.cruciform.handoff.SamePhoneJoin
 import one.rarebit.cruciform.platform.RelaySettings
 import one.rarebit.cruciform.domain.SitePolicyView
 import one.rarebit.cruciform.ui.screens.ApprovalActivityScreen
@@ -52,6 +53,7 @@ import one.rarebit.cruciform.ui.screens.HomeScreen
 import one.rarebit.cruciform.ui.screens.LoginApprovalScreen
 import one.rarebit.cruciform.ui.screens.NumberMatchApprovalScreen
 import one.rarebit.cruciform.ui.screens.OnboardingScreen
+import one.rarebit.cruciform.ui.screens.PairAllowScreen
 import one.rarebit.cruciform.ui.screens.PairConnectScreen
 import one.rarebit.cruciform.ui.screens.PairVerifyScreen
 import one.rarebit.cruciform.ui.screens.RecoveryBackupScreen
@@ -71,6 +73,9 @@ object Routes {
     const val LOGIN = "login"
     const val PAIR_CONNECT = "pair_connect"
     const val PAIR_VERIFY = "pair_verify"
+
+    /** The same-phone one-tap sheet (ADR-0008) — shown instead of PAIR_VERIFY when the RP checked out. */
+    const val PAIR_ALLOW = "pair_allow"
     const val RECOVERY = "recovery"
     const val ACTIVITY = "activity"
     const val DEVICES = "devices"
@@ -110,6 +115,17 @@ fun CruciformNavHost(
     viewModel: AppViewModel,
     handoff: Handoff? = null,
     onHandoffFinished: (Handoff, approved: Boolean) -> Unit = { _, _ -> },
+    /**
+     * A `cruciform://pair-joined` report from a relying-party app on this phone
+     * (ADR-0008). Handed to the invite coordinator, which checks it against the relay
+     * before anything is shown.
+     */
+    samePhoneJoin: SamePhoneJoin? = null,
+    /**
+     * The one-tap add is signed and delivered: send the human back to the RP's
+     * `<scheme>://pair-done?session=` landing and finish. `(rpScheme, session)`.
+     */
+    onSamePhoneDone: (String?, String) -> Unit = { _, _ -> },
 ) {
     val nav = rememberNavController()
     val engine = viewModel.engine
@@ -119,6 +135,10 @@ fun CruciformNavHost(
     // the relying-party app; this graph reacts to its state transitions below.
     val invites = viewModel.invites
     val inviteState by invites.state.collectAsStateWithLifecycle()
+    // The same-phone one-tap verdict (ADR-0008): None until a relying-party app on this
+    // phone has reported a device key + SAS that MATCH what the relay revealed. A
+    // mismatch never lands here — it fails the invite outright, through [inviteState].
+    val samePhone by invites.samePhone.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     val appContext = LocalContext.current.applicationContext
@@ -151,6 +171,15 @@ fun CruciformNavHost(
     // The handoff whose approval/pairing is currently on screen; its decision is routed
     // to onHandoffFinished instead of plain goHome (a deep-link caller is waiting).
     var activeHandoff by remember { mutableStateOf<Handoff?>(null) }
+
+    // Who the live one-tap report came from, for the sheet's label and icon and for the
+    // return trip. Kept beside the coordinator's verdict, which holds only the report.
+    var samePhoneRp by remember { mutableStateOf<one.rarebit.cruciform.handoff.RpAppIdentity?>(null) }
+    LaunchedEffect(samePhoneJoin?.seq) {
+        val j = samePhoneJoin ?: return@LaunchedEffect
+        samePhoneRp = j.rp
+        invites.samePhoneJoined(j.report, rpScheme = j.rp.scheme, callerPackage = j.rp.packageName)
+    }
 
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
@@ -241,8 +270,12 @@ fun CruciformNavHost(
     LaunchedEffect(inviteState) {
         when (val st = inviteState) {
             is InviteCoordinator.State.Joined -> {
-                if (route != Routes.PAIR_VERIFY) {
-                    nav.navigate(Routes.PAIR_VERIFY) {
+                // One phone, both apps: the SAS was already compared BY THE APPS over the
+                // local intent channel, so the human sees one question, not a code. Any
+                // other case — cross-device, or an RP that never called back — is VERIFY.
+                val target = if (samePhone is InviteCoordinator.SamePhone.Verified) Routes.PAIR_ALLOW else Routes.PAIR_VERIFY
+                if (route != target) {
+                    nav.navigate(target) {
                         popUpTo(Routes.PAIR_CONNECT) { inclusive = true }
                     }
                 }
@@ -257,10 +290,27 @@ fun CruciformNavHost(
                 onDismiss = { invites.dismissFailure() },
             )
             is InviteCoordinator.State.Admitted -> {
+                // On the one-tap path the RP is waiting on its own screen: land the human
+                // back in it, enrolled. Otherwise the ordinary Home.
+                val verified = samePhone as? InviteCoordinator.SamePhone.Verified
                 invites.reset()
-                decided(true)
+                if (verified != null) {
+                    activeHandoff = null
+                    onSamePhoneDone(verified.rpScheme, verified.report.session)
+                } else {
+                    decided(true)
+                }
             }
             else -> Unit
+        }
+    }
+
+    // A one-tap verdict that lands AFTER the SAS screen is already up (the RP called back
+    // a beat late): promote to the one-tap sheet — the comparison is settled, so asking
+    // the human for it would be asking for nothing.
+    LaunchedEffect(samePhone) {
+        if (samePhone is InviteCoordinator.SamePhone.Verified && route == Routes.PAIR_VERIFY) {
+            nav.navigate(Routes.PAIR_ALLOW) { popUpTo(Routes.PAIR_VERIFY) { inclusive = true } }
         }
     }
 
@@ -679,6 +729,36 @@ fun CruciformNavHost(
                             confirm()
                         },
                     )
+                }
+            }
+
+            composable(Routes.PAIR_ALLOW) {
+                // ADR-0008: reached ONLY from a verified same-phone report. If the verdict
+                // is gone (a fresh invite, a cancel) fall back to the SAS screen rather
+                // than showing a one-tap approval nothing checked.
+                val verified = samePhone as? InviteCoordinator.SamePhone.Verified
+                val st = inviteState
+                val busy = st is InviteCoordinator.State.Confirming
+                when {
+                    verified == null -> LaunchedEffect(Unit) {
+                        nav.navigate(Routes.PAIR_VERIFY) { popUpTo(Routes.PAIR_ALLOW) { inclusive = true } }
+                    }
+                    st !is InviteCoordinator.State.Joined && st !is InviteCoordinator.State.Confirming ->
+                        LaunchedEffect(Unit) { goHome() }
+                    else -> {
+                        val cancel = { invites.cancel(); decided(false) }
+                        BackHandler(onBack = cancel)
+                        PairAllowScreen(
+                            appName = samePhoneRp?.label ?: "This app",
+                            appIcon = samePhoneRp?.icon,
+                            busy = busy,
+                            // confirm() is the SAME signing path the SAS screen uses — the
+                            // biometric, the add op, the sealed delivery. Only the human
+                            // question in front of it changed.
+                            onAllow = { invites.confirm() },
+                            onCancel = cancel,
+                        )
+                    }
                 }
             }
 

@@ -22,6 +22,9 @@ import one.rarebit.cruciform.domain.PreviewVoidbindEngine
 import one.rarebit.cruciform.domain.VoidbindEngine
 import one.rarebit.cruciform.handoff.Handoff
 import one.rarebit.cruciform.handoff.HandoffRouter
+import one.rarebit.cruciform.handoff.RpAppIdentity
+import one.rarebit.cruciform.handoff.SamePhoneJoin
+import one.rarebit.cruciform.handoff.SamePhonePairCallback
 import one.rarebit.cruciform.pairing.ServiceKeepAlive
 import one.rarebit.cruciform.platform.AndroidBiometricAuthenticator
 import one.rarebit.cruciform.platform.ApprovalPolicyStore
@@ -57,6 +60,14 @@ class MainActivity : FragmentActivity() {
     private var handoff by mutableStateOf<Handoff?>(null)
     private var handoffSeq = 0
 
+    /**
+     * A `cruciform://pair-joined` report from a relying-party app on THIS phone
+     * (ADR-0008), with whatever the system could tell us about who sent it. The nav
+     * graph hands it to the invite coordinator, which checks it against the relay.
+     */
+    private var samePhoneJoin by mutableStateOf<SamePhoneJoin?>(null)
+    private var samePhoneSeq = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // A cold start from a deep link / push: route the launching intent. On a
@@ -64,6 +75,7 @@ class MainActivity : FragmentActivity() {
         // fresh — re-routing it re-fires the approval, which is the right thing (the
         // flow state it held was ephemeral).
         handoff = routeIntent(intent)
+        samePhoneJoin = routeSamePhone(intent)
         setContent {
             CruciformTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -98,7 +110,13 @@ class MainActivity : FragmentActivity() {
                             keepAlive = ServiceKeepAlive(applicationContext),
                         )
                     }
-                    CruciformNavHost(vm, handoff = handoff, onHandoffFinished = ::finishHandoff)
+                    CruciformNavHost(
+                        vm,
+                        handoff = handoff,
+                        onHandoffFinished = ::finishHandoff,
+                        samePhoneJoin = samePhoneJoin,
+                        onSamePhoneDone = ::finishSamePhone,
+                    )
                 }
             }
         }
@@ -109,6 +127,41 @@ class MainActivity : FragmentActivity() {
         setIntent(intent)
         // A warm app woken by a fresh push or a fresh deep link: surface the new login.
         routeIntent(intent)?.let { handoff = it }
+        routeSamePhone(intent)?.let { samePhoneJoin = it }
+    }
+
+    /**
+     * The one-tap report, if this intent is one. The caller is identified from
+     * `referrer` — the system's attribution, not anything the URI claims — and only to
+     * label the sheet and address the return trip; the security decision is the
+     * comparison against the relay, made in the coordinator.
+     */
+    private fun routeSamePhone(intent: Intent?): SamePhoneJoin? {
+        intent ?: return null
+        return when (val r = SamePhonePairCallback.route(intent.action, intent.dataString)) {
+            is SamePhonePairCallback.Joined -> {
+                val caller = referrer?.takeIf { it.scheme == "android-app" }?.host
+                SamePhoneJoin(r, RpAppIdentity.resolve(this, caller), ++samePhoneSeq)
+            }
+            is SamePhonePairCallback.Malformed -> {
+                Log.w(TAG, "same-phone callback ignored: ${r.message}")
+                null
+            }
+            null -> null
+        }
+    }
+
+    /**
+     * The add is signed and delivered on the one-tap path: send the human back to the
+     * relying-party app's own `<scheme>://pair-done?session=` landing so they end up
+     * where they started, enrolled, and finish so this task does not sit on top of it.
+     * A scheme we cannot address (or an RP that no longer handles it) just means the
+     * user comes back through recent apps — the enrolment is done either way.
+     */
+    private fun finishSamePhone(scheme: String?, session: String) {
+        RpAppIdentity.openDone(this, scheme, session)
+        samePhoneJoin = null
+        finishAndRemoveTask()
     }
 
     /**

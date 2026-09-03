@@ -20,6 +20,7 @@ import one.rarebit.cruciform.domain.RecoveryBackup
 import one.rarebit.cruciform.domain.ScannedCode
 import one.rarebit.cruciform.domain.SitePolicyView
 import one.rarebit.cruciform.domain.VoidbindEngine
+import one.rarebit.cruciform.handoff.SamePhonePairCallback
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -37,7 +38,9 @@ class InviteCoordinatorTest {
     private class FakeEngine : VoidbindEngine {
         var mints = 0
         var confirms = 0
-        var mintResult: EngineResult<PairInviteDisplay> = EngineResult.Ready(PairInviteDisplay("INV · AAAA BBBB", "voidbind:pair?v=3&session=s1", 600))
+        var mintResult: EngineResult<PairInviteDisplay> = EngineResult.Ready(
+            PairInviteDisplay("INV · AAAA BBBB", "voidbind:pair?v=3&session=s1", 600, session = "s1"),
+        )
         /** Completed by the test to "join" the new device (or fail the wait). */
         var handshake = CompletableDeferred<EngineResult<PairSession>>()
         var confirmResult: EngineResult<Unit> = EngineResult.Ready(Unit)
@@ -77,7 +80,8 @@ class InviteCoordinatorTest {
         override fun end() { ends++ }
     }
 
-    private val session = PairSession("Nothing A065", "New device", "123 4567")
+    private val peerDev = "ed25519:9f1c0aa2b3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e"
+    private val session = PairSession("Nothing A065", "New device", "123 4567", peerDeviceKey = peerDev)
     private var now = 1_000_000L
 
     // A test that ends with an invite still waiting (as the app does) cancels it, so the
@@ -274,5 +278,126 @@ class InviteCoordinatorTest {
         assertTrue(c.state.value is InviteCoordinator.State.Waiting)
         assertFalse(c.state.value is InviteCoordinator.State.Failed)
         c.cancel()
+    }
+
+    // --- the same-phone one-tap channel (ADR-0008) --------------------------
+
+    private fun report(session: String = "s1", dev: String = peerDev, sas: String = "1234567") =
+        SamePhonePairCallback.Joined(session, dev, sas)
+
+    @Test
+    fun aMatchingSamePhoneReportSettlesTheSasComparison() = runTest(StandardTestDispatcher()) {
+        val engine = FakeEngine()
+        val c = coordinator(engine)
+        c.ensureInvite()
+        advanceUntilIdle()
+        engine.handshake.complete(EngineResult.Ready(session))
+        advanceUntilIdle()
+        assertTrue(c.state.value is InviteCoordinator.State.Joined)
+        assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
+
+        c.samePhoneJoined(report(), rpScheme = "heyarr-mobile", callerPackage = "one.rarebit.heyarr.mobile")
+
+        val v = c.samePhone.value as InviteCoordinator.SamePhone.Verified
+        assertEquals("heyarr-mobile", v.rpScheme)
+        assertEquals("one.rarebit.heyarr.mobile", v.callerPackage)
+        // Verified is a UI decision only: nothing is signed until confirm().
+        assertEquals(0, engine.confirms)
+        assertTrue(c.state.value is InviteCoordinator.State.Joined)
+        c.cancel()
+    }
+
+    @Test
+    fun aReportThatBeatsTheRelayIsHeldAndDecidedWhenTheRevealLands() = runTest(StandardTestDispatcher()) {
+        // The RP posts its commit and calls back before our poll comes round. Nothing to
+        // compare yet — hold it, and decide the moment the handshake completes.
+        val engine = FakeEngine()
+        val c = coordinator(engine)
+        c.ensureInvite()
+        advanceUntilIdle()
+        c.samePhoneJoined(report(), rpScheme = "heyarr-mobile")
+        assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
+        assertTrue(c.state.value is InviteCoordinator.State.Waiting)
+
+        engine.handshake.complete(EngineResult.Ready(session))
+        advanceUntilIdle()
+        assertTrue(c.samePhone.value is InviteCoordinator.SamePhone.Verified)
+        c.cancel()
+    }
+
+    @Test
+    fun aMismatchedReportFailsTheInviteAndSignsNothing() = runTest(StandardTestDispatcher()) {
+        val engine = FakeEngine()
+        val c = coordinator(engine)
+        c.ensureInvite()
+        advanceUntilIdle()
+        engine.handshake.complete(EngineResult.Ready(session))
+        advanceUntilIdle()
+
+        c.samePhoneJoined(report(dev = peerDev.dropLast(1) + "f"), rpScheme = "heyarr-mobile")
+
+        val f = c.state.value as InviteCoordinator.State.Failed
+        assertEquals(EngineFailure.Kind.PROTOCOL, f.failure.kind)
+        assertFalse("a substituted key must never be retried against the same session", f.failure.retryable)
+        assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
+        assertEquals(0, engine.confirms)
+    }
+
+    @Test
+    fun aReportForAnotherSessionLeavesTheLiveInviteAlone() = runTest(StandardTestDispatcher()) {
+        val engine = FakeEngine()
+        val c = coordinator(engine)
+        c.ensureInvite()
+        advanceUntilIdle()
+        engine.handshake.complete(EngineResult.Ready(session))
+        advanceUntilIdle()
+
+        c.samePhoneJoined(report(session = "someone-elses"), rpScheme = "heyarr-mobile")
+
+        assertTrue("a stale callback must not tear down the live invite", c.state.value is InviteCoordinator.State.Joined)
+        assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
+        c.cancel()
+    }
+
+    @Test
+    fun theOneTapVerdictIsDroppedWhenTheInviteIsCancelledOrReMinted() = runTest(StandardTestDispatcher()) {
+        val engine = FakeEngine()
+        val c = coordinator(engine)
+        c.ensureInvite()
+        advanceUntilIdle()
+        engine.handshake.complete(EngineResult.Ready(session))
+        advanceUntilIdle()
+        c.samePhoneJoined(report())
+        assertTrue(c.samePhone.value is InviteCoordinator.SamePhone.Verified)
+
+        c.cancel()
+        assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
+
+        // And a fresh invite starts with no verdict, whatever the last one decided.
+        engine.handshake = CompletableDeferred()
+        c.ensureInvite()
+        advanceUntilIdle()
+        assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
+        c.cancel()
+    }
+
+    @Test
+    fun confirmAfterAVerifiedReportRunsTheSameSigningPath() = runTest(StandardTestDispatcher()) {
+        // The one-tap sheet changed the question, not the mechanism: Allow is confirm().
+        val engine = FakeEngine()
+        val c = coordinator(engine)
+        c.ensureInvite()
+        advanceUntilIdle()
+        engine.handshake.complete(EngineResult.Ready(session))
+        advanceUntilIdle()
+        c.samePhoneJoined(report())
+        c.confirm()
+        advanceUntilIdle()
+        assertEquals(1, engine.confirms)
+        assertTrue(c.state.value is InviteCoordinator.State.Admitted)
+        // The verdict survives to Admitted: the graph needs it to address the return trip.
+        assertTrue(c.samePhone.value is InviteCoordinator.SamePhone.Verified)
+        c.reset()
+        assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
     }
 }
