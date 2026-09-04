@@ -14,15 +14,16 @@ object RelayConfig {
 
     /**
      * The relay a fresh install pairs through. **`https://relay.thesim.family` is the
-     * intended PUBLIC relay once it is deployed**; today it does not resolve, and
-     * shipping it as the default is exactly the "Add a device → can't reach the
-     * relay" failure this setting exists to fix. Until then the default is the relay
-     * the heyarr node mounts on the Bartley Ridge LAN (`/pair` on :7777) — cleartext
-     * to that one host is allowed by `res/xml/network_security_config.xml`. The
-     * relay only ever carries the encrypted pairing transcript, so a LAN-HTTP relay
-     * leaks nothing (the SAS compare is what authenticates the pairing).
+     * intended PUBLIC relay once it is deployed**; today it does not resolve. Until
+     * then the default is the relay the heyarr node mounts on the Bartley Ridge LAN
+     * (`/pair` on :7777), which now speaks internal TLS — a valid Let's Encrypt cert
+     * at `https://heyarr.br.thesim.family:7777`, so the relay rides HTTPS by default.
+     * The plain-http node IP stays reachable as an in-app Settings override fallback
+     * (cleartext to that one IP is allowed by `res/xml/network_security_config.xml`).
+     * The relay only ever carries the encrypted pairing transcript, so it leaks
+     * nothing either way (the SAS compare is what authenticates the pairing).
      */
-    const val DEFAULT_RELAY = "http://192.168.16.224:7777/pair"
+    const val DEFAULT_RELAY = "https://heyarr.br.thesim.family:7777/pair"
 
     /**
      * What [validate] decided about a typed URL. Shared by every endpoint field in
