@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext stays OFF by default (the intended public names, relay.thesim.family
-     and notify.thesim.family, are HTTPS). The one exception is the Bartley Ridge LAN
-     host that runs the heyarr node (:7777), All Thing (:8080), the ntfy push server
-     (:2586) and the voidbind-notify push/wake plane (:2587): it serves
-     `POST /membership/{usr}` over plain HTTP on the LAN — the membership push (a
-     remove / a new member's add) is best-effort and carries only signed, public ops —
-     and the heyarr node's `/pair` mount on :7777 is the DEFAULT pairing relay
-     (RelayConfig.DEFAULT_RELAY) until the public one is deployed, and its :2587 plane
-     is the DEFAULT push plane (NotifyConfig.DEFAULT_NOTIFY) on the same terms. The
-     relay only carries the encrypted pairing transcript and the plane only the opaque
-     login tuple, so cleartext to that host leaks nothing. A relay or plane typed into
+<!-- Cleartext stays OFF by default. The pairing relay now rides internal TLS: the
+     heyarr node's `/pair` mount serves a valid Let's Encrypt cert at
+     `https://heyarr.br.thesim.family:7777` (RelayConfig.DEFAULT_RELAY), and the
+     intended public names (relay.thesim.family, notify.thesim.family) are HTTPS too.
+
+     The one cleartext exception is the raw Bartley Ridge LAN IP 192.168.16.224. It is
+     no longer the relay's path (that is HTTPS now); it remains because this app still
+     makes DIRECT plain-HTTP calls to that host that are NOT TLS-terminated:
+       - the voidbind-notify push/wake plane on :2587 (NotifyConfig.DEFAULT_NOTIFY) —
+         NotifyClient.subscribe posts the ntfy topic URL here;
+       - the ntfy push server on :2586;
+       - the best-effort `POST /membership/{usr}` to the heyarr node (:7777) and All
+         Thing (:8080) — DeviceVoidbindEngine.DEFAULT_MEMBERSHIP_RPS.
+     Each of these carries only an opaque login tuple or a signed, public op (no key
+     material, no challenge, no match number), so cleartext to that single IP leaks
+     nothing. It also keeps the http node-IP relay/plane a user can type into Settings
+     working as a fallback while internal TLS beds in. A relay or plane typed into
      Settings on any OTHER host must be https. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />

@@ -10,8 +10,8 @@ import kotlin.test.assertNull
 class RelayConfigTest {
 
     @Test
-    fun `default is the heyarr node's LAN relay mount, and is itself valid`() {
-        assertEquals("http://192.168.16.224:7777/pair", RelayConfig.DEFAULT_RELAY)
+    fun `default is the heyarr node's internal-TLS relay mount, and is itself valid`() {
+        assertEquals("https://heyarr.br.thesim.family:7777/pair", RelayConfig.DEFAULT_RELAY)
         assertEquals(Validation.Valid(RelayConfig.DEFAULT_RELAY), RelayConfig.validate(RelayConfig.DEFAULT_RELAY))
     }
 
