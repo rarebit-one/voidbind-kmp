@@ -2,7 +2,12 @@ package one.rarebit.cruciform
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.setContent
@@ -34,6 +39,7 @@ import one.rarebit.cruciform.platform.NotifySettings
 import one.rarebit.cruciform.platform.RelaySettings
 import one.rarebit.cruciform.platform.push.PushEndpointStore
 import one.rarebit.cruciform.platform.push.UnifiedPushReceiver
+import one.rarebit.cruciform.platform.push.UnifiedPushRegistrar
 import one.rarebit.cruciform.ui.nav.CruciformNavHost
 import one.rarebit.cruciform.ui.theme.CruciformTheme
 
@@ -99,11 +105,39 @@ class MainActivity : FragmentActivity() {
                             PreviewVoidbindEngine()
                         }
                     }
-                    // On open, (re-)register the current UnifiedPush wake endpoint with the
-                    // notify plane, cert-authenticated. Best-effort: a failure just means no
-                    // background wake, and scanned QR login still works.
+                    // The wake surfaces as a notification (LoginWakeNotifier), so on
+                    // Android 13+ ask for POST_NOTIFICATIONS once — without it the wake is
+                    // silently dropped. Best-effort: a denial just means no background wake,
+                    // and scanned-QR login still works.
+                    val notifPermission = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission(),
+                    ) { /* granted-or-not: the notifier guards on areNotificationsEnabled() */ }
+                    LaunchedEffect(Unit) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(
+                                this@MainActivity,
+                                android.Manifest.permission.POST_NOTIFICATIONS,
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                    // On open, ASK a UnifiedPush distributor (e.g. ntfy) for a wake
+                    // endpoint. Without this the distributor is never contacted and no
+                    // endpoint is ever minted — the receiver has nothing to receive.
+                    // Idempotent (a stable token → the same endpoint), best-effort: no
+                    // distributor just means no background wake and scanned-QR login still
+                    // works.
+                    LaunchedEffect(Unit) {
+                        UnifiedPushRegistrar.register(applicationContext)
+                    }
+                    // Register the wake endpoint with the notify plane, cert-authenticated,
+                    // as soon as one exists — the current value on open, and again the
+                    // instant a fresh NEW_ENDPOINT lands (the receiver writes the same prefs).
                     LaunchedEffect(engine) {
-                        PushEndpointStore(applicationContext).current()?.let { engine.registerForPush(it) }
+                        PushEndpointStore(applicationContext).flow().collect { endpoint ->
+                            endpoint?.let { engine.registerForPush(it) }
+                        }
                     }
                     // The invite coordinator (ADR-0007) lives in the ViewModel scope with a
                     // foreground-service keep-alive, so a minted invite keeps waiting on the
