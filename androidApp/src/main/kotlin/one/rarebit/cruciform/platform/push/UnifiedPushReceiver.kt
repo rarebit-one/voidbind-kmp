@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import one.rarebit.voidbind.PushPing
 import one.rarebit.voidbind.VoidbindQr
-import one.rarebit.cruciform.MainActivity
 
 /**
  * The Android **UnifiedPush** wake receiver — Voidbind's ONLY background push path
@@ -45,20 +44,27 @@ class UnifiedPushReceiver : BroadcastReceiver() {
         val text = body?.decodeToString() ?: return
         // Opaque: only a login tuple wakes the app; anything else is dropped.
         val qr = PushPing.parseOrNull(text) as? VoidbindQr.Login ?: return
-        val wake = Intent(context, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra(EXTRA_LOGIN_TUPLE, rebuildTuple(qr))
-        }
-        context.startActivity(wake)
+        // Surface via a full-screen-intent notification, NOT startActivity: a background
+        // broadcast receiver's activity start is refused by Android's background-activity-
+        // launch rules, and the ntfy distributor can only "raise" an app that owns a
+        // foreground service (Cruciform does not at wake time). The notification launches
+        // the approval directly on a locked/off screen and heads-up otherwise (issue #49).
+        LoginWakeNotifier.notify(context, rebuildTuple(qr))
     }
 
     /** The opaque tuple to hand the app — rebuilt from the parsed parts (no secrets). */
     private fun rebuildTuple(login: VoidbindQr.Login): String =
         one.rarebit.voidbind.LoginQr.encode(login.request.rp, login.request.id)
 
-    /** UnifiedPush delivers the body under one of a few extra keys across versions. */
+    /**
+     * UnifiedPush delivers the body under one of a few extra keys across versions.
+     * UnifiedPush **v3** (what ntfy 1.25+ speaks — it advertises the `BYTES_MESSAGE`
+     * feature) carries it as `bytesMessage`; the older keys are kept for v2 distributors.
+     * Verified on-device 2026-09-04: ntfy's MESSAGE arrived with `extras=[bytesMessage, token]`.
+     */
     private fun extractMessage(intent: Intent): ByteArray? =
-        intent.getByteArrayExtra(EXTRA_BYTES)
+        intent.getByteArrayExtra(EXTRA_BYTES_MESSAGE)
+            ?: intent.getByteArrayExtra(EXTRA_BYTES)
             ?: intent.getByteArrayExtra(EXTRA_MESSAGE_BYTES)
             ?: intent.getStringExtra(EXTRA_MESSAGE_STRING)?.encodeToByteArray()
 
@@ -70,6 +76,7 @@ class UnifiedPushReceiver : BroadcastReceiver() {
         const val ACTION_UNREGISTERED = "org.unifiedpush.android.connector.UNREGISTERED"
 
         const val EXTRA_ENDPOINT = "endpoint"
+        private const val EXTRA_BYTES_MESSAGE = "bytesMessage" // UnifiedPush v3 (ntfy 1.25+)
         private const val EXTRA_BYTES = "bytes"
         private const val EXTRA_MESSAGE_BYTES = "message"
         private const val EXTRA_MESSAGE_STRING = "messageString"

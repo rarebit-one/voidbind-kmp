@@ -13,6 +13,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Launch the sign-in approval directly from a push on a locked/off screen (the
+         login-wake full-screen-intent notification, issue #49). Degrades to a heads-up
+         notification the user taps when not granted / screen on. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <!-- Package visibility (Android 11+) for the REVERSE same-device handoff
          (ADR-0006), discovery per ADR-0009: after "Add a device" mints an invite, the
@@ -26,6 +30,14 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="one.rarebit.voidbind.category.RP_HANDOFF" />
+        </intent>
+        <!-- Package visibility (Android 11+) for discovering UnifiedPush DISTRIBUTORS
+             (e.g. ntfy): UnifiedPushRegistrar queries queryBroadcastReceivers for this
+             action to find + REGISTER with a distributor for the background wake. Without
+             this, the query returns empty under package visibility and no wake is ever set
+             up (issue #49). -->
+        <intent>
+            <action android:name="org.unifiedpush.android.distributor.REGISTER" />
         </intent>
     </queries>
 
