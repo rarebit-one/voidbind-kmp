@@ -25,8 +25,17 @@ import dev.whyoleg.cryptography.random.CryptographyRandom
  * key from its private seed (which the JDK X25519 provider will not do); HKDF and
  * the AEAD are the vetted cryptography-kotlin primitives. Verified against a
  * live-voidbind-go KAT.
+ *
+ * This object is PUBLIC because a relying-party app that holds device-side
+ * encrypted personal state (heyarr-mobile, ADR-0049) needs these same four
+ * raw-byte operations `voidbind-go/encryption` exposes — `seal`/`unwrap` a space
+ * key and `encryptChange`/`decryptChange` a change — to fold and MINT M9 CRDT
+ * changes on the device, without re-deriving the wrap/AEAD wire format (the
+ * one-copy rule the consuming apps are told to keep). Only these ByteArray-in,
+ * ByteArray-out entry points are the surface; the primitives it builds on
+ * ([X25519], [XChaCha20Poly1305]) stay internal.
  */
-internal object VoidbindEncryption {
+public object VoidbindEncryption {
     private const val WRAP_INFO = "heyarr/space-key-wrap/v1"
     const val SPACE_KEY_SIZE = 32
     private const val EPH_PUB_LEN = 32

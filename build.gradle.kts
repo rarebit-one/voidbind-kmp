@@ -40,7 +40,7 @@ group = "one.rarebit.voidbind"
 // for heyarr-core#444/#443 (server ceiling returns to 10 min once apps adopt it).
 // Android maps it to `setUserAuthenticationParameters`; iOS to the LAContext reuse
 // duration (platform-capped at 10 min); JVM ignores it (software).
-version = "0.6.0"
+version = "0.7.0"
 
 repositories {
     mavenCentral()
