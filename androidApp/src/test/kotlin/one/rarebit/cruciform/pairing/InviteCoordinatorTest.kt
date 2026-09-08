@@ -365,7 +365,10 @@ class InviteCoordinatorTest {
         val f = c.state.value as InviteCoordinator.State.Failed
         assertEquals(EngineFailure.Kind.PROTOCOL, f.failure.kind)
         assertFalse("a substituted key must never be retried against the same session", f.failure.retryable)
-        assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
+        // The RP is told, with Cruciform's own wording, so it stops waiting on its screen.
+        val refused = c.samePhone.value as InviteCoordinator.SamePhone.Refused
+        assertEquals("heyarr-mobile", refused.rpScheme)
+        assertEquals(f.failure.message, refused.reason)
         assertEquals(0, engine.confirms)
     }
 

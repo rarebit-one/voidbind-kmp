@@ -78,6 +78,10 @@ sealed interface SamePhonePairCallback {
 
         /** The RP's own "you're enrolled, come back" landing: `<rp scheme>://pair-done?session=…`. */
         const val DONE_HOST = "pair-done"
+        /** Query keys on the return leg beyond the session: only set when the pairing was refused. */
+        const val PARAM_OUTCOME = "outcome"
+        const val PARAM_REASON = "reason"
+        const val OUTCOME_REFUSED = "refused"
 
         private const val PREFIX = "$SCHEME://$HOST"
 
@@ -152,10 +156,24 @@ sealed interface SamePhonePairCallback {
          * Nothing about the admission travels here; the RP already received it, sealed,
          * over the relay.
          */
-        fun doneUri(rpScheme: String, session: String): String {
+        fun doneUri(rpScheme: String, session: String, outcome: String? = null, reason: String? = null): String {
             require(rpScheme.isNotBlank()) { "no RP scheme" }
-            return "$rpScheme://$DONE_HOST?$PARAM_SESSION=${RpPairHandoff.percentEncode(session)}"
+            return buildString {
+                append(rpScheme).append("://").append(DONE_HOST).append('?').append(PARAM_SESSION).append('=')
+                append(RpPairHandoff.percentEncode(session))
+                if (outcome != null) append('&').append(PARAM_OUTCOME).append('=').append(RpPairHandoff.percentEncode(outcome))
+                if (reason != null) append('&').append(PARAM_REASON).append('=').append(RpPairHandoff.percentEncode(reason))
+            }
         }
+
+        /**
+         * The RP's landing with a verdict it would otherwise never learn: the one-tap
+         * report DISAGREED with what the relay revealed, so Cruciform refused and signed
+         * nothing. Without this leg the RP waits on "Approve in Cruciform" until its
+         * relay session expires. `reason` is Cruciform's own wording, verbatim.
+         */
+        fun refusedUri(rpScheme: String, session: String, reason: String): String =
+            doneUri(rpScheme, session, OUTCOME_REFUSED, reason)
 
         /** Digits only — the SAS's actual value, free of whatever grouping a screen used. */
         internal fun digits(s: String): String = s.filter { it in '0'..'9' }

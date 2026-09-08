@@ -155,6 +155,7 @@ class MainActivity : FragmentActivity() {
                         onHandoffFinished = ::finishHandoff,
                         samePhoneJoin = samePhoneJoin,
                         onSamePhoneDone = ::finishSamePhone,
+                        onSamePhoneRefused = ::refuseSamePhone,
                     )
                 }
             }
@@ -201,6 +202,16 @@ class MainActivity : FragmentActivity() {
         RpAppIdentity.openDone(this, scheme, session)
         samePhoneJoin = null
         finishAndRemoveTask()
+    }
+
+    /**
+     * The one-tap report was refused: hand the verdict to the RP's landing so it stops
+     * waiting, but stay — this task's failure dialog is the human's explanation, and
+     * they come back to it through recent apps.
+     */
+    private fun refuseSamePhone(scheme: String?, session: String, reason: String) {
+        RpAppIdentity.openDone(this, scheme, session, refusedFor = reason)
+        samePhoneJoin = null
     }
 
     /**

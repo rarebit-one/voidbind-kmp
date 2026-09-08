@@ -102,6 +102,12 @@ class InviteCoordinator(
          * intent, when Android told us; [rpScheme] is where to send the human back.
          */
         data class Verified(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val callerPackage: String?) : SamePhone
+        /**
+         * The report disagreed with the relay reveal: the invite failed and nothing was
+         * signed. Published so the RP can be told (its `<scheme>://pair-done?outcome=refused`
+         * leg); it would otherwise wait on its own screen until the relay session expires.
+         */
+        data class Refused(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val reason: String) : SamePhone
     }
 
     private val _state = MutableStateFlow<State>(State.Idle)
@@ -221,7 +227,7 @@ class InviteCoordinator(
             is SamePhonePairCallback.Decision.Mismatch -> {
                 log("same-phone: REFUSED — ${d.reason}")
                 earlyReport = null
-                _samePhone.value = SamePhone.None
+                _samePhone.value = SamePhone.Refused(report, rpScheme, d.reason)
                 job?.cancel()
                 job = null
                 release()

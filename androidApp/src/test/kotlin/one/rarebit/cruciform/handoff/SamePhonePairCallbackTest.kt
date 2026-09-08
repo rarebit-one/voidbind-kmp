@@ -154,5 +154,9 @@ class SamePhonePairCallbackTest {
     @Test
     fun theDoneUrisSessionIsPercentEncoded() {
         assertEquals("allthing://pair-done?session=a%26b%3Dc", SamePhonePairCallback.doneUri("allthing", "a&b=c"))
+        assertEquals(
+            "heyarr-mobile://pair-done?session=abc123&outcome=refused&reason=the%20SAS%20differed%3A%20%3D",
+            SamePhonePairCallback.refusedUri("heyarr-mobile", "abc123", "the SAS differed: ="),
+        )
     }
 }
