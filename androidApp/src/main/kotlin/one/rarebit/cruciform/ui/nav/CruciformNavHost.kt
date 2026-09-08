@@ -127,6 +127,12 @@ fun CruciformNavHost(
      * `<scheme>://pair-done?session=` landing and finish. `(rpScheme, session)`.
      */
     onSamePhoneDone: (String?, String) -> Unit = { _, _ -> },
+    /**
+     * The one-tap report was refused (a key or code that disagreed with the relay):
+     * tell the RP through its `pair-done?outcome=refused` leg so it stops waiting.
+     * `(rpScheme, session, reason)`. Cruciform's own failure dialog stays up.
+     */
+    onSamePhoneRefused: (String?, String, String) -> Unit = { _, _, _ -> },
 ) {
     val nav = rememberNavController()
     val engine = viewModel.engine
@@ -312,8 +318,12 @@ fun CruciformNavHost(
     // a beat late): promote to the one-tap sheet — the comparison is settled, so asking
     // the human for it would be asking for nothing.
     LaunchedEffect(samePhone) {
-        if (samePhone is InviteCoordinator.SamePhone.Verified && route == Routes.PAIR_VERIFY) {
-            nav.navigate(Routes.PAIR_ALLOW) { popUpTo(Routes.PAIR_VERIFY) { inclusive = true } }
+        when (val sp = samePhone) {
+            is InviteCoordinator.SamePhone.Verified -> if (route == Routes.PAIR_VERIFY) {
+                nav.navigate(Routes.PAIR_ALLOW) { popUpTo(Routes.PAIR_VERIFY) { inclusive = true } }
+            }
+            is InviteCoordinator.SamePhone.Refused -> onSamePhoneRefused(sp.rpScheme, sp.report.session, sp.reason)
+            InviteCoordinator.SamePhone.None -> Unit
         }
     }
 

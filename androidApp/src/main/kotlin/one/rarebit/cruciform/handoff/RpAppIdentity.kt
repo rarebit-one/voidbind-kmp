@@ -69,8 +69,11 @@ data class RpAppIdentity(
          * back where they started, enrolled. Bare — the session id only; the admission
          * itself reached the RP sealed, over the relay. Returns false when nothing took it.
          */
-        fun openDone(context: Context, scheme: String?, session: String): Boolean {
-            val uri = runCatching { SamePhonePairCallback.doneUri(scheme ?: return false, session) }.getOrNull() ?: return false
+        fun openDone(context: Context, scheme: String?, session: String, refusedFor: String? = null): Boolean {
+            val uri = runCatching {
+                val s = scheme ?: return false
+                if (refusedFor == null) SamePhonePairCallback.doneUri(s, session) else SamePhonePairCallback.refusedUri(s, session, refusedFor)
+            }.getOrNull() ?: return false
             return try {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 true
