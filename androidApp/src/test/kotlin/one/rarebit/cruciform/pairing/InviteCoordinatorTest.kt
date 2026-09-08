@@ -1,9 +1,13 @@
 package one.rarebit.cruciform.pairing
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -322,6 +326,28 @@ class InviteCoordinatorTest {
         engine.handshake.complete(EngineResult.Ready(session))
         advanceUntilIdle()
         assertTrue(c.samePhone.value is InviteCoordinator.SamePhone.Verified)
+        c.cancel()
+    }
+
+    @Test
+    fun aHeldReportIsDecidedBeforeJoinedIsPublished() = runTest(StandardTestDispatcher()) {
+        // The nav host routes on Joined: with the verdict still None at that instant it
+        // would open the SAS screen, then promote to the one-tap sheet a beat later —
+        // the flash the human sees as "Pair a device" flipping back and forth.
+        val engine = FakeEngine()
+        val c = coordinator(engine)
+        c.ensureInvite()
+        advanceUntilIdle()
+        c.samePhoneJoined(report(), rpScheme = "heyarr-mobile")
+
+        var verdictWhenJoined: InviteCoordinator.SamePhone? = null
+        val watcher = c.state
+            .onEach { if (it is InviteCoordinator.State.Joined && verdictWhenJoined == null) verdictWhenJoined = c.samePhone.value }
+            .launchIn(CoroutineScope(Dispatchers.Unconfined))
+        engine.handshake.complete(EngineResult.Ready(session))
+        advanceUntilIdle()
+        watcher.cancel()
+        assertTrue("Joined was observed with $verdictWhenJoined", verdictWhenJoined is InviteCoordinator.SamePhone.Verified)
         c.cancel()
     }
 

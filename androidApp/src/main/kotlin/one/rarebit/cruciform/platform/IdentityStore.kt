@@ -1,7 +1,6 @@
 package one.rarebit.cruciform.platform
 
 import android.content.Context
-import one.rarebit.cruciform.domain.SiteAccent
 import one.rarebit.cruciform.domain.TrustedSite
 import one.rarebit.voidbind.Membership
 import one.rarebit.voidbind.crypto.Hex
@@ -162,26 +161,16 @@ class IdentityStore(context: Context) {
 
     // --- trusted sites (app-tracked; the library does not model an RP list) ------
 
-    fun trustedSites(): List<TrustedSite> =
-        (prefs.getString(KEY_SITES, "") ?: "").split("\n").filter { it.isNotBlank() }.mapNotNull { line ->
-            val p = line.split("")
-            if (p.size < 5) null
-            else TrustedSite(p[0], p[1], p[2], p[3], runCatching { SiteAccent.valueOf(p[4]) }.getOrDefault(SiteAccent.BLUE))
-        }
+    /** The list as last written by [TrustedSiteCodec]; a pre-v1 value reads as empty (see the codec). */
+    fun trustedSites(): List<TrustedSite> = TrustedSiteCodec.decode(prefs.getString(KEY_SITES, null))
 
     fun upsertTrustedSite(site: TrustedSite) {
         val current = trustedSites().filterNot { it.id == site.id }
-        val next = (current + site).joinToString("\n") {
-            listOf(it.id, it.domain, it.appName, it.lastUsed, it.accent.name).joinToString("")
-        }
-        prefs.edit().putString(KEY_SITES, next).apply()
+        prefs.edit().putString(KEY_SITES, TrustedSiteCodec.encode(current + site)).apply()
     }
 
     fun removeTrustedSite(id: String) {
-        val next = trustedSites().filterNot { it.id == id }.joinToString("\n") {
-            listOf(it.id, it.domain, it.appName, it.lastUsed, it.accent.name).joinToString("")
-        }
-        prefs.edit().putString(KEY_SITES, next).apply()
+        prefs.edit().putString(KEY_SITES, TrustedSiteCodec.encode(trustedSites().filterNot { it.id == id })).apply()
     }
 
     fun clear() {
