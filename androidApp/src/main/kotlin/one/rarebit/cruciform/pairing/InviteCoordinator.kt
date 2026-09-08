@@ -193,10 +193,21 @@ class InviteCoordinator(
      * [callerPackage] / [rpScheme] are what Android told us about the caller; they
      * decorate the sheet and address the return trip, and are not part of the check.
      */
-    fun samePhoneJoined(report: SamePhonePairCallback.Joined, rpScheme: String? = null, callerPackage: String? = null) {
+    fun samePhoneJoined(
+        report: SamePhonePairCallback.Joined,
+        rpScheme: String? = null,
+        callerPackage: String? = null,
+        /**
+         * The relay reveal to decide against when it is not yet published as [State.Joined]:
+         * the held report is decided BEFORE the state flips, so no observer ever sees
+         * Joined with [SamePhone.None] and routes through the SAS screen on the way to
+         * the one-tap sheet.
+         */
+        against: PairSession? = null,
+    ) {
         val session = _state.value.invite?.session
-        val joined = _state.value.let { it as? State.Joined ?: (it as? State.Confirming)?.let { c -> State.Joined(c.invite, c.session) } }
-        when (val d = SamePhonePairCallback.decide(report, session, joined?.session?.peerDeviceKey, joined?.session?.securityCode)) {
+        val revealed = against ?: _state.value.let { (it as? State.Joined)?.session ?: (it as? State.Confirming)?.session }
+        when (val d = SamePhonePairCallback.decide(report, session, revealed?.peerDeviceKey, revealed?.securityCode)) {
             is SamePhonePairCallback.Decision.Match -> {
                 log("same-phone: ${report.session} verified against the relay (${report.dev.take(16)}…)")
                 earlyReport = null
@@ -276,13 +287,15 @@ class InviteCoordinator(
                 when (val hs = engineStep { engine.awaitPairHandshake() }) {
                     is EngineResult.Ready -> {
                         log("${invite.inviteId}: new device joined, SAS derived")
-                        _state.value = State.Joined(invite, hs.value)
                         // A one-tap report that beat the relay reveal is decided now that
-                        // there IS something to decide it against (ADR-0008).
+                        // there IS something to decide it against (ADR-0008) — and before
+                        // Joined is published, so the verdict and the state land together.
                         earlyReport?.let { held ->
                             earlyReport = null
-                            samePhoneJoined(held.report, held.rpScheme, held.callerPackage)
+                            samePhoneJoined(held.report, held.rpScheme, held.callerPackage, against = hs.value)
                         }
+                        // A mismatch above has already failed the invite; leave that standing.
+                        if (_state.value !is State.Failed) _state.value = State.Joined(invite, hs.value)
                     }
                     is EngineResult.Failed -> {
                         val f = classifyWait(hs.failure, relay, deadline)
