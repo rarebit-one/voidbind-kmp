@@ -48,7 +48,14 @@ data class MembershipOp(
     val by: String,
     /** Op hashes the signer cited as its heads (sorted, de-duplicated). */
     val prev: List<String>,
-    /** Reserved co-signatures — parsed and preserved, never enforced (v1.1's 2-of-N). */
+    /**
+     * Co-signatures over the op's CORE by second members — the mechanism of
+     * ADR-0008's k-of-N removes. Parsed and preserved, and — since ADR-0008 —
+     * ENFORCED by [Membership.evaluate] as rule 5: a member's remove takes effect
+     * only with k(N) distinct member signatures (the primary [by] plus valid
+     * member cosigs). A cosigner signs [coreBytes] (the payload with `cosig`
+     * omitted, byte-identical to a no-cosig op) under [cosigDomain].
+     */
     val cosig: List<Cosig>,
     /** Issued-at, unix seconds. */
     val issuedAt: Long,
@@ -65,7 +72,7 @@ data class MembershipOp(
         }
     }
 
-    /** A reserved co-signature over the op payload by a second member (see [cosig]). */
+    /** A co-signature over the op's [coreBytes] by a second member (see [cosig]). */
     data class Cosig(val by: String, val sig: String)
 
     /** Whether the op is signed by the identity's genesis key. */
@@ -261,6 +268,45 @@ data class MembershipOp(
         /** Sort + de-duplicate a prev list so equal head sets sign to equal bytes. */
         fun normalisePrev(prev: List<String>): List<String> =
             prev.map { it.trim() }.filter { it.isNotEmpty() }.distinct().sorted()
+
+        /**
+         * Domain tag separating a co-signature's preimage from every other thing an
+         * identity key signs (an op body, a possession proof, a pairing SAS): a cosig
+         * signs [cosigDomain] ‖ core, never bare bytes replayable as one of those. A
+         * simple prefix (not length-framed) per ADR-0008 §A — the trailing NUL is
+         * load-bearing and byte-for-byte with voidbind-go's `cosigDomain`.
+         */
+        const val cosigDomain = "voidbind-cosig-v1\u0000"
+
+        /**
+         * The bytes a co-signature covers: the op's signed payload with the `cosig`
+         * field omitted. Because `cosig` is omitempty this is byte-identical to the
+         * payload the op would sign with no cosig at all, so a cosigner signs the same
+         * core whether it co-signs alone or beside others, and [Membership.evaluate]
+         * can reconstruct the exact preimage from a parsed op. Mirrors voidbind-go
+         * `enrolment.coreBytes` byte-for-byte (same field order and omitempty rules as
+         * [sign]: `denc`/`exp` omitted when empty/zero, `prev` always present).
+         */
+        fun coreBytes(op: MembershipOp): ByteArray {
+            val fields = ArrayList<Pair<String, Any>>()
+            fields += "v" to op.version
+            fields += "usr" to op.user
+            fields += "op" to op.kind.wire
+            fields += "dev" to op.device
+            if (op.deviceEnc.isNotEmpty()) fields += "denc" to op.deviceEnc
+            fields += "by" to op.by
+            fields += "prev" to op.prev
+            fields += "iat" to op.issuedAt
+            if (op.expiresAt != 0L) fields += "exp" to op.expiresAt
+            return MiniJson.encodeObject(fields).encodeToByteArray()
+        }
+
+        /** The preimage a cosigner signs: [cosigDomain] followed by the op's [core] bytes. */
+        fun cosigMessage(core: ByteArray): ByteArray =
+            cosigDomain.encodeToByteArray() + core
+
+        /** Decode a cosig `sig` (base64url, no padding); null if malformed. */
+        internal fun decodeSigOrNull(s: String): ByteArray? = decodeOrNull(s)
 
         private fun decodeOrNull(s: String): ByteArray? = try {
             if (s.contains('=') || s.contains('+') || s.contains('/')) null else Base64Url.decode(s)

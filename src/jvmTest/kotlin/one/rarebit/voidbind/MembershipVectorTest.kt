@@ -27,6 +27,10 @@ class MembershipVectorTest {
         "readd-refused-unless-genesis", "expired-add", "bad-prev", "foreign-usr", "junk",
         "v2-cert-as-genesis-add", "concurrent-add-and-remove", "stale-heads-after-removal",
         "senior-concurrent-add-survives", "cosig-reserved",
+        // ADR-0008 rule 5 (cosig-enforced k-of-N removes, high-water N).
+        "cosig-threshold-met", "cosig-threshold-unmet", "cosig-below-three",
+        "cosig-genesis-bypass", "cosig-nonmember-ignored",
+        "cosig-minimal-prev-downgrade-refused", "cosig-backdated-iat-downgrade-refused",
     )
 
     private class Vector(val name: String, val usr: String, val now: Long, val tokens: List<String>, val hashes: List<String>, val expect: Map<String, Any>)
