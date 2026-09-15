@@ -130,8 +130,9 @@ interface VoidbindEngine {
     suspend fun devices(): List<MemberDevice>
 
     /**
-     * Remove [deviceId] from the identity: biometric-gated, signs a `remove` op with
-     * THIS device's hardware key (citing its heads), records it in the replica, and
+     * Remove [deviceId] from the identity: gated on a STRONG biometric (no device-credential
+     * / PIN fallback — see [one.rarebit.cruciform.platform.PresencePolicy]), signs a `remove`
+     * op with THIS device's hardware key (citing its heads), records it in the replica, and
      * pushes the ops to the relying parties this app knows (`POST /membership/{usr}`,
      * best-effort — an RP that does not serve the route yet is tolerated). Refuses
      * to remove this device itself. Never throws for a transport failure.

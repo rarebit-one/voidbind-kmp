@@ -126,12 +126,20 @@ re-enrolled and nothing is lost.
    any secret; a third device that scans it receives an add signed **by the phone**
    (`Membership.evaluate` on either side finds all three members). The invite is v3
    (`usr=`), and a responder that expects a different identity gets **no SAS**.
-3. **Remove** another device from Devices: biometric prompt → a `remove` op signed
-   by this device → the row disappears (local evaluation) and the ops are pushed to
+3. **Remove** another device from Devices: a **strong-biometric** prompt (no PIN /
+   pattern fallback — `PresencePolicy.DESTRUCTIVE`) → a `remove` op signed by this
+   device → the row disappears (local evaluation) and the ops are pushed to
    `POST /membership/{usr}` on the heyarr node (:7777) and All Thing (:8080);
    a 404 from an RP that has not landed the route yet is tolerated. The removed
    device is refused at every RP on its next login (its ops travel with the
    assertion, and the RP's log now holds the remove).
+   - **Strong-only, device-tested:** the Remove prompt must offer fingerprint/face
+     ONLY — confirm there is no "Use PIN/password" option on it (contrast the login-
+     approval prompt, which still offers the credential). The same strong-only gate
+     guards **Add a device → Authorise** (Test 4b step 2 / Test 4 initiator). On a
+     phone with a screen lock but **no biometric enrolled**, both actions must refuse
+     with the "needs a fingerprint or face" message and point at recovery — they must
+     NOT silently accept the PIN.
 4. Login still works: the assertion carries `ops` beside the admitting op (see
    `CoordinatorGoInteropTest`, which proves the Go RP evaluates them).
 
