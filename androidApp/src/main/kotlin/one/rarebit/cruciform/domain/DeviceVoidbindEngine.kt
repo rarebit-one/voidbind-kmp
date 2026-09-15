@@ -21,6 +21,7 @@ import one.rarebit.cruciform.platform.BiometricAuthenticator
 import one.rarebit.cruciform.platform.IdentityStore
 import one.rarebit.cruciform.platform.NotifyConfig
 import one.rarebit.cruciform.platform.RelayConfig
+import one.rarebit.cruciform.platform.StrongAuth
 import one.rarebit.voidbind.crypto.Hex
 import one.rarebit.voidbind.flow.DeviceAuthorization
 import one.rarebit.voidbind.flow.DevicePairing
@@ -374,8 +375,14 @@ class DeviceVoidbindEngine(
             }
             val authorization = pendingAuthorization
             if (authorization != null) {
-                if (!biometric.authenticate("Authorise new device", "Approve on this device")) {
-                    return@engineCatching cancelledFailure()
+                // Admitting a new member is an authority act — strong biometric only, no
+                // PIN fallback, so a thief with the screen-lock secret can't enrol their
+                // own device. (The responder path above only adds THIS device and keeps
+                // the softer presence check.)
+                when (biometric.authenticateStrong("Authorise new device", "Confirm with your fingerprint or face")) {
+                    StrongAuth.SUCCESS -> Unit
+                    StrongAuth.CANCELLED -> return@engineCatching cancelledFailure()
+                    StrongAuth.UNAVAILABLE -> return@engineCatching strongBiometricRequiredFailure()
                 }
                 // authorise() SIGNS the add with this device's hardware key (a member
                 // initiator) — so it runs under withDeviceAuth, which re-prompts if the
@@ -421,6 +428,23 @@ class DeviceVoidbindEngine(
 
     private fun <T> cancelledFailure(): EngineResult<T> =
         EngineResult.Failed(EngineFailure("Authentication cancelled.", EngineFailure.Kind.CANCELLED, retryable = false))
+
+    /**
+     * A destructive/authority act asked for a strong biometric and this device has
+     * none enrolled. We deliberately do NOT fall back to the screen-lock credential
+     * (that is the exact hole strong-only closes), so the honest answer is to point
+     * the user at recovery. Not retryable — retrying without enrolling a biometric
+     * hits the same wall.
+     */
+    private fun <T> strongBiometricRequiredFailure(): EngineResult<T> =
+        EngineResult.Failed(
+            EngineFailure(
+                "This needs a fingerprint or face unlock — your PIN can't authorise it. " +
+                    "Enrol a biometric on this device, or use another device or your recovery secret.",
+                EngineFailure.Kind.INTERNAL,
+                retryable = false,
+            ),
+        )
 
     private fun PairingOutcome.Failed.toEngineFailure(): EngineFailure = EngineFailure(
         message = message,
@@ -475,8 +499,14 @@ class DeviceVoidbindEngine(
             val view = Membership.evaluate(usr, persisted.ops, now)
             if (!view.isMember(self)) return@engineCatching internalFailure("This device is no longer a member, so it can't remove others.")
             if (!view.isMember(deviceId)) return@engineCatching internalFailure("That device is not a member any more.")
-            if (!biometric.authenticate("Remove device", "Sign the removal with this device")) {
-                return@engineCatching cancelledFailure()
+            // Strong biometric only, no PIN fallback: an unlocked stolen phone whose
+            // screen-lock secret is known must NOT be able to purge the fleet (ADR-0005 —
+            // seniority alone can't tell owner from thief; this is the "biometric on
+            // remove" mitigation).
+            when (biometric.authenticateStrong("Remove device", "Confirm with your fingerprint or face")) {
+                StrongAuth.SUCCESS -> Unit
+                StrongAuth.CANCELLED -> return@engineCatching cancelledFailure()
+                StrongAuth.UNAVAILABLE -> return@engineCatching strongBiometricRequiredFailure()
             }
             // The remove is signed by THIS device's hardware key, citing the replica's heads —
             // the causal evidence that it was a member when it said so (ADR-0005 rule 2).
