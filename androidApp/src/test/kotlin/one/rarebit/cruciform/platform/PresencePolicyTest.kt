@@ -1,7 +1,6 @@
 package one.rarebit.cruciform.platform
 
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
-import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,15 +16,16 @@ import kotlin.test.assertTrue
 class PresencePolicyTest {
 
     @Test
-    fun `a destructive act accepts a strong biometric and nothing weaker`() {
-        // Strong biometric is required…
-        assertEquals(BIOMETRIC_STRONG, PresencePolicy.DESTRUCTIVE and BIOMETRIC_STRONG)
-        // …and NO device-credential (PIN / pattern / password) fallback: possession of
-        // the screen-lock secret must not be enough to remove or admit a device.
-        assertEquals(0, PresencePolicy.DESTRUCTIVE and DEVICE_CREDENTIAL)
-        // …and not the weak (class-2) biometric class either.
-        assertEquals(0, PresencePolicy.DESTRUCTIVE and BIOMETRIC_WEAK)
+    fun `a destructive act accepts a strong biometric and nothing else`() {
+        // Exactly the strong (class-3) biometric bitmask — nothing more. (Android's
+        // Authenticators constants are "at least this class" thresholds, not disjoint
+        // flags: BIOMETRIC_WEAK's bitmask actually CONTAINS BIOMETRIC_STRONG's bits,
+        // so the meaningful check is exact equality, not bitwise exclusion of WEAK.)
         assertEquals(BIOMETRIC_STRONG, PresencePolicy.DESTRUCTIVE)
+        // …which in particular carries NO device-credential (PIN / pattern / password)
+        // bit: possession of the screen-lock secret must not be enough to remove or
+        // admit a device.
+        assertEquals(0, PresencePolicy.DESTRUCTIVE and DEVICE_CREDENTIAL)
     }
 
     @Test
