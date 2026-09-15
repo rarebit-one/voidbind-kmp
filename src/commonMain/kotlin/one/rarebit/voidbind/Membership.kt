@@ -35,6 +35,16 @@ import one.rarebit.voidbind.MembershipOp.Kind
  *     its device as it replays; an op whose signer is already tombstoned is
  *     OUTRANKED. So a senior's remove voids the junior's concurrent ops; nothing in
  *     the remove's closure is touched.
+ *  5. **Threshold (ADR-0008, high-water N).** A member's REMOVE takes effect only if
+ *     at least k(N) DISTINCT members signed it — the primary `by` plus each valid
+ *     member co-signature ([MembershipOp.Cosig]) over the op's core under the cosig
+ *     domain. WHO may count is judged against the remove's OWN prev closure
+ *     ([membersInClosure]); HOW MANY are needed, k(N), is driven by the fleet
+ *     HIGH-WATER ([fleetHighWater] — distinct non-genesis devices that ever held an
+ *     authorised add), not the closure size, so neither a minimal prev nor a
+ *     backdated iat can shrink the quorum (the downgrade fix). k(N) is 2 for N ≥ 3,
+ *     else 1. Checked BEFORE seniority; genesis removes bypass it. A remove short of
+ *     quorum is INEFFECTIVE (`under_threshold`).
  *
  * The golden vectors in voidbind-go's `testdata/vectors/membership/` are replayed
  * verbatim by `MembershipVectorTest`; a divergence there is a bug in this port,
@@ -62,6 +72,9 @@ object Membership {
         const val SUPERSEDED = "superseded"
         const val EXPIRED = "expired"
         const val NOT_YET_VALID = "not_yet_valid"
+
+        /** Rule 5 (ADR-0008): a member's remove short of its k(N) cosig quorum. */
+        const val UNDER_THRESHOLD = "under_threshold"
     }
 
     /** One device currently in the identity's set. */
@@ -136,6 +149,10 @@ object Membership {
         val e = Evaluator(usr, verifier)
         e.ingest(tokens)
         e.resolveAll()
+        // Settle the fleet high-water (rule 5's N) once, before any frame reads it,
+        // so every frame — the authority frames and the top view frame — is judged
+        // against the same, final threshold.
+        e.fleetHighWater()
         return e.view(now)
     }
 
@@ -152,6 +169,15 @@ object Membership {
 
     private val GENESIS_RANK = Seniority(-1, 0, "")
 
+    /**
+     * k(N): how many DISTINCT member signatures a member's remove needs when the
+     * identity's fleet high-water is N (ADR-0008 rule 5). Fixed at 2-of-N for
+     * N ≥ 3, else 1 — a pure function of N, so evaluation stays order-independent.
+     * This is the single seam a future k(N) curve would replace. Mirrors voidbind-go
+     * `enrolment.requiredThreshold`.
+     */
+    private fun requiredThreshold(n: Int): Int = if (n >= 3) 2 else 1
+
     private class FrameState(
         val members: MutableMap<String, Member> = LinkedHashMap(),
         val removed: MutableSet<String> = LinkedHashSet(),
@@ -165,8 +191,12 @@ object Membership {
         val status = HashMap<String, Int>() // 0 unknown, 1 ok, 2 rejected, 3 in progress
         val depth = HashMap<String, Int>()
         val anc = HashMap<String, Set<String>>()
-        val auth = HashMap<String, Boolean>()
-        val authSeen = HashMap<String, Boolean>()
+        var auth = HashMap<String, Boolean>()
+        var authSeen = HashMap<String, Boolean>()
+        var closureMem = HashMap<String, Set<String>>() // rule 5: closure device-members by op hash
+        var hw = 0 // rule 5: fleet high-water N (see fleetHighWater)
+        var hwReady = false // hw has reached its fixpoint
+        var hwComputing = false // a fleetHighWater fixpoint pass is in flight
 
         /** Parse and signature-check every token (rule 1, first half). */
         fun ingest(tokens: List<String>) {
@@ -264,6 +294,95 @@ object Membership {
 
         fun opKey(o: MembershipOp): Seniority = Seniority(depth.getValue(o.hash), o.issuedAt, o.hash)
 
+        /**
+         * Rule 5's N (ADR-0008): the number of DISTINCT non-genesis devices that have
+         * EVER held an authorised add anywhere in the op set. It counts ADDS ONLY —
+         * removes, supersession, expiry and every op's issued-at are ignored — so it is
+         * a pure, monotone, order-independent function of the whole set, deliberately
+         * STICKY: once it reaches 3, k(N)=2 for every non-genesis remove thereafter,
+         * even if the live fleet later shrinks. Because it ignores iat and prev size,
+         * neither a minimal-prev nor a backdated-iat remove can shrink the quorum below
+         * what the fleet has already reached — that is the downgrade resistance.
+         *
+         * A remove's authority frame applies rule 5, which reads N — so N depends, in
+         * principle, on itself. N is monotone in that dependence, so we take the LEAST
+         * FIXPOINT from below: seed N=0 (k=1 everywhere), recount, and repeat until the
+         * count is stable. Every pass reads one fixed N (reentrant reads return the
+         * pass's current estimate), and the count can only climb, bounded by the device
+         * total — so it converges in a handful of passes. Mirrors voidbind-go
+         * `evaluator.fleetHighWater` byte-for-byte.
+         */
+        fun fleetHighWater(): Int {
+            if (hwReady) return hw
+            if (hwComputing) return hw // reentrant read: this pass's fixed estimate
+            hwComputing = true
+            while (true) {
+                // Authority and closure memos depend on N; clear them each pass so they
+                // re-settle against this pass's threshold. Structural memos (ancestors,
+                // depth, resolution) do not depend on N and are kept.
+                auth = HashMap()
+                authSeen = HashMap()
+                closureMem = HashMap()
+                val devs = HashSet<String>()
+                for ((h, op) in ops) {
+                    if (op.kind != Kind.ADD || op.device == usr) continue // genesis is never a fleet device
+                    if (authorised(h)) devs.add(op.device)
+                }
+                if (devs.size == hw) break
+                hw = devs.size
+            }
+            hwComputing = false
+            hwReady = true
+            return hw
+        }
+
+        /**
+         * The device-member set of [op]'s own prev closure evaluated strictly at op's
+         * issued-at — the devices that may VALIDLY co-sign op under rule 5 (a device the
+         * op has causally removed is not among them). It no longer drives k — that is the
+         * fleet high-water now — but it still decides cosigner validity. Memoised by op
+         * hash. Mirrors voidbind-go `evaluator.membersInClosure`.
+         */
+        fun membersInClosure(op: MembershipOp): Set<String> {
+            closureMem[op.hash]?.let { return it }
+            val fr = frame(ancestors(op.hash)) { a ->
+                when {
+                    a.issuedAt > op.issuedAt -> Reason.NOT_YET_VALID
+                    op.issuedAt >= a.expiresAt -> Reason.EXPIRED
+                    else -> Reason.OK
+                }
+            }
+            val m = fr.members.keys.toHashSet()
+            closureMem[op.hash] = m
+            return m
+        }
+
+        /**
+         * The count of DISTINCT members of [members] who signed [op]: the primary signer
+         * `op.by`, plus every cosig whose `by` is a member and whose signature verifies
+         * over op's core under the cosig domain. `op.by` is never double-counted; a cosig
+         * by a non-member, a duplicate signer, or with a bad signature adds nothing.
+         * Mirrors voidbind-go `enrolment.distinctMemberCosigners`.
+         */
+        fun distinctMemberCosigners(op: MembershipOp, members: Set<String>): Int {
+            val signed = HashSet<String>()
+            if (op.by in members) signed.add(op.by)
+            if (op.cosig.isEmpty()) return signed.size
+            val core = MembershipOp.coreBytes(op)
+            val msg = MembershipOp.cosigMessage(core)
+            for (cs in op.cosig) {
+                if (cs.by !in members) continue // not a member of the op's closure
+                if (cs.by in signed) continue // op.by re-signing, or a duplicate cosig
+                val pub = try { KeyRef.parse(cs.by) } catch (_: IllegalArgumentException) { null }
+                if (pub == null || pub.alg != Labels.ALG_ED25519 || pub.bytes.size != 32) continue
+                val sig = MembershipOp.decodeSigOrNull(cs.sig) ?: continue
+                val ok = try { verifier.verify(pub.bytes, msg, sig) } catch (_: Throwable) { false }
+                if (!ok) continue
+                signed.add(cs.by)
+            }
+            return signed.size
+        }
+
         private class Standing(val op: MembershipOp) {
             val killedBy = ArrayList<MembershipOp>()
         }
@@ -323,6 +442,21 @@ object Membership {
                 return false
             }
             for (op in list) {
+                // Rule 5 (ADR-0008): a member's remove needs a quorum of k(N) distinct
+                // member signatures. Cosigner VALIDITY is judged against the op's own
+                // closure (a causally-removed device cannot co-sign); the THRESHOLD k is
+                // driven by the fleet HIGH-WATER, not the closure size, so neither a
+                // minimal prev nor a backdated iat can shrink the quorum. Checked before
+                // seniority so a remove short of quorum is under_threshold, never
+                // outranked. Genesis removes bypass it — the recovery authority needs no
+                // quorum.
+                if (op.kind == Kind.REMOVE && !op.genesis) {
+                    val n = fleetHighWater()
+                    if (distinctMemberCosigners(op, membersInClosure(op)) < requiredThreshold(n)) {
+                        st.ineffective[op.hash] = Reason.UNDER_THRESHOLD
+                        continue
+                    }
+                }
                 if (!op.genesis && !allowed(op)) {
                     st.ineffective[op.hash] = if (adds[op.by].orEmpty().isNotEmpty()) Reason.OUTRANKED else Reason.UNAUTHORISED
                     continue
