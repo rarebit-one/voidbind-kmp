@@ -1,9 +1,5 @@
 package one.rarebit.voidbind.crypto
 
-import dev.whyoleg.cryptography.CryptographyProvider
-import dev.whyoleg.cryptography.DelicateCryptographyApi
-import dev.whyoleg.cryptography.algorithms.ChaCha20Poly1305
-
 /**
  * XChaCha20-Poly1305 (24-byte nonce), byte-identical to Go's
  * `golang.org/x/crypto/chacha20poly1305.NewX` and libsodium's
@@ -27,23 +23,16 @@ internal object XChaCha20Poly1305 {
     const val NONCE_SIZE = 24
     const val TAG_SIZE = 16
 
-    private val algorithm = CryptographyProvider.Default.get(ChaCha20Poly1305)
-    private val keyDecoder = algorithm.keyDecoder()
-
     /** AEAD-seal [plaintext] → ciphertext‖tag (Go's `AEAD.Seal` framing). */
-    @OptIn(DelicateCryptographyApi::class)
     fun encrypt(key: ByteArray, nonce24: ByteArray, aad: ByteArray, plaintext: ByteArray): ByteArray {
         val (subkey, ietfNonce) = derive(key, nonce24)
-        val cipher = keyDecoder.decodeFromByteArrayBlocking(ChaCha20Poly1305.Key.Format.RAW, subkey).cipher()
-        return cipher.encryptWithIvBlocking(ietfNonce, plaintext, aad)
+        return aeadIetfSeal(subkey, ietfNonce, aad, plaintext)
     }
 
     /** AEAD-open ciphertext‖tag; throws on an authentication failure. */
-    @OptIn(DelicateCryptographyApi::class)
     fun decrypt(key: ByteArray, nonce24: ByteArray, aad: ByteArray, ciphertext: ByteArray): ByteArray {
         val (subkey, ietfNonce) = derive(key, nonce24)
-        val cipher = keyDecoder.decodeFromByteArrayBlocking(ChaCha20Poly1305.Key.Format.RAW, subkey).cipher()
-        return cipher.decryptWithIvBlocking(ietfNonce, ciphertext, aad)
+        return aeadIetfOpen(subkey, ietfNonce, aad, ciphertext)
     }
 
     /** The XChaCha20 subkey + the reduced 12-byte IETF nonce for [key]/[nonce24]. */

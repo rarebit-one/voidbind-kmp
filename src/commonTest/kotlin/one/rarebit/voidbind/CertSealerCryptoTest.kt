@@ -73,6 +73,45 @@ class CertSealerCryptoTest {
         assertContentEquals(payload, VoidbindEncryption.decryptChange(spaceKey, blob))
     }
 
+    // --- Regression: reusing a (key,nonce) across consecutive AEAD ops ---
+    // Before the fresh-Cipher fix, cryptography-kotlin's pooled JDK cipher made
+    // SunJCE throw InvalidKeyException ("Matching key and nonce from previous
+    // initialization") on the SECOND op with the same (key,nonce): a round-trip
+    // encrypt→decrypt or decrypting the same blob twice. These fail on JVM before
+    // the fix and pass after; on Android/iOS they always passed.
+    @Test
+    fun xchachaDecryptTwiceSameBlob() {
+        val key = ByteArray(32) { (it + 1).toByte() }
+        val nonce = ByteArray(24) { (100 - it).toByte() }
+        val aad = "associated".encodeToByteArray()
+        val pt = "decrypt me twice".encodeToByteArray()
+        val ct = XChaCha20Poly1305.encrypt(key, nonce, aad, pt)
+        // Decrypt the SAME ciphertext twice — the second op reuses (key,nonce).
+        assertContentEquals(pt, XChaCha20Poly1305.decrypt(key, nonce, aad, ct))
+        assertContentEquals(pt, XChaCha20Poly1305.decrypt(key, nonce, aad, ct))
+    }
+
+    @Test
+    fun voidbindDecryptChangeTwice() {
+        val spaceKey = ByteArray(32) { (it * 3 + 1).toByte() }
+        val payload = "a change payload".encodeToByteArray()
+        val blob = VoidbindEncryption.encryptChange(spaceKey, payload)
+        // Decrypt the SAME blob twice (encrypt already used the nonce once).
+        assertContentEquals(payload, VoidbindEncryption.decryptChange(spaceKey, blob))
+        assertContentEquals(payload, VoidbindEncryption.decryptChange(spaceKey, blob))
+    }
+
+    @Test
+    fun voidbindUnwrapTwice() {
+        val recipientSeed = ByteArray(32) { (it * 7 + 3).toByte() }
+        val recipientPub = X25519.scalarMultBase(recipientSeed)
+        val spaceKey = VoidbindEncryption.newSpaceKey()
+        val wrapped = VoidbindEncryption.seal(spaceKey, recipientPub)
+        // Unwrap the SAME wrapped blob twice.
+        assertContentEquals(spaceKey, VoidbindEncryption.unwrap(wrapped, recipientSeed))
+        assertContentEquals(spaceKey, VoidbindEncryption.unwrap(wrapped, recipientSeed))
+    }
+
     // --- The full CertSealer (what Pairflow uses) ---
     @Test
     fun certSealerRoundTrip() {
