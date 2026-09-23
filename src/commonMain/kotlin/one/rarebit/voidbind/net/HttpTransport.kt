@@ -31,8 +31,9 @@ interface HttpTransport {
     /**
      * DELETE url with an optional body — the notify plane's unsubscribe carries the
      * device cert in a JSON body (voidbind-go reads it on DELETE). A default is
-     * provided so existing transports and test fakes need not implement it; the real
-     * JVM/Android transports override it.
+     * provided so existing transports and test fakes need not implement it (removing
+     * it would break consumers' fakes); the real JVM transport and the iOS app's
+     * `URLSessionHttpTransport` override it.
      */
     fun delete(url: String, body: ByteArray? = null, contentType: String? = null): HttpResponse =
         throw UnsupportedOperationException("this transport does not implement DELETE")
