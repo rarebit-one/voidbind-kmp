@@ -46,7 +46,7 @@ struct HomeView: View {
 
     private var header: some View {
         HStack {
-            Text("Voidbind").font(VB.rounded(20, .bold))
+            Text("Cruciform").font(VB.rounded(20, .bold))
             Spacer()
             Button { showSettings = true } label: {
                 Image(systemName: "gearshape.fill")

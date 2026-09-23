@@ -110,7 +110,8 @@ struct OnboardingView: View {
                         .font(.system(size: 38, weight: .semibold))
                         .foregroundStyle(VB.teal)
                 }
-                Text("Voidbind").font(VB.rounded(34, .bold))
+                Text("Cruciform").font(VB.rounded(34, .bold))
+                Text("Voidbind protocol").font(VB.rounded(12)).foregroundStyle(VB.textFaint)
                 Text("Your identity is a key you hold — no account, no password, no server.")
                     .font(VB.rounded(15))
                     .foregroundStyle(VB.textSecondary)
