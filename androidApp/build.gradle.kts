@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.util.Properties
 
 plugins {
     // AGP and the Kotlin Gradle plugin are already on the build classpath from the
@@ -61,7 +62,7 @@ val releaseKeystore: File? = releaseKeystoreBase64?.let { encoded ->
 //   CRUCIFORM_DEFAULT_RELAY   / cruciformDefaultRelay    / cruciformDebugDefaultRelay
 //   CRUCIFORM_DEFAULT_NOTIFY  / cruciformDefaultNotify   / cruciformDebugDefaultNotify
 //   CRUCIFORM_MEMBERSHIP_RPS  / cruciformMembershipRps   / cruciformDebugMembershipRps  (comma-separated)
-val localProperties = java.util.Properties().apply {
+val localProperties = Properties().apply {
     rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
 }
 
