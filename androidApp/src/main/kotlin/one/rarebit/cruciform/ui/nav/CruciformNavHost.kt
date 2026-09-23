@@ -415,10 +415,12 @@ fun CruciformNavHost(
                 retry != null -> ({ TextButton(onClick = dismiss) { Text("Cancel") } })
                 else -> null
             },
-            title = { Text(titleFor(error.failure.kind)) },
+            // A blank relayUrl is a build with no default relay and nothing in Settings:
+            // the message already says to add one, so don't print an empty URL under it.
+            title = { Text(if (relayUrl?.isBlank() == true) "No pairing relay" else titleFor(error.failure.kind)) },
             text = {
                 Text(
-                    if (relayUrl != null) "${error.failure.message}\n\nPairing relay: $relayUrl"
+                    if (!relayUrl.isNullOrBlank()) "${error.failure.message}\n\nPairing relay: $relayUrl"
                     else error.failure.message,
                 )
             },

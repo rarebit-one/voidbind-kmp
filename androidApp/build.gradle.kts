@@ -49,6 +49,61 @@ val releaseKeystore: File? = releaseKeystoreBase64?.let { encoded ->
     }
 }
 
+// ── Endpoint defaults (BuildConfig) ──────────────────────────────────────────
+// The pairing relay, push/wake plane and membership-push RPs a fresh install uses
+// before the user sets anything in Settings. NONE are committed: a private LAN
+// endpoint must never ship baked into the APK. Each is read from the environment
+// (CI: repo variables) or a gradle property (`-P…`, ~/.gradle/gradle.properties, or
+// this repo's git-ignored local.properties); unset means "not configured" and the
+// app says so (Settings shows no default; "Add a device" asks for a relay; push
+// registration is skipped). A debug build may take its own local-dev values via the
+// `cruciformDebug*` properties, falling back to the shared ones.
+//   CRUCIFORM_DEFAULT_RELAY   / cruciformDefaultRelay    / cruciformDebugDefaultRelay
+//   CRUCIFORM_DEFAULT_NOTIFY  / cruciformDefaultNotify   / cruciformDebugDefaultNotify
+//   CRUCIFORM_MEMBERSHIP_RPS  / cruciformMembershipRps   / cruciformDebugMembershipRps  (comma-separated)
+val localProperties = java.util.Properties().apply {
+    rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+}
+
+fun endpointSetting(env: String?, property: String): String? =
+    env?.let { System.getenv(it) }?.takeIf { it.isNotBlank() }
+        ?: providers.gradleProperty(property).orNull?.takeIf { it.isNotBlank() }
+        ?: localProperties.getProperty(property)?.takeIf { it.isNotBlank() }
+
+data class Endpoints(val relay: String, val notify: String, val membershipRps: String)
+
+val releaseEndpoints = Endpoints(
+    relay = endpointSetting("CRUCIFORM_DEFAULT_RELAY", "cruciformDefaultRelay").orEmpty().trim(),
+    notify = endpointSetting("CRUCIFORM_DEFAULT_NOTIFY", "cruciformDefaultNotify").orEmpty().trim(),
+    membershipRps = endpointSetting("CRUCIFORM_MEMBERSHIP_RPS", "cruciformMembershipRps").orEmpty().trim(),
+)
+val debugEndpoints = Endpoints(
+    relay = endpointSetting(null, "cruciformDebugDefaultRelay")?.trim() ?: releaseEndpoints.relay,
+    notify = endpointSetting(null, "cruciformDebugDefaultNotify")?.trim() ?: releaseEndpoints.notify,
+    membershipRps = endpointSetting(null, "cruciformDebugMembershipRps")?.trim() ?: releaseEndpoints.membershipRps,
+)
+
+// A release blocks cleartext entirely (res/xml/network_security_config.xml), so an
+// http:// default there could never connect: refuse it when a release is BUILT (not
+// at configuration, so a shared http value used for local debug builds still works).
+val releaseEndpointUrls: List<String> = listOf(releaseEndpoints.relay, releaseEndpoints.notify)
+    .plus(releaseEndpoints.membershipRps.split(',').map { it.trim() })
+    .filter { it.isNotEmpty() }
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        releaseEndpointUrls.forEach { url ->
+            require(url.startsWith("https://")) { "Release endpoint defaults must be https:// (got \"$url\")." }
+        }
+    }
+}
+
+fun com.android.build.api.dsl.VariantDimension.endpointFields(e: Endpoints) {
+    fun quoted(v: String) = "\"" + v.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    buildConfigField("String", "DEFAULT_RELAY_URL", quoted(e.relay))
+    buildConfigField("String", "DEFAULT_NOTIFY_URL", quoted(e.notify))
+    buildConfigField("String", "DEFAULT_MEMBERSHIP_RPS", quoted(e.membershipRps))
+}
+
 android {
     namespace = "one.rarebit.cruciform"
     compileSdk = 35
@@ -93,7 +148,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            endpointFields(debugEndpoints)
+        }
         release {
+            endpointFields(releaseEndpoints)
             // minify stays OFF until proguard rules exist for the reflective bits.
             isMinifyEnabled = false
             signingConfig = releaseKeystore?.let { signingConfigs.getByName("release") }

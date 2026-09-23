@@ -1,5 +1,6 @@
 package one.rarebit.cruciform.platform
 
+import one.rarebit.cruciform.BuildConfig
 import one.rarebit.cruciform.platform.RelayConfig.Validation
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,20 +12,20 @@ import kotlin.test.assertTrue
 class NotifyConfigTest {
 
     @Test
-    fun `default is the LAN notify plane, and is itself valid`() {
-        assertEquals("http://192.168.16.224:2587", NotifyConfig.DEFAULT_NOTIFY)
-        assertEquals(
-            Validation.Valid(NotifyConfig.DEFAULT_NOTIFY),
-            NotifyConfig.validate(NotifyConfig.DEFAULT_NOTIFY),
-        )
+    fun `default is the build-time value, and is itself valid when the build sets one`() {
+        // Never a committed constant: it comes from CRUCIFORM_DEFAULT_NOTIFY / the
+        // cruciformDefaultNotify property, and is "" (push registration skipped) when unset.
+        assertEquals(BuildConfig.DEFAULT_NOTIFY_URL.trim(), NotifyConfig.DEFAULT_NOTIFY)
+        assertEquals(NotifyConfig.DEFAULT_NOTIFY.isNotEmpty(), NotifyConfig.hasDefault)
+        if (NotifyConfig.hasDefault) {
+            assertEquals(Validation.Valid(NotifyConfig.DEFAULT_NOTIFY), NotifyConfig.validate(NotifyConfig.DEFAULT_NOTIFY))
+        }
     }
 
     @Test
-    fun `the default is on the one host cleartext is permitted for`() {
-        // network_security_config.xml permits cleartext to 192.168.16.224 alone. A
-        // default on any other host would have to be https or every registration
-        // would be blocked by the platform, silently, as a cleartext refusal.
-        assertTrue(NotifyConfig.DEFAULT_NOTIFY.startsWith("http://192.168.16.224:"))
+    fun `validation messages use a placeholder example, not a real endpoint`() {
+        val invalid = assertIs<Validation.Invalid>(NotifyConfig.validate("http://"))
+        assertTrue(invalid.reason.contains(NotifyConfig.EXAMPLE_NOTIFY), invalid.reason)
     }
 
     @Test
