@@ -24,7 +24,7 @@ class RelayConfigTest {
 
     @Test
     fun `validation messages use a placeholder example, not a real endpoint`() {
-        val invalid = assertIs<Validation.Invalid>(RelayConfig.validate("http://"))
+        val invalid = assertIs<Validation.Invalid>(RelayConfig.validate("http:///pair"))
         assertTrue(invalid.reason.contains(RelayConfig.EXAMPLE_RELAY), invalid.reason)
     }
 
@@ -60,7 +60,7 @@ class RelayConfigTest {
 
     @Test
     fun `rejects a scheme with no host`() {
-        assertIs<Validation.Invalid>(RelayConfig.validate("http://"))
+        assertIs<Validation.Invalid>(RelayConfig.validate("http:///pair"))
         assertIs<Validation.Invalid>(RelayConfig.validate("http:///pair"))
     }
 

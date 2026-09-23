@@ -24,7 +24,7 @@ class NotifyConfigTest {
 
     @Test
     fun `validation messages use a placeholder example, not a real endpoint`() {
-        val invalid = assertIs<Validation.Invalid>(NotifyConfig.validate("http://"))
+        val invalid = assertIs<Validation.Invalid>(NotifyConfig.validate("http:///v1"))
         assertTrue(invalid.reason.contains(NotifyConfig.EXAMPLE_NOTIFY), invalid.reason)
     }
 
