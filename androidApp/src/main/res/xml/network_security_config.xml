@@ -1,25 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext stays OFF by default. The pairing relay now rides internal TLS: the
-     heyarr node's `/pair` mount serves a valid Let's Encrypt cert at
-     `https://heyarr.br.thesim.family:7777` (RelayConfig.DEFAULT_RELAY), and the
-     intended public names (relay.thesim.family, notify.thesim.family) are HTTPS too.
+<!-- RELEASE: cleartext is OFF, with no exceptions. Every endpoint a release build
+     dials by default (the pairing relay, the push/wake plane, the membership-push
+     RPs) is a build-time value that must be https:// (androidApp/build.gradle.kts
+     refuses an http:// release default), and a relay or plane typed into Settings
+     must be https too. No private LAN host is named here: a release must not carry
+     one baked in.
 
-     The one cleartext exception is the raw Bartley Ridge LAN IP 192.168.16.224. It is
-     no longer the relay's path (that is HTTPS now); it remains because this app still
-     makes DIRECT plain-HTTP calls to that host that are NOT TLS-terminated:
-       - the voidbind-notify push/wake plane on :2587 (NotifyConfig.DEFAULT_NOTIFY) —
-         NotifyClient.subscribe posts the ntfy topic URL here;
-       - the ntfy push server on :2586;
-       - the best-effort `POST /membership/{usr}` to the heyarr node (:7777) and All
-         Thing (:8080) — DeviceVoidbindEngine.DEFAULT_MEMBERSHIP_RPS.
-     Each of these carries only an opaque login tuple or a signed, public op (no key
-     material, no challenge, no match number), so cleartext to that single IP leaks
-     nothing. It also keeps the http node-IP relay/plane a user can type into Settings
-     working as a fallback while internal TLS beds in. A relay or plane typed into
-     Settings on any OTHER host must be https. -->
+     A DEBUG build replaces this file (src/debug/res/xml/network_security_config.xml)
+     with one that permits cleartext, so device testing against a plain-http LAN node
+     keeps working (docs/DEVICE-TESTING.md). -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">192.168.16.224</domain>
-    </domain-config>
 </network-security-config>

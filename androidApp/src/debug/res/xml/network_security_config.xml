@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DEBUG-ONLY: overrides src/main/res/xml/network_security_config.xml so a debug
+     build can talk plain HTTP to a LAN test node (a heyarr dev node, a local relay or
+     notify plane) during device testing (docs/DEVICE-TESTING.md). Note that when a
+     networkSecurityConfig is set, android:usesCleartextTraffic is ignored, so THIS
+     file — not the debug manifest overlay — is what actually permits cleartext.
+     Release builds use the main config: cleartext blocked, no exceptions. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

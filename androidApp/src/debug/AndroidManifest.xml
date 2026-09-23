@@ -2,7 +2,11 @@
 <!-- DEBUG-ONLY overlay: allow cleartext HTTP so a debug build can approve logins
      against a plain-http LAN test node (e.g. a heyarr dev node at
      http://192.168.x.x:7777) during device testing (docs/DEVICE-TESTING.md).
-     Release builds keep the platform default (cleartext blocked). -->
+     The app sets android:networkSecurityConfig, which takes precedence over this
+     attribute on every supported API level; the debug variant of that config
+     (src/debug/res/xml/network_security_config.xml) is what permits cleartext.
+     This attribute is kept for tooling that reads the manifest alone.
+     Release builds keep cleartext blocked. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application
