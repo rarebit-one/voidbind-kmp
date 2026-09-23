@@ -62,9 +62,11 @@ deliberate and load-bearing.
   shape with payload `{v:3, usr, op, dev, denc?, by, prev:[…], cosig?, iat, exp?}` in
   that order, signed by `by` (a member device key, or `usr` for genesis). A v1/v2 cert
   IS a v3 add signed by genesis with no `prev`. `Membership.evaluate` is a line-for-line
-  port of voidbind-go `enrolment.Evaluate`; the 14 golden vectors in
-  `src/jvmTest/resources/vectors/membership/` are copied from voidbind-go and must
-  replay byte-for-byte — never edit them here, re-copy from Go.
+  port of voidbind-go `enrolment.Evaluate`; the golden vectors in
+  `src/jvmTest/resources/vectors/membership/` (21 today, incl. the ADR-0008 cosig
+  cases) are copied from voidbind-go and must replay byte-for-byte — never edit
+  them here, re-copy from Go. `MembershipVectorTest` enumerates the directory, so a
+  newly copied vector is picked up automatically.
 - **Recovery secret** = 256-bit, **bech32m** (BIP-350, *not* bech32) with HRP
   `heyarr`.
 - **Pairing** = short-authentication-string with **commit-before-reveal**: each
@@ -79,44 +81,72 @@ deliberate and load-bearing.
 ## The hardware keystore is the whole point
 
 `DeviceKeyStore` is an `expect class`. The reason this library exists is that a
-device's signing key must be **non-extractable** and live in the secure element:
+device's signing key must be **non-extractable at rest** and gated by the secure
+element. Neither the Secure Enclave nor StrongBox can hold Ed25519, so every
+hardware `actual` keeps a **software Ed25519 seed** (`Ed25519Engine`) **sealed by a
+hardware wrapping key**, unsealed only transiently (behind the biometric gate) to
+sign one message, then zeroized — see
+[ADR-0001](docs/adr/0001-hardware-keystore-mechanism.md):
 
-- **iOS** `actual` → Secure Enclave (`kSecAttrTokenIDSecureEnclave`), via
-  Security.framework cinterop. **(currently a documented stub — see the file.)**
-- **Android** `actual` → StrongBox / TEE AndroidKeyStore
-  (`setIsStrongBoxBacked(true)`). *(target not yet added — needs the Android SDK.)*
+- **iOS** `actual` → seed sealed by a **Secure-Enclave P-256** key (ECIES). The
+  Enclave + Keychain work is done by the app-provided Swift `SecureEnclaveSealer`
+  (injected via `VoidbindIos`); the Kotlin side owns signing + the store contract.
+- **Android** `actual` → seed sealed with an **AES-GCM key in StrongBox / TEE
+  AndroidKeyStore** (`setIsStrongBoxBacked(true)`, TEE fallback), user-auth gated.
+  Needs `VoidbindAndroid.init(context)`.
 - **JVM** `actual` → **software key, `isHardwareBacked == false`**, for tests/dev
   only. Never ship the JVM keystore as production signing.
 
-## Architecture invariant: `commonMain` is pure
+## Architecture invariant: `commonMain` is platform-free
 
-`commonMain` contains **only pure Kotlin** — no platform APIs, no crypto backend,
-no third-party deps. All actual crypto is reached through seams:
+`commonMain` contains **no platform APIs** (`java.*`, `android.*`, Foundation).
+Its one third-party dependency is **cryptography-kotlin** (`cryptography-core` +
+`cryptography-provider-optimal`, 0.6.0), which supplies SHA-256, HKDF, Ed25519 and
+X25519 on every target by delegating to vetted platform primitives (JDK on
+JVM/Android, CryptoKit on Apple). The wire **encodings** stay hand-written and
+dependency-free (`crypto/`), so the signed/encoded bytes are fully under our control.
+Platform behaviour is reached through seams:
 
-- `Ed25519Signer` / `Ed25519Verifier` (fun interfaces) for the curve ops,
-- `Pairing.HashFunction` for the pairing hash,
-- `expect class DeviceKeyStore` for the hardware key.
+- `Ed25519Signer` / `Ed25519Verifier` (fun interfaces) for signing with a key the
+  caller holds (e.g. the hardware-sealed device key),
+- `internal expect fun aeadIetfSeal/Open` (`crypto/Aead.kt`) for IETF
+  ChaCha20-Poly1305 (a fresh javax `Cipher` per op on JVM),
+- `expect class DeviceKeyStore` for the hardware key,
+- `net.HttpTransport` for HTTP (`JdkHttpTransport` in `jvmMain`; apps supply their
+  own — OkHttp in `androidApp`, `URLSessionHttpTransport` in `iosApp`).
 
-Platform code (`jvmMain`, `iosMain`) supplies the `actual`s. This keeps the
-encodings unit-testable with no backend and portable to every target. Do not
-reach for `java.*` / platform APIs from `commonMain`.
+Platform code (`jvmMain`, `androidMain`, `iosMain`) supplies the `actual`s. Do not
+reach for `java.*` / platform APIs from `commonMain`, and do not add further
+third-party deps there without a reason as strong as cryptography-kotlin's.
 
 ## Build & test
 
-Host toolchain: **JDK 21**, no system `gradle`/`kotlin` — use the **wrapper**
-(`./gradlew`, self-downloads Gradle 8.9 + Kotlin 2.0.21). No Android SDK here, so
-there is **no `androidTarget`** (adding one needs AGP + the SDK).
+Host toolchain: **JDK 21** (bytecode targets JVM 17), no system `gradle`/`kotlin` —
+use the **wrapper** (`./gradlew`, self-downloads Gradle 8.9; the Kotlin plugin is
+**2.3.20**, required by cryptography-kotlin 0.6.0's metadata; AGP 8.7.3). The
+Android target and the `:androidApp` module need an Android SDK (`ANDROID_HOME` or
+`local.properties`). The iOS targets compile only on **macOS** (Kotlin/Native Apple
+targets are skipped on a Linux host).
 
 ```sh
-./gradlew jvmTest              # primary: compiles + runs common + JVM tests
-./gradlew compileKotlinJvm     # JVM compile only
-./gradlew compileKotlinIosSimulatorArm64   # iOS compile (Kotlin/Native, no Xcode needed)
+./gradlew jvmTest                          # primary: compiles + runs common + JVM tests
+./gradlew compileReleaseKotlinAndroid      # Android library compile (needs the SDK)
+./gradlew :androidApp:assembleDebug :androidApp:testDebugUnitTest   # Cruciform app
+./gradlew compileKotlinIosSimulatorArm64 iosSimulatorArm64Test      # iOS (macOS only)
+./gradlew assembleVoidbindXCFramework      # → build/XCFrameworks/{debug,release}/Voidbind.xcframework
 ```
 
-Targets: `jvm()` (primary, buildable + testable), `iosArm64()`,
-`iosSimulatorArm64()` (declared for structure). Tests in `commonTest` are pure and
-run on every target; `jvmTest` adds a real-Ed25519 end-to-end check via the JDK
-provider.
+Targets: `jvm()` (dev/test, software keystore), `androidTarget()` (StrongBox/TEE),
+`iosArm64()` + `iosSimulatorArm64()` (Secure Enclave via the Swift sealer, exported
+as the `Voidbind` XCFramework). Tests in `commonTest` run on every target; `jvmTest`
+adds the golden-vector parity suites, the JVM keystore test and live-voidbind-go
+interop (skipped when `go`/the voidbind-go checkout is absent). CI (`test.yml`) runs
+`jvmTest` + the Android compile, the app build + unit tests, and the iOS compile +
+simulator tests on macOS.
+
+Published as `one.rarebit.voidbind:voidbind-client` (GitHub Packages) by
+`publish.yml` on a `v*` tag, which must equal `version` in `build.gradle.kts`. The
+Cruciform APK is released separately on `app-v*` tags (`release.yml`).
 
 ## Layout
 
@@ -129,15 +159,27 @@ src/
     Cert.kt            enrolment cert model + token encode/parse/verify
     MembershipOp.kt    v3 membership op (add/remove) sign/verify/hash; v1/v2 certs read as genesis adds
     Membership.kt      the CRDT evaluator (voidbind-go enrolment.Evaluate, ADR-0007) + merge
-    Ed25519.kt         signer/verifier seams
+    Ed25519.kt         signer/verifier seams; Ed25519Engine.kt = software Ed25519 (cryptography-kotlin)
     Pairing.kt         commit-before-reveal SAS derivation
+    UserIdentity.kt / DeviceIdentity.kt / Enrolment.kt   identity + self-enrolment
+    Invite.kt / LoginQr.kt / WebLogin.kt / DeepLink.kt / PushPing.kt   QR, deep-link, push wire
     DeviceKeyStore.kt  expect: hardware signing key
-    crypto/            Hex, Base64Url (no-pad), Bech32m, MiniJson (compact, ordered)
-  commonTest/…         bech32m roundtrip, cert roundtrip, SAS determinism, op token KATs
-  jvmMain/…            DeviceKeyStore actual (software) + JvmEd25519 (JDK provider)
-  jvmTest/…            real-Ed25519 end-to-end; membership golden-vector parity
-                       (resources/vectors/membership/ = voidbind-go testdata, verbatim)
-  iosMain/…            DeviceKeyStore actual (Secure Enclave — stub, documented)
+    auth/              Device-scheme possession proof, credential, 401 re-mint policy
+    net/               HttpTransport seam; Relay/Pairflow/WebLogin/Notify clients; cert sealer
+    flow/              LoginApproval / DevicePairing / DeviceAuthorization coordinators
+    offload/           cruciform-offload wire + phone responders (ADR-0098)
+    policy/            per-RP approval policy (ADR-0002)
+    crypto/            Hex, Base64Url (no-pad), Bech32m, MiniJson (compact, ordered),
+                       X25519, Ed25519Group, XChaCha20-Poly1305, VoidbindEncryption, expect AEAD
+  commonTest/…         pure + cryptography-kotlin tests (run on every target)
+  jvmMain/…            DeviceKeyStore actual (software), JdkHttpTransport, AEAD actual
+  jvmTest/…            JvmEd25519 (JDK provider, test-only) + keystore test; golden-vector
+                       parity (resources/vectors/ = voidbind-go testdata, verbatim);
+                       live-voidbind-go interop
+  androidMain/…        DeviceKeyStore actual (StrongBox/TEE AES-GCM seal), VoidbindAndroid
+  iosMain/…            DeviceKeyStore actual (Secure-Enclave seal via SecureEnclaveSealer), VoidbindIos
+androidApp/            Cruciform Android app (Compose), depends on project(":")
+iosApp/                Cruciform iOS app (SwiftUI, XcodeGen), links Voidbind.xcframework
 ```
 
 ## House style
