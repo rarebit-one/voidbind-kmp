@@ -20,6 +20,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # Caches the Gradle wrapper/dependency/Kotlin-Native downloads between runs.
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
       - name: gradle jvmTest + android compile
         run: ./gradlew jvmTest compileReleaseKotlinAndroid --no-daemon --stacktrace
 
@@ -35,11 +37,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # Caches the Gradle wrapper/dependency/Kotlin-Native downloads between runs.
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
       - name: gradle assemble app (debug) + pure-JVM unit tests
         run: ./gradlew :androidApp:assembleDebug :androidApp:testDebugUnitTest --no-daemon --stacktrace
 
   # The Secure-Enclave `actual` is Kotlin/Native; only a macOS runner has the
-  # toolchain that compiles the iOS targets.
+  # toolchain that compiles (and simulator-tests) the iOS targets.
   ios:
     runs-on: macos-latest
     steps:
@@ -48,7 +52,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: gradle iOS compile
+      # Caches the Gradle wrapper/dependency/Kotlin-Native downloads between runs.
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
+      # iosSimulatorArm64Test runs commonTest (+ iosTest) as a Kotlin/Native test
+      # binary on the simulator, so the pure encodings and the CryptoKit-backed
+      # cryptography-kotlin provider are exercised on Apple, not just compiled.
+      - name: gradle iOS compile + simulator tests
         run: >-
           ./gradlew compileKotlinIosArm64 compileKotlinIosSimulatorArm64
+          iosSimulatorArm64Test
           --no-daemon --stacktrace
