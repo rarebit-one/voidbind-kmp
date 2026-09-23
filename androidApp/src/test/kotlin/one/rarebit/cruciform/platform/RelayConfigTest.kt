@@ -60,7 +60,7 @@ class RelayConfigTest {
 
     @Test
     fun `rejects a scheme with no host`() {
-        assertIs<Validation.Invalid>(RelayConfig.validate("http:///pair"))
+        assertIs<Validation.Invalid>(RelayConfig.validate("http://"))
         assertIs<Validation.Invalid>(RelayConfig.validate("http:///pair"))
     }
 
