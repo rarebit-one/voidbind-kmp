@@ -42,6 +42,7 @@ import one.rarebit.cruciform.pairing.InviteCoordinator
 import one.rarebit.cruciform.domain.PairSession
 import one.rarebit.cruciform.domain.RecoveryBackup
 import one.rarebit.cruciform.domain.ScannedCode
+import one.rarebit.cruciform.domain.suspendRunCatching
 import one.rarebit.cruciform.handoff.Handoff
 import one.rarebit.cruciform.handoff.RpPairLauncher
 import one.rarebit.cruciform.handoff.SamePhoneJoin
@@ -236,8 +237,8 @@ fun CruciformNavHost(
     fun joinInvite(code: ScannedCode.PairInvite, beforeVerify: () -> Unit = {}) {
         scope.launch {
             // joinPairInvite never throws for a transport failure (it resolves to Failed on the
-            // IO thread); the runCatching is a final guard for anything unexpected.
-            val result = runCatching { engine.joinPairInvite(code) }.getOrElse { EngineResult.Failed(unexpected(it)) }
+            // IO thread); the suspendRunCatching is a final guard for anything unexpected.
+            val result = suspendRunCatching { engine.joinPairInvite(code) }.getOrElse { EngineResult.Failed(unexpected(it)) }
             when (result) {
                 is EngineResult.Ready -> {
                     pairSession = result.value
@@ -255,7 +256,7 @@ fun CruciformNavHost(
     /** Evaluate the device set from this device's replica and open Settings → Devices. */
     fun openDevices() {
         scope.launch {
-            memberDevices = runCatching { engine.devices() }.getOrDefault(emptyList())
+            memberDevices = suspendRunCatching { engine.devices() }.getOrDefault(emptyList())
             if (route != Routes.DEVICES) nav.navigate(Routes.DEVICES)
         }
     }
@@ -338,9 +339,9 @@ fun CruciformNavHost(
         when (val code = engine.parseScanned(h.tuple)) {
             is ScannedCode.WebLogin -> {
                 loginCode = code
-                // fetchLoginRequest never throws for a fetch failure; the runCatching is a final
+                // fetchLoginRequest never throws for a fetch failure; the suspendRunCatching is a final
                 // guard so no unexpected throw in this effect can become a main-thread FATAL.
-                when (val result = runCatching { engine.fetchLoginRequest(code) }.getOrNull()) {
+                when (val result = suspendRunCatching { engine.fetchLoginRequest(code) }.getOrNull()) {
                     is LoginRequestResult.Ready -> {
                         loginRequest = result.request
                         nav.navigate(Routes.LOGIN)
@@ -458,7 +459,7 @@ fun CruciformNavHost(
                 // Biometric-gated: a cancelled prompt or a keystore error must not escape the
                 // effect as a crash — surface it and return to onboarding.
                 LaunchedEffect(Unit) {
-                    runCatching { engine.createIdentity() }
+                    suspendRunCatching { engine.createIdentity() }
                         .onSuccess { backup = it }
                         .onFailure {
                             engineError = EngineErrorState(unexpected(it, "Couldn't create the identity."))
@@ -546,13 +547,23 @@ fun CruciformNavHost(
                         focusRelay = focusRelay,
                         onRelayFocused = { focusRelay = false },
                         onRename = { /* rename dialog — later */ },
-                        onToggleBiometric = { scope.launch { engine.setBiometricApproval(it) } },
-                        onRevoke = { site -> scope.launch { engine.revokeSite(site.id) } },
+                        onToggleBiometric = { enabled ->
+                            scope.launch {
+                                suspendRunCatching { engine.setBiometricApproval(enabled) }
+                                    .onFailure { engineError = EngineErrorState(unexpected(it, "Couldn't change biometric approval.")) }
+                            }
+                        },
+                        onRevoke = { site ->
+                            scope.launch {
+                                suspendRunCatching { engine.revokeSite(site.id) }
+                                    .onFailure { engineError = EngineErrorState(unexpected(it, "Couldn't revoke ${site.domain}.")) }
+                            }
+                        },
                         onManageSites = { /* full list — later */ },
                         onRecoveryBackup = {
                             scope.launch {
                                 // Biometric-gated; a cancelled prompt is an error, not a crash.
-                                runCatching { engine.revealRecoverySecret() }
+                                suspendRunCatching { engine.revealRecoverySecret() }
                                     .onSuccess { revealBackup = it; nav.navigate(Routes.RECOVERY) }
                                     .onFailure { engineError = EngineErrorState(unexpected(it, "Couldn't show the recovery secret.")) }
                             }
@@ -580,9 +591,9 @@ fun CruciformNavHost(
                             is ScannedCode.WebLogin -> scope.launch {
                                 loginCode = c
                                 // fetchLoginRequest resolves a failed challenge fetch to Failed
-                                // instead of throwing; the runCatching is a final guard so no
+                                // instead of throwing; the suspendRunCatching is a final guard so no
                                 // unexpected throw can escape this coroutine as a FATAL.
-                                when (val result = runCatching { engine.fetchLoginRequest(c) }.getOrNull()) {
+                                when (val result = suspendRunCatching { engine.fetchLoginRequest(c) }.getOrNull()) {
                                     is LoginRequestResult.Ready -> {
                                         loginRequest = result.request
                                         nav.navigate(Routes.LOGIN) { popUpTo(Routes.SCAN) { inclusive = true } }
@@ -616,7 +627,7 @@ fun CruciformNavHost(
                         request = req,
                         onDeny = {
                             scope.launch {
-                                runCatching { engine.denyLogin() }
+                                suspendRunCatching { engine.denyLogin() }
                                 decided(false)
                             }
                         },
@@ -624,7 +635,7 @@ fun CruciformNavHost(
                             scope.launch {
                                 // A refused/failed approval (RP rejects, network drops) is caught so
                                 // it surfaces as an error instead of an uncaught main-thread FATAL.
-                                val ok = runCatching { loginCode?.let { engine.approveNumberMatch(it, chosen) } }
+                                val ok = suspendRunCatching { loginCode?.let { engine.approveNumberMatch(it, chosen) } }
                                     .onFailure { loginError = LoginErrorState("Couldn't complete the sign-in.") }
                                     .isSuccess
                                 // A failed approval during a deep-link handoff keeps the error on
@@ -641,13 +652,13 @@ fun CruciformNavHost(
                             request = req,
                             onDeny = {
                                 scope.launch {
-                                    runCatching { engine.denyLogin() }
+                                    suspendRunCatching { engine.denyLogin() }
                                     decided(false)
                                 }
                             },
                             onApprove = {
                                 scope.launch {
-                                    val ok = runCatching { loginCode?.let { engine.approveLogin(it) } }
+                                    val ok = suspendRunCatching { loginCode?.let { engine.approveLogin(it) } }
                                         .onFailure { loginError = LoginErrorState("Couldn't complete the sign-in.") }
                                         .isSuccess
                                     if (ok || activeHandoff?.returnsToCaller != true) decided(ok)
@@ -741,7 +752,7 @@ fun CruciformNavHost(
                             // the cert was in flight, cert did not verify, biometric cancelled).
                             fun confirm() {
                                 scope.launch {
-                                    val result = runCatching { engine.confirmPairing() }.getOrElse { EngineResult.Failed(unexpected(it)) }
+                                    val result = suspendRunCatching { engine.confirmPairing() }.getOrElse { EngineResult.Failed(unexpected(it)) }
                                     when (result) {
                                         is EngineResult.Ready -> decided(true)
                                         is EngineResult.Failed -> {
@@ -822,7 +833,7 @@ fun CruciformNavHost(
                         scope.launch {
                             // removeDevice never throws for a transport/biometric failure; a Failed
                             // (cancelled prompt, not a member, no identity) lands in the dialog.
-                            val result = runCatching { engine.removeDevice(device.id) }.getOrElse { EngineResult.Failed(unexpected(it, "Couldn't remove the device.")) }
+                            val result = suspendRunCatching { engine.removeDevice(device.id) }.getOrElse { EngineResult.Failed(unexpected(it, "Couldn't remove the device.")) }
                             when (result) {
                                 is EngineResult.Ready -> memberDevices = engine.devices()
                                 is EngineResult.Failed -> engineError = EngineErrorState(result.failure)

@@ -162,7 +162,7 @@ class DeviceVoidbindEngine(
             is one.rarebit.voidbind.VoidbindQr.Login -> ScannedCode.WebLogin(qr.request.rp, qr.request.id, raw)
             is one.rarebit.voidbind.VoidbindQr.Pair -> ScannedCode.PairInvite(qr.invite.relay, qr.invite.session, raw)
         }
-    } catch (_: Throwable) {
+    } catch (_: Exception) {
         ScannedCode.Unknown(raw)
     }
 
@@ -176,9 +176,9 @@ class DeviceVoidbindEngine(
         val approval = LoginApproval(transport, buildDevice(), persisted.enrolmentCert, knownOps = persisted.ops)
         // beginCatching converts every transport/IO failure and non-2xx into an Outcome.Failed
         // instead of throwing, so an unreachable/misconfigured RP surfaces as a login error and
-        // never becomes an uncaught main-thread FATAL. The extra runCatching is belt-and-braces:
+        // never becomes an uncaught main-thread FATAL. The extra suspendRunCatching is belt-and-braces:
         // no unexpected throw from this boundary may escape the approval coroutine.
-        val outcome = runCatching { approval.beginCatching(LoginQr.Parsed(code.rpBase, code.loginId)) }
+        val outcome = suspendRunCatching { approval.beginCatching(LoginQr.Parsed(code.rpBase, code.loginId)) }
             .getOrElse { LoginApproval.Outcome.Failed(LoginApproval.FailureKind.UNREACHABLE, "Couldn't reach the site.") }
         when (outcome) {
             is LoginApproval.Outcome.Failed -> {
