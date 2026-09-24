@@ -112,6 +112,12 @@ fun SettingsScreen(
     notifyIsDefault: Boolean = true,
     onSaveNotify: (String) -> RelayConfig.Validation = { NotifyConfig.validate(it) },
     onResetNotify: () -> Unit = {},
+    // The text in each field, hoisted so an entered-but-unsaved URL survives process
+    // death (the Settings ViewModel keeps it in its SavedStateHandle).
+    relayDraft: String = relayUrl,
+    onRelayDraftChange: (String) -> Unit = {},
+    notifyDraft: String = notifyUrl,
+    onNotifyDraftChange: (String) -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -192,6 +198,8 @@ fun SettingsScreen(
                 description = "Where this phone mints Add-a-device invites. A device joining an invite uses the relay in the invite.",
                 fieldLabel = "Relay URL",
                 url = relayUrl,
+                draft = relayDraft,
+                onDraftChange = onRelayDraftChange,
                 defaultUrl = RelayConfig.DEFAULT_RELAY,
                 isDefault = relayIsDefault,
                 validate = RelayConfig::validate,
@@ -211,6 +219,8 @@ fun SettingsScreen(
                 description = "Where this phone registers to be woken for a login. It carries only the same opaque tuple a QR does — never a key or a challenge.",
                 fieldLabel = "Push plane URL",
                 url = notifyUrl,
+                draft = notifyDraft,
+                onDraftChange = onNotifyDraftChange,
                 defaultUrl = NotifyConfig.DEFAULT_NOTIFY,
                 isDefault = notifyIsDefault,
                 validate = NotifyConfig::validate,
@@ -306,8 +316,8 @@ fun SettingsScreen(
 /**
  * One endpoint-base editor — the "Pairing relay" and the "Push plane" are the same
  * control over different settings, so they are one composable rather than two that
- * drift. Local draft text seeded from the persisted [url] (re-seeded whenever that
- * changes — a Save or a Reset); [validate] runs inline as the user types, and Save
+ * drift. The [draft] text is hoisted to the caller (seeded from the persisted [url] and
+ * re-seeded on a Save or a Reset); [validate] runs inline as the user types, and Save
  * writes only a `Valid` verdict. Nothing here talks to the network: the relay is
  * dialled at invite time and the plane at push-registration time.
  */
@@ -317,6 +327,8 @@ private fun EndpointField(
     description: String,
     fieldLabel: String,
     url: String,
+    draft: String,
+    onDraftChange: (String) -> Unit,
     defaultUrl: String,
     isDefault: Boolean,
     validate: (String) -> RelayConfig.Validation,
@@ -325,7 +337,6 @@ private fun EndpointField(
     focus: Boolean,
     onFocused: () -> Unit,
 ) {
-    var draft by remember(url) { mutableStateOf(url) }
     var saveError by remember { mutableStateOf<String?>(null) }
     val focusRequester = remember { FocusRequester() }
     val verdict = validate(draft)
@@ -368,7 +379,10 @@ private fun EndpointField(
         VSpace(14)
         OutlinedTextField(
             value = draft,
-            onValueChange = { draft = it; saveError = null },
+            onValueChange = {
+                onDraftChange(it)
+                saveError = null
+            },
             modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             label = { Text(fieldLabel) },
             placeholder = { Text(defaultUrl.ifBlank { "https://" }) },
@@ -399,7 +413,11 @@ private fun EndpointField(
                 "Save",
                 onClick = {
                     when (val result = onSave(draft)) {
-                        is RelayConfig.Validation.Valid -> { saveError = null; draft = result.url }
+                        is RelayConfig.Validation.Valid -> {
+                            saveError = null
+                            onDraftChange(result.url)
+                        }
+
                         is RelayConfig.Validation.Invalid -> saveError = result.reason
                     }
                 },
@@ -408,7 +426,11 @@ private fun EndpointField(
             )
             OutlineButton(
                 if (defaultUrl.isBlank()) "Clear" else "Reset to default",
-                onClick = { saveError = null; onReset(); draft = defaultUrl },
+                onClick = {
+                    saveError = null
+                    onReset()
+                    onDraftChange(defaultUrl)
+                },
                 enabled = !isDefault || draft != defaultUrl,
                 accent = VbColors.TextSecondary,
                 modifier = Modifier.weight(1f),

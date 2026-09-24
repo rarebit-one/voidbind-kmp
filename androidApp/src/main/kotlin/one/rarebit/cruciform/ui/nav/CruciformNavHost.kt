@@ -1,54 +1,44 @@
 package one.rarebit.cruciform.ui.nav
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import one.rarebit.cruciform.AppViewModel
 import one.rarebit.cruciform.domain.EngineFailure
-import one.rarebit.cruciform.domain.EngineResult
 import one.rarebit.cruciform.domain.IdentityState
-import one.rarebit.cruciform.domain.LoginRequest
-import one.rarebit.cruciform.domain.PairSession
-import one.rarebit.cruciform.domain.RecoveryBackup
 import one.rarebit.cruciform.domain.ScannedCode
-import one.rarebit.cruciform.domain.SitePolicyView
-import one.rarebit.cruciform.domain.failureOrNull
-import one.rarebit.cruciform.domain.valueOrNull
 import one.rarebit.cruciform.handoff.Handoff
+import one.rarebit.cruciform.handoff.RpAppIdentity
 import one.rarebit.cruciform.handoff.RpPairLauncher
 import one.rarebit.cruciform.handoff.SamePhoneJoin
 import one.rarebit.cruciform.pairing.InviteCoordinator
 import one.rarebit.cruciform.platform.NotifySettings
 import one.rarebit.cruciform.platform.RelaySettings
+import one.rarebit.cruciform.ui.flow.EngineErrorState
+import one.rarebit.cruciform.ui.flow.LoginViewModel
+import one.rarebit.cruciform.ui.flow.OnboardingViewModel
+import one.rarebit.cruciform.ui.flow.PairViewModel
+import one.rarebit.cruciform.ui.flow.SettingsViewModel
 import one.rarebit.cruciform.ui.screens.ApprovalActivityScreen
 import one.rarebit.cruciform.ui.screens.DevicesScreen
 import one.rarebit.cruciform.ui.screens.HomeScreen
@@ -84,42 +74,20 @@ object Routes {
 }
 
 /**
- * A dismissible login-error to show as a dialog. [expired] flags a stale sign-in code (a 404/410
- * on the challenge fetch) so the dialog can title it "Expired" and say to scan a fresh QR, rather
- * than the generic "Sign-in unavailable" used for an unreachable or refusing RP.
- */
-private data class LoginErrorState(val message: String, val expired: Boolean = false) {
-    companion object {
-        fun of(failure: EngineFailure) =
-            LoginErrorState(failure.message, expired = failure.kind == EngineFailure.Kind.EXPIRED)
-    }
-}
-
-/**
- * A pairing (or other engine) failure to show as a dismissible dialog. [retry], when
- * present, re-runs the SAME step (re-join the same invite, re-mint the invite,
- * re-confirm) — the engine returns these as values, so nothing here ever throws.
- * [relayUrl] is set when the failure is against THIS phone's configured pairing relay
- * (minting an invite — not joining someone else's, whose relay is in the invite):
- * the dialog then names that URL and offers "Change relay" → Settings.
- */
-private data class EngineErrorState(
-    val failure: EngineFailure,
-    val retry: (() -> Unit)? = null,
-    val relayUrl: String? = null,
-    /** Runs when the dialog closes without Retry (OK / Cancel / Change relay). */
-    val onDismiss: (() -> Unit)? = null,
-)
-
-/**
  * [handoff] is a login/pairing the activity was woken into from outside (a push ping
  * or another app's `voidbind:` deep link); the graph runs the SAME approval flow a
  * scan does and reports the decision through [onHandoffFinished] — which, for a
  * deep link, finishes the activity so the calling app resumes.
+ *
+ * The graph is wiring only: each flow's state lives in its own ViewModel —
+ * [LoginViewModel], [PairViewModel] (the responder side of pairing),
+ * [SettingsViewModel], [OnboardingViewModel] — plus the app-scoped invite coordinator
+ * in [AppViewModel]. What must survive process death is in each ViewModel's
+ * SavedStateHandle (see their docs); secrets never are.
  */
 @Composable
 fun CruciformNavHost(
-    viewModel: AppViewModel,
+    appViewModel: AppViewModel,
     handoff: Handoff? = null,
     onHandoffFinished: (Handoff, approved: Boolean) -> Unit = { _, _ -> },
     /**
@@ -141,55 +109,35 @@ fun CruciformNavHost(
     onSamePhoneRefused: (String?, String, String) -> Unit = { _, _, _ -> },
 ) {
     val nav = rememberNavController()
-    val engine = viewModel.engine
-    val identityState by viewModel.identity.collectAsStateWithLifecycle()
+    val engine = appViewModel.engine
+    val identityState by appViewModel.identity.collectAsStateWithLifecycle()
+    val appContext = LocalContext.current.applicationContext
+    val clipboard = LocalClipboardManager.current
+
+    // Per-flow state holders, activity-scoped so a flow spanning several destinations
+    // (scan → approve, join → verify) keeps one owner.
+    val loginVm: LoginViewModel = viewModel { LoginViewModel(engine, createSavedStateHandle()) }
+    val pairVm: PairViewModel = viewModel { PairViewModel(engine, createSavedStateHandle()) }
+    val onboardingVm: OnboardingViewModel = viewModel { OnboardingViewModel(engine, createSavedStateHandle()) }
+    val settingsVm: SettingsViewModel = viewModel {
+        SettingsViewModel(engine, RelaySettings(appContext), NotifySettings(appContext), createSavedStateHandle())
+    }
+
     // The initiator's invite lifecycle (ADR-0007): app-scoped, observed here, never
     // restarted by a screen. Its handshake keeps polling the relay while the user is in
     // the relying-party app; this graph reacts to its state transitions below.
-    val invites = viewModel.invites
+    val invites = appViewModel.invites
     val inviteState by invites.state.collectAsStateWithLifecycle()
     // The same-phone one-tap verdict (ADR-0008): None until a relying-party app on this
     // phone has reported a device key + SAS that MATCH what the relay revealed. A
     // mismatch never lands here — it fails the invite outright, through [inviteState].
     val samePhone by invites.samePhone.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    val clipboard = LocalClipboardManager.current
-    val appContext = LocalContext.current.applicationContext
-    // Settings → "Pairing relay": persisted; the engine reads it at invite time.
-    val relaySettings = remember(appContext) { RelaySettings(appContext) }
-    // Settings -> "Push plane": persisted; the engine reads it at push-registration time.
-    val notifySettings = remember(appContext) { NotifySettings(appContext) }
-    // Set by the error dialog's "Change relay": Settings focuses the relay field once.
-    var focusRelay by remember { mutableStateOf(false) }
 
-    // Ephemeral flow state carried between destinations (nav args are strings; these
-    // are the already-fetched objects a pushed screen renders). Lost on process death,
-    // where the destination falls back to the home graph.
-    var loginRequest by remember { mutableStateOf<LoginRequest?>(null) }
-    var loginCode by remember { mutableStateOf<ScannedCode.WebLogin?>(null) }
-    // The RP's per-site approval policy, fetched when the approval sheet opens.
-    var loginPolicy by remember { mutableStateOf<SitePolicyView?>(null) }
-    var approvalActivity by remember { mutableStateOf<List<one.rarebit.cruciform.domain.ApprovalActivity>>(emptyList()) }
-    // The identity's device set (Settings → Devices), evaluated from this device's replica.
-    var memberDevices by remember { mutableStateOf<List<one.rarebit.cruciform.domain.MemberDevice>>(emptyList()) }
-    // A failed login-challenge fetch (unreachable/misconfigured RP, TLS, timeout, non-2xx,
-    // cleartext-blocked) surfaces here as a dismissible error instead of crashing the app.
-    var loginError by remember { mutableStateOf<LoginErrorState?>(null) }
-    // A failed pairing step (no route to the relay, relay refused, invite expired unjoined,
-    // a handshake that did not verify, a cancelled biometric prompt) surfaces here as a
-    // dismissible error WITH a Retry, instead of crashing the app. Every engine pairing
-    // entry point returns an EngineResult; this is where a Failed lands.
-    var engineError by remember { mutableStateOf<EngineErrorState?>(null) }
-    // The responder's (join) session; the initiator's lives in [inviteState].
-    var pairSession by remember { mutableStateOf<PairSession?>(null) }
-    var revealBackup by remember { mutableStateOf<RecoveryBackup?>(null) }
-    // The handoff whose approval/pairing is currently on screen; its decision is routed
-    // to onHandoffFinished instead of plain goHome (a deep-link caller is waiting).
+    // Wiring-only state: the coordinator's failure as a dialog, the handoff whose
+    // decision is routed back to the activity, and who a one-tap report came from.
+    var inviteError by remember { mutableStateOf<EngineErrorState?>(null) }
     var activeHandoff by remember { mutableStateOf<Handoff?>(null) }
-
-    // Who the live one-tap report came from, for the sheet's label and icon and for the
-    // return trip. Kept beside the coordinator's verdict, which holds only the report.
-    var samePhoneRp by remember { mutableStateOf<one.rarebit.cruciform.handoff.RpAppIdentity?>(null) }
+    var samePhoneRp by remember { mutableStateOf<RpAppIdentity?>(null) }
     LaunchedEffect(samePhoneJoin?.seq) {
         val j = samePhoneJoin ?: return@LaunchedEffect
         samePhoneRp = j.rp
@@ -218,6 +166,8 @@ fun CruciformNavHost(
         return
     }
 
+    fun currentRoute() = nav.currentDestination?.route
+
     fun goHome() = nav.navigate(Routes.HOME) {
         popUpTo(nav.graph.id) { inclusive = true }
     }
@@ -225,63 +175,21 @@ fun CruciformNavHost(
     /**
      * Route a decision on the LOGIN / PAIR_VERIFY screen: a deep-link handoff returns
      * to the calling app (the activity finishes — no navigation here); a push wake or
-     * an in-app scan goes Home.
+     * an in-app scan goes Home. Either way the flows are over.
      */
     fun decided(approved: Boolean) {
+        loginVm.finish()
+        pairVm.finish()
         val h = activeHandoff
         activeHandoff = null
         if (h != null) onHandoffFinished(h, approved)
         if (h == null || !h.returnsToCaller) goHome()
     }
 
-    /**
-     * The outcome of a login approval: true when it went through; otherwise the failure
-     * (the RP refused, the network dropped, the prompt was dismissed) is put up as the
-     * login-error dialog. A missing code — nothing was fetched — is a failure too.
-     */
-    fun approved(result: EngineResult<Unit>?): Boolean = when (result) {
-        is EngineResult.Ready -> true
-
-        is EngineResult.Failed -> {
-            loginError = LoginErrorState(result.failure.message)
-            false
-        }
-
-        null -> {
-            loginError = LoginErrorState("Couldn't complete the sign-in.")
-            false
-        }
-    }
-
-    /**
-     * Join a pairing invite as the new device and go to VERIFY — the one path a scan, a
-     * deep link and the error dialog's Retry all share, so Retry re-joins the SAME
-     * invite. [beforeVerify] tailors the navigation (a scan pops the scanner first).
-     */
-    fun joinInvite(code: ScannedCode.PairInvite, beforeVerify: () -> Unit = {}) {
-        scope.launch {
-            // joinPairInvite never throws: every failure resolves to Failed on the IO thread.
-            when (val result = engine.joinPairInvite(code)) {
-                is EngineResult.Ready -> {
-                    pairSession = result.value
-                    beforeVerify()
-                    nav.navigate(Routes.PAIR_VERIFY)
-                }
-
-                is EngineResult.Failed -> engineError = EngineErrorState(
-                    result.failure,
-                    retry = if (result.failure.retryable) ({ joinInvite(code, beforeVerify) }) else null,
-                )
-            }
-        }
-    }
-
-    /** Evaluate the device set from this device's replica and open Settings → Devices. */
-    fun openDevices() {
-        scope.launch {
-            memberDevices = engine.devices().valueOrNull() ?: emptyList()
-            if (route != Routes.DEVICES) nav.navigate(Routes.DEVICES)
-        }
+    /** A dialog closed without Retry: a deep-link caller is told "not approved". */
+    fun errorClosed() {
+        val h = activeHandoff
+        if (h != null && h.returnsToCaller) decided(false)
     }
 
     /**
@@ -296,6 +204,67 @@ fun CruciformNavHost(
         if (route != Routes.PAIR_CONNECT && route != Routes.PAIR_VERIFY) nav.navigate(Routes.PAIR_CONNECT)
     }
 
+    // Flow events → navigation.
+    LaunchedEffect(loginVm) {
+        loginVm.eventFlow.collect { e ->
+            when (e) {
+                is LoginViewModel.Event.Show -> if (e.fromScan) {
+                    nav.navigate(Routes.LOGIN) { popUpTo(Routes.SCAN) { inclusive = true } }
+                } else if (currentRoute() != Routes.LOGIN) {
+                    nav.navigate(Routes.LOGIN)
+                }
+
+                is LoginViewModel.Event.FetchFailed -> if (e.fromScan) nav.popBackStack()
+
+                LoginViewModel.Event.Approved -> decided(true)
+
+                LoginViewModel.Event.Denied -> decided(false)
+
+                // A failed approval during a deep-link handoff keeps the error on screen;
+                // dismissing it returns to the caller.
+                LoginViewModel.Event.ApprovalFailed -> if (activeHandoff?.returnsToCaller != true) decided(false)
+            }
+        }
+    }
+    LaunchedEffect(pairVm) {
+        pairVm.eventFlow.collect { e ->
+            when (e) {
+                is PairViewModel.Event.Verify -> {
+                    if (e.fromScan) nav.popBackStack()
+                    if (currentRoute() != Routes.PAIR_VERIFY) nav.navigate(Routes.PAIR_VERIFY)
+                }
+
+                PairViewModel.Event.Admitted -> decided(true)
+
+                // The error stays on screen (a deep-link caller is told "not approved"
+                // only when the human dismisses it).
+                is PairViewModel.Event.ConfirmFailed ->
+                    if (activeHandoff?.returnsToCaller != true && !e.retryable) decided(false)
+            }
+        }
+    }
+    LaunchedEffect(settingsVm) {
+        settingsVm.eventFlow.collect { e ->
+            when (e) {
+                SettingsViewModel.Event.ShowRecovery -> nav.navigate(Routes.RECOVERY)
+
+                SettingsViewModel.Event.ShowActivity -> nav.navigate(Routes.ACTIVITY)
+
+                SettingsViewModel.Event.ShowDevices -> {
+                    if (currentRoute() != Routes.DEVICES) nav.navigate(Routes.DEVICES)
+                }
+            }
+        }
+    }
+    LaunchedEffect(onboardingVm) {
+        onboardingVm.eventFlow.collect { e ->
+            when (e) {
+                OnboardingViewModel.Event.CreateFailed -> nav.popBackStack()
+                OnboardingViewModel.Event.Interrupted -> goHome()
+            }
+        }
+    }
+
     // React to the invite lifecycle, wherever the user is in the graph: the new device
     // joined (possibly while this app was in the background) → VERIFY with the SAS; a
     // step failed → the dialog, whose Retry re-runs the RIGHT step (a fresh invite after
@@ -306,7 +275,8 @@ fun CruciformNavHost(
                 // One phone, both apps: the SAS was already compared BY THE APPS over the
                 // local intent channel, so the human sees one question, not a code. Any
                 // other case — cross-device, or an RP that never called back — is VERIFY.
-                val target = if (samePhone is InviteCoordinator.SamePhone.Verified) Routes.PAIR_ALLOW else Routes.PAIR_VERIFY
+                val verified = samePhone is InviteCoordinator.SamePhone.Verified
+                val target = if (verified) Routes.PAIR_ALLOW else Routes.PAIR_VERIFY
                 if (route != target) {
                     nav.navigate(target) {
                         popUpTo(Routes.PAIR_CONNECT) { inclusive = true }
@@ -314,15 +284,28 @@ fun CruciformNavHost(
                 }
             }
 
-            is InviteCoordinator.State.Failed -> engineError = EngineErrorState(
-                st.failure,
-                retry = if (st.failure.retryable) ({ invites.retry() }) else null,
-                relayUrl = st.relayUrl.takeIf {
-                    st.phase == InviteCoordinator.Phase.MINT &&
-                        (st.failure.kind == EngineFailure.Kind.UNREACHABLE || st.failure.kind == EngineFailure.Kind.REJECTED)
-                },
-                onDismiss = { invites.dismissFailure() },
-            )
+            is InviteCoordinator.State.Failed -> {
+                val clear = { inviteError = null }
+                inviteError = EngineErrorState(
+                    st.failure,
+                    retry = if (st.failure.retryable) {
+                        {
+                            clear()
+                            invites.retry()
+                        }
+                    } else {
+                        null
+                    },
+                    relayUrl = st.relayUrl.takeIf {
+                        st.phase == InviteCoordinator.Phase.MINT &&
+                            (st.failure.kind == EngineFailure.Kind.UNREACHABLE || st.failure.kind == EngineFailure.Kind.REJECTED)
+                    },
+                    onDismiss = {
+                        clear()
+                        invites.dismissFailure()
+                    },
+                )
+            }
 
             is InviteCoordinator.State.Admitted -> {
                 // On the one-tap path the RP is waiting on its own screen: land the human
@@ -365,105 +348,39 @@ fun CruciformNavHost(
         val h = handoff ?: return@LaunchedEffect
         activeHandoff = h
         when (val code = engine.parseScanned(h.tuple)) {
-            is ScannedCode.WebLogin -> {
-                loginCode = code
-                // fetchLoginRequest never throws: a failed fetch is a Failed value, so nothing in
-                // this effect can become a main-thread FATAL.
-                when (val result = engine.fetchLoginRequest(code)) {
-                    is EngineResult.Ready -> {
-                        loginRequest = result.value
-                        nav.navigate(Routes.LOGIN)
-                    }
-
-                    is EngineResult.Failed -> loginError = LoginErrorState.of(result.failure)
-                }
-            }
+            is ScannedCode.WebLogin -> loginVm.open(code, fromScan = false)
 
             // The pairing deep link (#27) joins as the new device. Failure — the phone has
             // no route to the relay, most likely — is a dialog with Retry, never a crash.
-            is ScannedCode.PairInvite -> joinInvite(code)
+            is ScannedCode.PairInvite -> pairVm.join(code, fromScan = false)
 
-            is ScannedCode.Unknown -> loginError = LoginErrorState("Not a Voidbind code.")
+            is ScannedCode.Unknown -> loginVm.showError("Not a Voidbind code.")
         }
     }
 
-    // A login-fetch failure (couldn't reach / site refused / stale code) — a dismissible dialog,
-    // not a crash. A stale sign-in code (404/410) is titled "Expired" and reads as "scan a fresh
-    // QR"; everything else keeps the generic "Sign-in unavailable".
+    // Errors: at most one dialog of each kind is up; the login one first.
+    val loginError by loginVm.loginError.collectAsStateWithLifecycle()
     loginError?.let { error ->
         // Dismissing an error raised during a deep-link handoff (the fetch/join failed, or
-        // the approval itself did) returns to the caller, not approved; an in-app error
-        // just closes.
-        val dismiss = {
-            loginError = null
-            val h = activeHandoff
-            if (h != null && h.returnsToCaller) decided(false)
+        // the approval itself did) returns to the caller, not approved.
+        LoginErrorDialog(error) {
+            loginVm.dismissLoginError()
+            errorClosed()
         }
-        AlertDialog(
-            onDismissRequest = dismiss,
-            confirmButton = { TextButton(onClick = dismiss) { Text("OK") } },
-            title = { Text(if (error.expired) "Expired" else "Sign-in unavailable") },
-            text = { Text(error.message) },
-        )
     }
-
-    // A pairing-step failure: titled by kind, with a Retry that re-runs the same step
-    // when that can help (unreachable relay → once Wi-Fi/VPN is back; expired invite →
-    // a fresh one). Cancelling during a deep-link handoff returns to the caller.
-    engineError?.let { error ->
-        val dismiss = {
-            engineError = null
-            error.onDismiss?.invoke()
-            val h = activeHandoff
-            if (h != null && h.returnsToCaller) decided(false)
-        }
-        val retry = error.retry
-        val relayUrl = error.relayUrl
-        // "Change relay" → Settings with the relay field focused; the failed invite is
-        // simply dropped (nothing was minted), and "Add a device" can be tried again.
-        val changeRelay = {
-            engineError = null
-            error.onDismiss?.invoke()
-            focusRelay = true
-            if (route != Routes.SETTINGS) nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
-        }
-        AlertDialog(
-            onDismissRequest = dismiss,
-            confirmButton = {
-                if (retry != null) {
-                    TextButton(onClick = {
-                        engineError = null
-                        retry()
-                    }) { Text("Retry") }
-                } else {
-                    TextButton(onClick = dismiss) { Text("OK") }
-                }
-            },
-            dismissButton = when {
-                relayUrl != null -> (
-                    {
-                        Row {
-                            TextButton(onClick = changeRelay) { Text("Change relay") }
-                            if (retry != null) TextButton(onClick = dismiss) { Text("Cancel") }
-                        }
-                    }
-                    )
-
-                retry != null -> ({ TextButton(onClick = dismiss) { Text("Cancel") } })
-
-                else -> null
-            },
-            // A blank relayUrl is a build with no default relay and nothing in Settings:
-            // the message already says to add one, so don't print an empty URL under it.
-            title = { Text(if (relayUrl?.isBlank() == true) "No pairing relay" else titleFor(error.failure.kind)) },
-            text = {
-                Text(
-                    if (!relayUrl.isNullOrBlank()) {
-                        "${error.failure.message}\n\nPairing relay: $relayUrl"
-                    } else {
-                        error.failure.message
-                    },
-                )
+    val onboardingError by onboardingVm.error.collectAsStateWithLifecycle()
+    val loginEngineError by loginVm.error.collectAsStateWithLifecycle()
+    val pairError by pairVm.error.collectAsStateWithLifecycle()
+    val settingsError by settingsVm.error.collectAsStateWithLifecycle()
+    (inviteError ?: pairError ?: onboardingError ?: loginEngineError ?: settingsError)?.let { error ->
+        EngineErrorDialog(
+            error = error,
+            onClosed = ::errorClosed,
+            // "Change relay" → Settings with the relay field focused; the failed invite is
+            // simply dropped (nothing was minted), and "Add a device" can be tried again.
+            onChangeRelay = {
+                settingsVm.setRelayFocus(true)
+                if (route != Routes.SETTINGS) nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
             },
         )
     }
@@ -495,27 +412,24 @@ fun CruciformNavHost(
             }
 
             composable(Routes.CREATE) {
-                var backup by remember { mutableStateOf<RecoveryBackup?>(null) }
-                // Biometric-gated: a cancelled prompt or a keystore error is a Failed value —
-                // surface it and return to onboarding.
-                LaunchedEffect(Unit) {
-                    when (val result = engine.createIdentity()) {
-                        is EngineResult.Ready -> backup = result.value
-
-                        is EngineResult.Failed -> {
-                            engineError = EngineErrorState(result.failure)
-                            nav.popBackStack()
-                        }
-                    }
-                }
+                // Biometric-gated and run once per flow: a cancelled prompt or a keystore
+                // error is a dialog and a return to onboarding; a rotation keeps the secret.
+                LaunchedEffect(Unit) { onboardingVm.create() }
+                val backup by onboardingVm.backup.collectAsStateWithLifecycle()
                 val b = backup
                 if (b == null) {
                     Loading()
                 } else {
                     RecoveryBackupScreen(
                         backup = b,
-                        onBack = { nav.popBackStack() },
-                        onSaved = { goHome() },
+                        onBack = {
+                            onboardingVm.finished()
+                            nav.popBackStack()
+                        },
+                        onSaved = {
+                            onboardingVm.finished()
+                            goHome()
+                        },
                         stepLabel = "BACKUP REQUIRED",
                     )
                 }
@@ -524,7 +438,7 @@ fun CruciformNavHost(
             composable(Routes.RESTORE) {
                 RestoreScreen(
                     onBack = { nav.popBackStack() },
-                    onRestore = { engine.restoreIdentity(it) },
+                    onRestore = onboardingVm::restore,
                     onDone = { goHome() },
                 )
             }
@@ -542,7 +456,7 @@ fun CruciformNavHost(
                         onSettings = { nav.navigate(Routes.SETTINGS) },
                         onCopyIdentity = { clipboard.setText(AnnotatedString(active.identity.fullKey)) },
                         onDevice = { startInvite() },
-                        onDevices = { openDevices() },
+                        onDevices = { settingsVm.loadDevices(open = true) },
                         onSite = { /* site detail — later */ },
                     )
                 }
@@ -551,82 +465,35 @@ fun CruciformNavHost(
             composable(Routes.SETTINGS) {
                 val active = identityState as? IdentityState.Active
                 if (active != null) {
-                    // The persisted relay, re-read after every Save/Reset so the field and
-                    // the Default/Custom pill track the store (the engine reads the store
-                    // itself, at invite time).
-                    var relayUrl by remember { mutableStateOf(relaySettings.current()) }
-                    var relayIsDefault by remember { mutableStateOf(relaySettings.isDefault()) }
-                    var notifyUrl by remember { mutableStateOf(notifySettings.current()) }
-                    var notifyIsDefault by remember { mutableStateOf(notifySettings.isDefault()) }
+                    // The persisted endpoints (re-read after every Save/Reset so the field
+                    // and the Default/Custom pill track the store; the engine reads the
+                    // store itself, at invite / registration time) and their drafts.
+                    val relay by settingsVm.relay.state.collectAsStateWithLifecycle()
+                    val notify by settingsVm.notify.state.collectAsStateWithLifecycle()
+                    val focusRelay by settingsVm.focusRelay.collectAsStateWithLifecycle()
                     SettingsScreen(
                         state = active,
-                        notifyUrl = notifyUrl,
-                        notifyIsDefault = notifyIsDefault,
-                        onSaveNotify = { input ->
-                            notifySettings.set(input).also {
-                                notifyUrl = notifySettings.current()
-                                notifyIsDefault = notifySettings.isDefault()
-                            }
-                        },
-                        onResetNotify = {
-                            notifySettings.reset()
-                            notifyUrl = notifySettings.current()
-                            notifyIsDefault = true
-                        },
-                        relayUrl = relayUrl,
-                        relayIsDefault = relayIsDefault,
-                        onSaveRelay = { input ->
-                            relaySettings.set(input).also {
-                                relayUrl = relaySettings.current()
-                                relayIsDefault = relaySettings.isDefault()
-                            }
-                        },
-                        onResetRelay = {
-                            relaySettings.reset()
-                            relayUrl = relaySettings.current()
-                            relayIsDefault = true
-                        },
+                        notifyUrl = notify.url,
+                        notifyIsDefault = notify.isDefault,
+                        onSaveNotify = settingsVm.notify::save,
+                        onResetNotify = settingsVm.notify::reset,
+                        notifyDraft = notify.draft,
+                        onNotifyDraftChange = settingsVm.notify::onDraftChange,
+                        relayUrl = relay.url,
+                        relayIsDefault = relay.isDefault,
+                        onSaveRelay = settingsVm.relay::save,
+                        onResetRelay = settingsVm.relay::reset,
+                        relayDraft = relay.draft,
+                        onRelayDraftChange = settingsVm.relay::onDraftChange,
                         focusRelay = focusRelay,
-                        onRelayFocused = { focusRelay = false },
+                        onRelayFocused = { settingsVm.setRelayFocus(false) },
                         onRename = { /* rename dialog — later */ },
-                        onToggleBiometric = { enabled ->
-                            scope.launch {
-                                engine.setBiometricApproval(enabled).failureOrNull()
-                                    ?.let { engineError = EngineErrorState(it) }
-                            }
-                        },
-                        onRevoke = { site ->
-                            scope.launch {
-                                engine.revokeSite(site.id).failureOrNull()?.let { engineError = EngineErrorState(it) }
-                            }
-                        },
+                        onToggleBiometric = settingsVm::setBiometricApproval,
+                        onRevoke = settingsVm::revoke,
                         onManageSites = { /* full list — later */ },
-                        onRecoveryBackup = {
-                            scope.launch {
-                                // Biometric-gated; a cancelled prompt is a Failed, not a crash.
-                                when (val result = engine.revealRecoverySecret()) {
-                                    is EngineResult.Ready -> {
-                                        revealBackup = result.value
-                                        nav.navigate(Routes.RECOVERY)
-                                    }
-
-                                    is EngineResult.Failed -> engineError = EngineErrorState(result.failure)
-                                }
-                            }
-                        },
-                        onApprovalActivity = {
-                            scope.launch {
-                                when (val result = engine.approvalActivity()) {
-                                    is EngineResult.Ready -> {
-                                        approvalActivity = result.value
-                                        nav.navigate(Routes.ACTIVITY)
-                                    }
-
-                                    is EngineResult.Failed -> engineError = EngineErrorState(result.failure)
-                                }
-                            }
-                        },
-                        onDevices = { openDevices() },
+                        onRecoveryBackup = settingsVm::revealRecovery,
+                        onApprovalActivity = { settingsVm.loadActivity(open = true) },
+                        onDevices = { settingsVm.loadDevices(open = true) },
                         onAbout = { },
                         onSecurity = { },
                         onLicenses = { },
@@ -640,26 +507,11 @@ fun CruciformNavHost(
                     onEnterManually = { /* manual entry sheet — later */ },
                     onCode = { raw ->
                         when (val c = engine.parseScanned(raw)) {
-                            is ScannedCode.WebLogin -> scope.launch {
-                                loginCode = c
-                                // fetchLoginRequest resolves a failed challenge fetch to Failed
-                                // instead of throwing, so nothing escapes this coroutine as a FATAL.
-                                when (val result = engine.fetchLoginRequest(c)) {
-                                    is EngineResult.Ready -> {
-                                        loginRequest = result.value
-                                        nav.navigate(Routes.LOGIN) { popUpTo(Routes.SCAN) { inclusive = true } }
-                                    }
-
-                                    is EngineResult.Failed -> {
-                                        loginError = LoginErrorState.of(result.failure)
-                                        nav.popBackStack()
-                                    }
-                                }
-                            }
+                            is ScannedCode.WebLogin -> loginVm.open(c, fromScan = true)
 
                             // Join as the new device; on failure the scanner stays up under the
                             // error dialog so Retry re-joins the same invite without rescanning.
-                            is ScannedCode.PairInvite -> joinInvite(c, beforeVerify = { nav.popBackStack() })
+                            is ScannedCode.PairInvite -> pairVm.join(c, fromScan = true)
 
                             is ScannedCode.Unknown -> { /* not a Voidbind code — surfaced later */ }
                         }
@@ -668,58 +520,38 @@ fun CruciformNavHost(
             }
 
             composable(Routes.LOGIN) {
-                val req = loginRequest
+                val req by loginVm.request.collectAsStateWithLifecycle()
+                val pendingCode by loginVm.pendingCode.collectAsStateWithLifecycle()
+                val policy by loginVm.policy.collectAsStateWithLifecycle()
+                val request = req
                 when {
-                    req == null -> LaunchedEffect(Unit) { goHome() }
+                    // Back after process death: the code survived, the fetched request did
+                    // not — re-fetch it. Nothing to resume → Home.
+                    request == null -> if (pendingCode != null) {
+                        LaunchedEffect(pendingCode) { loginVm.resume() }
+                        Loading()
+                    } else {
+                        LaunchedEffect(Unit) { goHome() }
+                    }
 
                     // A push-woken, number-matching login: show the candidate grid and
                     // approve by the tapped number (v2). A decoy tap is refused by the RP.
-                    req.isNumberMatch -> NumberMatchApprovalScreen(
-                        request = req,
-                        onDeny = {
-                            scope.launch {
-                                engine.denyLogin() // best-effort audit record; the denial stands either way
-                                decided(false)
-                            }
-                        },
-                        onApprove = { chosen ->
-                            scope.launch {
-                                // A refused/failed approval (RP rejects, network drops) is a Failed
-                                // value, surfaced as an error dialog.
-                                val ok = approved(loginCode?.let { engine.approveNumberMatch(it, chosen) })
-                                // A failed approval during a deep-link handoff keeps the error on
-                                // screen; dismissing it returns to the caller.
-                                if (ok || activeHandoff?.returnsToCaller != true) decided(ok)
-                            }
-                        },
+                    request.isNumberMatch -> NumberMatchApprovalScreen(
+                        request = request,
+                        onDeny = loginVm::deny,
+                        onApprove = { chosen -> loginVm.approve(chosen) },
                     )
 
                     else -> {
                         // Fetch this RP's current approval policy when the sheet opens so it can
                         // show trusted/always-ask and offer the inline pin toggle.
-                        LaunchedEffect(req.domain) { loginPolicy = engine.sitePolicy(req.domain).valueOrNull() }
+                        LaunchedEffect(request.domain) { loginVm.loadPolicy(request.domain) }
                         LoginApprovalScreen(
-                            request = req,
-                            onDeny = {
-                                scope.launch {
-                                    engine.denyLogin() // best-effort audit record; the denial stands either way
-                                    decided(false)
-                                }
-                            },
-                            onApprove = {
-                                scope.launch {
-                                    val ok = approved(loginCode?.let { engine.approveLogin(it) })
-                                    if (ok || activeHandoff?.returnsToCaller != true) decided(ok)
-                                }
-                            },
-                            policy = loginPolicy,
-                            onSetAlwaysAsk = { alwaysAsk ->
-                                scope.launch {
-                                    engine.setAlwaysAsk(req.domain, alwaysAsk).failureOrNull()
-                                        ?.let { engineError = EngineErrorState(it) }
-                                    loginPolicy = engine.sitePolicy(req.domain).valueOrNull()
-                                }
-                            },
+                            request = request,
+                            onDeny = loginVm::deny,
+                            onApprove = { loginVm.approve() },
+                            policy = policy,
+                            onSetAlwaysAsk = { alwaysAsk -> loginVm.setAlwaysAsk(request.domain, alwaysAsk) },
                         )
                     }
                 }
@@ -781,18 +613,27 @@ fun CruciformNavHost(
 
             composable(Routes.PAIR_VERIFY) {
                 // The initiator's session comes from the coordinator (it stays valid across a
-                // return from the RP app); the responder's from the join path.
+                // return from the RP app); the responder's from the join flow.
                 val initiator = when (val st = inviteState) {
                     is InviteCoordinator.State.Joined -> st.session
                     is InviteCoordinator.State.Confirming -> st.session
                     is InviteCoordinator.State.Failed -> st.resume?.session
                     else -> null
                 }
-                val ses = initiator ?: pairSession
-                if (ses == null) {
-                    LaunchedEffect(Unit) { goHome() }
-                } else if (initiator != null) {
-                    PairVerifyScreen(
+                val responder by pairVm.session.collectAsStateWithLifecycle()
+                val pendingInvite by pairVm.pendingInvite.collectAsStateWithLifecycle()
+                val ses = initiator ?: responder
+                when {
+                    // Back after process death mid-join: the handshake is gone, the invite
+                    // is not — the dialog offers to re-join it. Nothing to resume → Home.
+                    ses == null -> if (pendingInvite != null) {
+                        LaunchedEffect(pendingInvite) { if (!pairVm.resumeInterrupted()) goHome() }
+                        Loading()
+                    } else {
+                        LaunchedEffect(Unit) { goHome() }
+                    }
+
+                    initiator != null -> PairVerifyScreen(
                         session = ses,
                         onCancel = {
                             invites.cancel()
@@ -802,32 +643,13 @@ fun CruciformNavHost(
                         // Retry re-confirms the SAME session — no re-mint).
                         onConfirm = { invites.confirm() },
                     )
-                } else {
-                    PairVerifyScreen(
+
+                    // confirm returns a value for every failure (relay dropped while the cert
+                    // was in flight, cert did not verify, biometric cancelled).
+                    else -> PairVerifyScreen(
                         session = ses,
                         onCancel = { decided(false) },
-                        onConfirm = {
-                            // confirmPairing returns a value for every failure (relay dropped while
-                            // the cert was in flight, cert did not verify, biometric cancelled).
-                            fun confirm() {
-                                scope.launch {
-                                    when (val result = engine.confirmPairing()) {
-                                        is EngineResult.Ready -> decided(true)
-
-                                        is EngineResult.Failed -> {
-                                            // The error stays on screen (a deep-link caller is told
-                                            // "not approved" only when the human dismisses it).
-                                            engineError = EngineErrorState(
-                                                result.failure,
-                                                retry = if (result.failure.retryable) ({ confirm() }) else null,
-                                            )
-                                            if (activeHandoff?.returnsToCaller != true && !result.failure.retryable) decided(false)
-                                        }
-                                    }
-                                }
-                            }
-                            confirm()
-                        },
+                        onConfirm = pairVm::confirm,
                     )
                 }
             }
@@ -868,61 +690,48 @@ fun CruciformNavHost(
             }
 
             composable(Routes.RECOVERY) {
-                val b = revealBackup
+                // The revealed secret is memory-only: after process death it is gone and
+                // this screen closes (the user re-authenticates to see it again).
+                val revealed by settingsVm.revealed.collectAsStateWithLifecycle()
+                val b = revealed
+                val close = {
+                    settingsVm.clearRecovery()
+                    nav.popBackStack()
+                    Unit
+                }
                 if (b == null) {
                     LaunchedEffect(Unit) { nav.popBackStack() }
                 } else {
                     RecoveryBackupScreen(
                         backup = b,
-                        onBack = { nav.popBackStack() },
-                        onSaved = { nav.popBackStack() },
+                        onBack = close,
+                        onSaved = close,
                         stepLabel = "RECOVERY SECRET",
                     )
                 }
             }
 
             composable(Routes.ACTIVITY) {
+                LaunchedEffect(Unit) { settingsVm.loadActivity(open = false) }
+                val activity by settingsVm.activity.collectAsStateWithLifecycle()
                 ApprovalActivityScreen(
-                    activity = approvalActivity,
+                    activity = activity,
                     onBack = { nav.popBackStack() },
                 )
             }
 
             composable(Routes.DEVICES) {
+                LaunchedEffect(Unit) { settingsVm.loadDevices(open = false) }
+                val devices by settingsVm.devices.collectAsStateWithLifecycle()
                 DevicesScreen(
-                    devices = memberDevices,
+                    devices = devices,
                     onBack = { nav.popBackStack() },
                     onAddDevice = { startInvite() },
-                    onRemove = { device ->
-                        scope.launch {
-                            // removeDevice never throws; a Failed (cancelled prompt, not a member, no
-                            // identity) lands in the dialog.
-                            when (val result = engine.removeDevice(device.id)) {
-                                is EngineResult.Ready -> engine.devices().valueOrNull()?.let { memberDevices = it }
-                                is EngineResult.Failed -> engineError = EngineErrorState(result.failure)
-                            }
-                        }
-                    },
+                    // removeDevice never throws; a Failed (cancelled prompt, not a member, no
+                    // identity) lands in the dialog.
+                    onRemove = settingsVm::removeDevice,
                 )
             }
         }
-    }
-}
-
-/** Dialog title per failure kind — the message itself already says what to do. */
-private fun titleFor(kind: EngineFailure.Kind): String = when (kind) {
-    EngineFailure.Kind.UNREACHABLE -> "Can't reach the relay"
-    EngineFailure.Kind.TIMEOUT -> "Pairing timed out"
-    EngineFailure.Kind.REJECTED -> "Pairing refused"
-    EngineFailure.Kind.PROTOCOL -> "Pairing didn't verify"
-    EngineFailure.Kind.CANCELLED -> "Cancelled"
-    EngineFailure.Kind.EXPIRED -> "Expired"
-    EngineFailure.Kind.INTERNAL -> "Something went wrong"
-}
-
-@Composable
-private fun Loading() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = VbColors.Mint)
     }
 }
