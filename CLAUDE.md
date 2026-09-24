@@ -132,7 +132,7 @@ targets are skipped on a Linux host).
 ./gradlew jvmTest                          # primary: compiles + runs common + JVM tests
 ./gradlew compileReleaseKotlinAndroid      # Android library compile (needs the SDK)
 ./gradlew :androidApp:assembleDebug :androidApp:testDebugUnitTest   # Cruciform app
-./gradlew compileKotlinIosSimulatorArm64  # iOS compile (macOS only)
+./gradlew compileKotlinIosSimulatorArm64 iosSimulatorArm64Test      # iOS (macOS only)
 ./gradlew assembleVoidbindXCFramework      # → build/XCFrameworks/{debug,release}/Voidbind.xcframework
 ```
 
@@ -141,10 +141,12 @@ Targets: `jvm()` (dev/test, software keystore), `androidTarget()` (StrongBox/TEE
 as the `Voidbind` XCFramework). Tests in `commonTest` run on every target; `jvmTest`
 adds the golden-vector parity suites, the JVM keystore test and live-voidbind-go
 interop (skipped when `go`/the voidbind-go checkout is absent). CI (`test.yml`) runs
-`jvmTest` + the Android compile, the app build + unit tests, and the iOS compile on
-macOS. `iosSimulatorArm64Test` is not in CI yet: the commonTest cases that compare
-Ed25519 signature BYTES against Go vectors fail on Apple, because CryptoKit's
-Ed25519 signing is randomized (the signatures still verify).
+`jvmTest` + the Android compile, the app build + unit tests, and the iOS compile +
+simulator tests on macOS. The commonTest cases pinned to Go signature vectors
+compare bytes only where Ed25519 signing is deterministic (JDK, JVM/Android).
+CryptoKit signs with randomized Ed25519, so on iOS they check that the payload is
+byte-identical and that both our signature and Go's verify (`ed25519SigningIsDeterministic`,
+`assertMatchesGoToken` in commonTest).
 
 Published as `one.rarebit.voidbind:voidbind-client` (GitHub Packages) by
 `publish.yml` on a `v*` tag, which must equal `version` in `build.gradle.kts`. The

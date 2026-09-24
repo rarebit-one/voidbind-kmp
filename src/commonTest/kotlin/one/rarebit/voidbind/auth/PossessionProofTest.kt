@@ -3,6 +3,7 @@ package one.rarebit.voidbind.auth
 import one.rarebit.voidbind.Cert
 import one.rarebit.voidbind.Ed25519Engine
 import one.rarebit.voidbind.Ed25519Signer
+import one.rarebit.voidbind.assertMatchesGoToken
 import one.rarebit.voidbind.crypto.Hex
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,9 +13,11 @@ import kotlin.test.assertTrue
 /**
  * Cross-language golden vectors against the Go implementation relying parties run
  * (voidbind-go v0.5.0 `enrolment.SignPossession`). Both vectors were minted by the
- * REAL Go code with fixed seeds and clocks (Ed25519 is deterministic), so a
- * byte-for-byte match here proves a proof this library mints is what
- * `enrolment.VerifyPossession` / heyarr's `deviceauth.Verify` accepts.
+ * REAL Go code with fixed seeds and clocks. The JDK's Ed25519 is deterministic, so
+ * on JVM/Android a byte-for-byte match proves a proof this library mints is what
+ * `enrolment.VerifyPossession` / heyarr's `deviceauth.Verify` accepts. On iOS
+ * (randomized CryptoKit Ed25519) the payload must match and both signatures must
+ * verify (see [one.rarebit.voidbind.assertMatchesGoToken]).
  *
  * If a constant ever has to change to make this pass, the wire format broke — stop
  * and investigate. The same vectors, as JSON, live in
@@ -53,14 +56,14 @@ class PossessionProofTest {
 
     @Test
     fun mintsTheExactGoProof_vectorA() {
-        assertEquals(proofA, PossessionProof.mint(certA, signer(deviceSeedA), nowA))
+        assertMatchesGoToken(proofA, PossessionProof.mint(certA, signer(deviceSeedA), nowA), devicePub(certA))
     }
 
     @Test
     fun mintsTheExactGoProof_vectorB() {
-        assertEquals(proofB, PossessionProof.mint(certB, signer(deviceSeedB), nowB))
+        assertMatchesGoToken(proofB, PossessionProof.mint(certB, signer(deviceSeedB), nowB), devicePub(certB))
         // A non-positive ttl means the Go default, as in SignPossession.
-        assertEquals(proofB, PossessionProof.mint(certB, signer(deviceSeedB), nowB, ttlSeconds = 0))
+        assertMatchesGoToken(proofB, PossessionProof.mint(certB, signer(deviceSeedB), nowB, ttlSeconds = 0), devicePub(certB))
     }
 
     @Test

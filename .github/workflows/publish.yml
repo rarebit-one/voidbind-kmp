@@ -7,8 +7,8 @@ name: publish
 # Triggers on a published GitHub Release or a pushed `v*` tag. Before publishing it
 # (1) fails if the tag does not match `version` in build.gradle.kts — a `v0.9.0`
 # tag must never push a `0.8.0` artifact (or 409 against an existing one) — and
-# (2) re-runs the JVM tests on the tagged commit, so a tag cut from an untested
-# commit cannot publish. (iosSimulatorArm64Test is not run: see test.yml.)
+# (2) re-runs the JVM + iOS-simulator tests on the tagged commit, so a tag cut from
+# an untested commit cannot publish.
 on:
   release:
     types: [published]
@@ -61,7 +61,7 @@ jobs:
           echo "tag $TAG matches version $version"
       - name: test before publishing
         run: >-
-          ./gradlew jvmTest
+          ./gradlew jvmTest iosSimulatorArm64Test
           --no-daemon --stacktrace
       - name: publish voidbind-client to GitHub Packages
         run: >-

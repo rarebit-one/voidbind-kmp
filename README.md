@@ -153,7 +153,7 @@ seam.
   (private; a read requires a token with `read:packages`).
 - **Published by CI** on a `v*` tag / GitHub Release (`.github/workflows/publish.yml`).
   The tag must equal `version` in `build.gradle.kts` (`v0.8.0` ↔ `0.8.0`), and the
-  JVM tests run before anything is published.
+  JVM + iOS-simulator tests run before anything is published.
 
 ### What the artifact does NOT carry (stays per-app)
 
@@ -315,6 +315,7 @@ Kotlin 2.3.20). The Android target needs an Android SDK (`ANDROID_HOME` /
 ./gradlew jvmTest                          # compile + run common + JVM tests
 ./gradlew compileReleaseKotlinAndroid      # Android compile
 ./gradlew compileKotlinIosArm64            # iOS device compile (Kotlin/Native)
+./gradlew iosSimulatorArm64Test            # commonTest on the iOS simulator (macOS)
 ./gradlew assembleVoidbindXCFramework      # → build/XCFrameworks/{debug,release}/Voidbind.xcframework
 ```
 
