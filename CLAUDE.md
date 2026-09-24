@@ -123,7 +123,9 @@ third-party deps there without a reason as strong as cryptography-kotlin's.
 
 Host toolchain: **JDK 21** (bytecode targets JVM 17), no system `gradle`/`kotlin` —
 use the **wrapper** (`./gradlew`, self-downloads Gradle 8.9; the Kotlin plugin is
-**2.3.20**, required by cryptography-kotlin 0.6.0's metadata; AGP 8.7.3). The
+**2.3.20**, required by cryptography-kotlin 0.6.0's metadata; AGP 8.7.3). All
+plugin and dependency versions live in `gradle/libs.versions.toml` (the `libs`
+catalog), shared by the root library and `:androidApp`. The
 Android target and the `:androidApp` module need an Android SDK (`ANDROID_HOME` or
 `local.properties`). The iOS targets compile only on **macOS** (Kotlin/Native Apple
 targets are skipped on a Linux host).

@@ -4,8 +4,14 @@ plugins {
     // Kotlin 2.3.x: cryptography-kotlin 0.6.0 (the release that adds Ed25519 +
     // X25519 across JDK/CryptoKit/OpenSSL) ships 2.3.x metadata, so the project
     // compiler must match. AGP bumped to a version compatible with Gradle 8.9.
-    kotlin("multiplatform") version "2.3.20"
-    id("com.android.library") version "8.7.3"
+    // Versions live in gradle/libs.versions.toml.
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.library)
+    // :androidApp's plugins, declared here (not applied) so the whole build shares
+    // one plugin classpath and :androidApp can apply them by alias.
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.compose.compiler) apply false
     // Publishes the shared client (identity/net/flow wire brain + DeviceKeyStore
     // seam) as the consumable `voidbind-client` artifact to GitHub Packages, so
     // relying-party apps (allthing-android, heyarr-mobile) depend on it over the
@@ -52,8 +58,7 @@ repositories {
 // delegates to vetted primitives per platform (JDK on JVM/Android, CryptoKit on
 // Apple). The HARDWARE wrapping key that seals the Ed25519 seed stays platform
 // native (AndroidKeyStore / Secure Enclave) and never touches this library.
-// See docs/adr/0001-hardware-keystore-mechanism.md.
-val cryptographyVersion = "0.6.0"
+// See docs/adr/0001-hardware-keystore-mechanism.md. (Version: gradle/libs.versions.toml.)
 
 kotlin {
     // `expect`/`actual` classes are a Beta feature we lean on for DeviceKeyStore;
@@ -103,12 +108,12 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation("dev.whyoleg.cryptography:cryptography-core:$cryptographyVersion")
+            implementation(libs.cryptography.core)
             // The "optimal" provider selects the best backend per target: the JDK
             // provider on JVM/Android, CryptoKit on Apple. One dependency, no
             // per-target wiring, and Ed25519/X25519 are supported on all of them
             // (cryptography-kotlin 0.6.0).
-            implementation("dev.whyoleg.cryptography:cryptography-provider-optimal:$cryptographyVersion")
+            implementation(libs.cryptography.provider.optimal)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
