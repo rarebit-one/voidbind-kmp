@@ -44,6 +44,7 @@ deliberate and load-bearing.
 |---|---|---|
 | HKDF label | `heyarr/recovery/v1/user-identity-ed25519-seed` | derives the user identity Ed25519 seed from the recovery secret |
 | Recovery HRP | `heyarr` | bech32m human-readable-part for the recovery secret |
+| User fingerprint label | `voidbind/user-fingerprint/v1` | domain tag of the printable user fingerprint (`UserFingerprint`, voidbind-go ADR-0010); pinned by `vectors/recovery/` |
 | Pairing labels | `heyarr/pairing/v1/{commit,sas}` | pairing transcript domain separation |
 
 ### Algorithms (fixed)
