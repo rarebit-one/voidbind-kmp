@@ -1,6 +1,7 @@
 package one.rarebit.cruciform.platform
 
 import android.content.Context
+import android.content.SharedPreferences
 import one.rarebit.voidbind.policy.ApprovalAuditEntry
 import one.rarebit.voidbind.policy.ApprovalAuditLog
 import one.rarebit.voidbind.policy.ApprovalDecision
@@ -20,9 +21,9 @@ import one.rarebit.voidbind.policy.SitePolicyStore
  * the hardware-sealed [SealedSecretStore]. Records are line-delimited with a unit
  * separator between fields, the same shape as [IdentityStore]'s trusted-sites blob.
  */
-class ApprovalPolicyStore(context: Context) : SitePolicyStore, ApprovalAuditLog {
+class ApprovalPolicyStore(private val prefs: SharedPreferences) : SitePolicyStore, ApprovalAuditLog {
 
-    private val prefs = context.getSharedPreferences("voidbind.policy", Context.MODE_PRIVATE)
+    constructor(context: Context) : this(context.getSharedPreferences("voidbind.policy", Context.MODE_PRIVATE))
 
     // --- SitePolicyStore ------------------------------------------------------
 
