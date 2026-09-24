@@ -72,9 +72,12 @@ object PossessionProof {
     /** `base64url(sha256(certToken))` — the `crt` field, computed over the token's UTF-8 bytes. */
     fun certHash(certToken: String): String = Base64Url.encode(sha256.hashBlocking(certToken.encodeToByteArray()))
 
-    /** The exact JSON bytes the device signs: `{"v":2,"crt":…,"iat":…,"exp":…}`. */
+    /**
+     * The exact JSON bytes the device signs: `{"v":2,"typ":"voidbind.possession","crt":…,"iat":…,"exp":…}`
+     * (ADR-0009 phase 2: `typ` second, after `v`).
+     */
     fun signingBytes(certToken: String, issuedAt: Long, expiresAt: Long): ByteArray = signingBytesTyped(
-        "",
+        TokenType.POSSESSION,
         certToken,
         issuedAt,
         expiresAt,
@@ -108,11 +111,11 @@ object PossessionProof {
         signer: Ed25519Signer,
         now: Long,
         ttlSeconds: Long = DEFAULT_TTL_SECONDS,
-    ): String = mintTyped("", certToken, signer, now, ttlSeconds)
+    ): String = mintTyped(TokenType.POSSESSION, certToken, signer, now, ttlSeconds)
 
     /**
-     * [mint] with an explicit ADR-0009 `typ` (`""` mints the untyped legacy body):
-     * the phase-2 emit path, internal until every verifier accepts `typ`.
+     * [mint] with an explicit ADR-0009 `typ`. Since phase 2 [mint] passes
+     * [TokenType.POSSESSION]; `""` mints the untyped legacy body (legacy fixtures only).
      */
     internal fun mintTyped(
         typ: String,

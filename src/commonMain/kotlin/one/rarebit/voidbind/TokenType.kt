@@ -5,11 +5,12 @@ package one.rarebit.voidbind
  * a `typ` member, placed **second** in the body, right after `v`. It is a byte-exact
  * port of voidbind-go `internal/sigtoken.Typ` / `CheckTyp`.
  *
- * Phase 1 ("accept", which this implements) verifies `typ` when a token carries it
- * and still accepts an untyped token under the legacy rules. Nothing emits `typ` by
- * default yet. Minting starts in phase 2, once every verifier accepts it, through
- * the internal typed mint paths ([MembershipOp.signTyped],
- * [one.rarebit.voidbind.auth.PossessionProof.mintTyped], and [Cert.typ]).
+ * Verifiers check `typ` when a token carries it and still accept an untyped token
+ * under the legacy rules; that is phase 1, and it stays true until phase 3. Since phase
+ * 2 ("emit") every minter emits it: [MembershipOp.sign] (`voidbind.op`),
+ * [one.rarebit.voidbind.auth.PossessionProof.mint] (`voidbind.possession`), and a
+ * new [Cert] (`voidbind.cert`, its default [Cert.typ]). The typed mint paths take
+ * `""` only for legacy fixtures.
  *
  * Values are dotted, not slashed, so no JSON encoder ever escapes them, and they
  * are compared byte-for-byte.

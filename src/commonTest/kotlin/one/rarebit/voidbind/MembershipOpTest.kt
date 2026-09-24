@@ -39,7 +39,10 @@ class MembershipOpTest {
     @Test
     fun genesisAddReproducesTheGoTokenByteForByte() {
         assertEquals(usr, KeyRef.ed25519(pub(genesisSeed)).render(), "genesis seed must derive the vector's usr")
-        val tok = MembershipOp.sign(
+        // genesis-a-b is legacy (untyped) history: reproduce it through the untyped path.
+        // The public sign emits typ since ADR-0009 phase 2 (see TypVectorTest).
+        val tok = MembershipOp.signTyped(
+            "",
             signer(genesisSeed), pub(genesisSeed), usr, MembershipOp.Kind.ADD, aId, aEnc,
             prev = emptyList(), issuedAt = 1_788_264_000L, lifetimeSeconds = 90L * 24 * 3600,
         )
@@ -51,7 +54,8 @@ class MembershipOpTest {
     @Test
     fun memberAddCitingHeadsReproducesTheGoHash() {
         assertEquals(aId, KeyRef.ed25519(pub(aSeed)).render())
-        val tok = MembershipOp.sign(
+        val tok = MembershipOp.signTyped(
+            "",
             signer(aSeed), pub(aSeed), usr, MembershipOp.Kind.ADD, bId, bEnc,
             prev = listOf(addAHash), issuedAt = 1_788_264_300L, lifetimeSeconds = 90L * 24 * 3600,
         )
