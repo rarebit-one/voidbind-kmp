@@ -141,12 +141,23 @@ data class MembershipOp(
             prev: List<String>,
             issuedAt: Long,
             lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS,
-        ): String = signTyped("", signer, byPublicKey, usr, kind, dev, deviceEnc, prev, issuedAt, lifetimeSeconds)
+        ): String = signTyped(
+            TokenType.OP,
+            signer,
+            byPublicKey,
+            usr,
+            kind,
+            dev,
+            deviceEnc,
+            prev,
+            issuedAt,
+            lifetimeSeconds,
+        )
 
         /**
-         * [sign] with an explicit ADR-0009 `typ` (`""` mints the untyped legacy body).
-         * This is the phase-2 emit path. It stays internal until every verifier
-         * accepts `typ`.
+         * [sign] with an explicit ADR-0009 `typ`. Since phase 2 [sign] passes
+         * [TokenType.OP]; `""` mints the untyped legacy body, which only the legacy
+         * fixtures still use.
          */
         internal fun signTyped(
             typ: String,

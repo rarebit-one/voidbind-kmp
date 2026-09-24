@@ -41,3 +41,12 @@ verbatim from voidbind-go `testvectors/vectors/` at `VOIDBIND_GO_REF`. See
 the typed mint paths reproduce Go's typed tokens byte for byte.
 `MembershipVectorTest` picks up the `typed-*` membership cases on its own. They
 include a typed cosigned remove, which fails if `coreBytes` drops `typ`.
+
+## `device-scheme-vector-typed.json`
+
+This is the Device authorization-scheme credential as voidbind-go mints it since
+ADR-0009 phase 2: the same keys and clocks as `device-scheme-vector.json`, with
+`typ` in the cert and in the possession proof. It is copied verbatim from
+voidbind-go. `DeviceSchemeVectorTest` checks two things:
+- this library's public minters produce exactly this file;
+- the legacy file still reproduces through the untyped mint path.

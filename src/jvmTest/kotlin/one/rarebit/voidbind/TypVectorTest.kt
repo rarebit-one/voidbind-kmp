@@ -159,6 +159,10 @@ class TypVectorTest {
             val parsed = Cert.parse(tok)
             assertEquals(TokenType.CERT, parsed.cert.typ)
             assertEquals(tok, parsed.cert.encode(signer(f, "user")))
+            // A new Cert (default typ) mints the typed cert.
+            val c = parsed.cert
+            val fresh = Cert(c.version, c.user, c.device, c.deviceEnc, c.issuedAt, c.expiresAt)
+            assertEquals(tok, fresh.encode(signer(f, "user")))
             assertTrue(parsed.verify(Ed25519Engine.verifier()))
         }
         load("typed-possession").let { f ->
@@ -182,14 +186,22 @@ class TypVectorTest {
             val signedBody = Base64Url.decode(tok.substringBefore('.')).decodeToString()
             assertEquals(signedBody, MembershipOp.coreBytes(op).decodeToString())
         }
-        // The public minters still emit no typ in phase 1.
+        // Phase 2: the public minters ARE the typed paths.
         load("typed-op").let { f ->
-            val op = MembershipOp.verify((f["tokens"] as Map<String, String>)["token"]!!)
-            val legacy = MembershipOp.sign(
+            val tok = (f["tokens"] as Map<String, String>)["token"]!!
+            val op = MembershipOp.verify(tok)
+            val pub = MembershipOp.sign(
                 signer(f, "user"), keyBytes(f, "user"), op.user, op.kind, op.device, op.deviceEnc,
                 op.prev, op.issuedAt, op.expiresAt - op.issuedAt,
             )
-            assertTrue("typ" !in body(legacy), "MembershipOp.sign emitted typ in phase 1")
+            assertEquals(tok, pub, "MembershipOp.sign must emit the typed op")
+        }
+        load("typed-possession").let { f ->
+            val toks = f["tokens"] as Map<String, String>
+            val b = body(toks["token"]!!)
+            val iat = b["iat"] as Long
+            val pub = PossessionProof.mint(toks["cert"]!!, signer(f, "device"), iat, (b["exp"] as Long) - iat)
+            assertEquals(toks["token"], pub, "PossessionProof.mint must emit the typed proof")
         }
     }
 }

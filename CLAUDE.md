@@ -69,19 +69,22 @@ deliberate and load-bearing.
   `src/jvmTest/resources/vectors/VOIDBIND_GO_REF`; the `vector-drift` CI job
   (`scripts/check-vector-drift.sh`) fails on any difference. `MembershipVectorTest` enumerates the directory, so a
   newly copied vector is picked up automatically.
-- **Token type (`typ`, voidbind-go ADR-0009).** Every signed token may carry a
+- **Token type (`typ`, voidbind-go ADR-0009).** Every signed token carries a
   `typ` member, placed second in the body right after `v`: `voidbind.cert`,
-  `voidbind.possession`, `voidbind.op` or `voidbind.grant`. This library
-  implements phase 1 ("accept"):
-  - [`TokenType.check`](src/commonMain/kotlin/one/rarebit/voidbind/TokenType.kt)
-    verifies `typ` when a token carries it. `Cert.parse`, `PossessionProof.verify`,
-    `MembershipOp.verify` and `MembershipOp.user` all run it straight after
-    splitting the token, before the signature.
-  - An untyped token still takes the legacy path.
+  `voidbind.possession`, `voidbind.op` or `voidbind.grant`.
+  - **Phase 2 ("emit") is implemented.** The minters emit `typ`:
+    `MembershipOp.sign`, `PossessionProof.mint`/`signingBytes`, and a new `Cert`
+    (`typ` defaults to `voidbind.cert`).
+  - Verification is phase 1's:
+    [`TokenType.check`](src/commonMain/kotlin/one/rarebit/voidbind/TokenType.kt)
+    checks a present `typ` straight after the token is split, and an untyped
+    token still takes the legacy path.
   - `MembershipOp.coreBytes` includes `typ`, which the cosig preimage needs.
-  - The typed mint paths (`MembershipOp.signTyped`, `PossessionProof.mintTyped`,
-    `Cert(typ = …)`) are internal or opt-in until phase 2.
+  - The untyped mint paths (`signTyped("")`, `mintTyped("")`, `Cert(typ = "")`)
+    exist only to reproduce legacy Go goldens in tests.
   - `vectors/typ/` holds the phase verdicts, replayed by `TypVectorTest`.
+    `device-scheme-vector-typed.json` is the credential the public minters must
+    produce.
 - **Recovery secret** = 256-bit, **bech32m** (BIP-350, *not* bech32) with HRP
   `heyarr`.
 - **Pairing** = short-authentication-string with **commit-before-reveal**: each

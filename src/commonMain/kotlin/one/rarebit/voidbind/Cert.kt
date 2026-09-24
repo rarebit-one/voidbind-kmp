@@ -34,10 +34,11 @@ data class Cert(
     val issuedAt: Long,
     val expiresAt: Long,
     /**
-     * The ADR-0009 `typ` claim: [TokenType.CERT], or `""` for the untyped body every
-     * minter emits until phase 2. When set, it is signed second, after `v`.
+     * The ADR-0009 `typ` claim, signed second after `v`. It defaults to [TokenType.CERT]:
+     * since phase 2 every new cert is typed. A legacy cert parses with `""` and
+     * re-encodes untyped, byte for byte.
      */
-    val typ: String = "",
+    val typ: String = TokenType.CERT,
 ) {
     init {
         require(user.alg == Labels.ALG_ED25519) { "usr must be ed25519, got ${user.alg}" }

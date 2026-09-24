@@ -41,6 +41,21 @@ class PossessionProofTest {
     private val deviceSeedB = Hex.decode("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f")
     private val nowB = 1_788_350_400L
 
+    // Vector B as minted since ADR-0009 phase 2 (voidbind-go
+    // device-scheme-vector-typed.json): what PossessionProof.mint emits now.
+    private val certBTyped =
+        "eyJ2IjoyLCJ0eXAiOiJ2b2lkYmluZC5jZXJ0IiwidXNyIjoiZWQyNTUxOTowM2ExMDdiZmYzY2UxMGJlMWQ3MGRkMT" +
+            "hlNzRiYzA5OTY3ZTRkNjMwOWJhNTBkNWYxZGRjODY2NDEyNTUzMWI4IiwiZGV2IjoiZWQyNTUxOTpjZDE0YjM3Zjk1" +
+            "NmU5NTMxOTRmZjdmYjczYjNkODFkY2M1NjFkNjFhNzUzODA5NGI3YzNlMWE2NDNlZTVmM2FhIiwiZGVuYyI6IngyNT" +
+            "UxOTowMDExMjIzMzQ0NTU2Njc3ODg5OWFhYmJjY2RkZWVmZjAwMTEyMjMzNDQ1NTY2Nzc4ODk5YWFiYmNjZGRlZWZm" +
+            "IiwiaWF0IjoxNzg4MzA3MjAwLCJleHAiOjE3OTYwODMyMDB9.ilXUzCfZiDujpgRY-hxOOhDYwIoWdbCvkAVAWsjYp" +
+            "HMr3aoanr9POUSqYkYjyS-qIhxnivB-5cpHONzYCpZaAg"
+
+    private val proofBTyped =
+        "eyJ2IjoyLCJ0eXAiOiJ2b2lkYmluZC5wb3NzZXNzaW9uIiwiY3J0Ijoib2F1UHlXQ2FYckVwWW1mM01tdUM5Q2ppTT" +
+            "dLZGxYVGtKaWRjN0o0OG1EUSIsImlhdCI6MTc4ODM1MDQwMCwiZXhwIjoxNzg4MzUwNTIwfQ.bzgcN04eLQxso30rj" +
+            "oeCLUO8eGLGIY1WisbnIboa2o5IXvlI-yG8flGSDJl5hHgz_mP2y1yON8RJfkZVo75RAA"
+
     private val verifier = Ed25519Engine.verifier()
     private fun signer(seed: ByteArray) = Ed25519Signer { Ed25519Engine.sign(seed, it) }
     private fun devicePub(token: String) = Cert.parse(token).cert.device.bytes
@@ -49,21 +64,32 @@ class PossessionProofTest {
     fun signingBytesMatchGoJson() {
         assertEquals(
             """{"v":2,"crt":"Itm5Xj9VkmkcdAcNWrc4C4AMKyZiNlvpTY3g_KamjLI","iat":1788350400,"exp":1788350520}""",
-            PossessionProof.signingBytes(certB, nowB, nowB + 120).decodeToString(),
+            PossessionProof.signingBytesTyped("", certB, nowB, nowB + 120).decodeToString(),
+        )
+        // Phase 2: the public signingBytes carries typ, second after v.
+        assertEquals(
+            """{"v":2,"typ":"voidbind.possession","crt":"oauPyWCaXrEpYmf3MmuC9CjiM7KdlXTkJidc7J48mDQ",""" +
+                """"iat":1788350400,"exp":1788350520}""",
+            PossessionProof.signingBytes(certBTyped, nowB, nowB + 120).decodeToString(),
         )
         assertEquals("lCebY0iM34Hc4gtFPDmgZ6KJLYa4z74bIaSXRXUuwMY", PossessionProof.certHash(certA))
     }
 
     @Test
     fun mintsTheExactGoProof_vectorA() {
-        assertMatchesGoToken(proofA, PossessionProof.mint(certA, signer(deviceSeedA), nowA), devicePub(certA))
+        // A legacy (untyped) Go proof, reproduced through the untyped mint path.
+        assertMatchesGoToken(proofA, PossessionProof.mintTyped("", certA, signer(deviceSeedA), nowA), devicePub(certA))
     }
 
     @Test
     fun mintsTheExactGoProof_vectorB() {
-        assertMatchesGoToken(proofB, PossessionProof.mint(certB, signer(deviceSeedB), nowB), devicePub(certB))
+        val legacy = PossessionProof.mintTyped("", certB, signer(deviceSeedB), nowB)
+        assertMatchesGoToken(proofB, legacy, devicePub(certB))
+        // Phase 2: the public mint emits the typed proof, byte for byte with Go.
+        assertMatchesGoToken(proofBTyped, PossessionProof.mint(certBTyped, signer(deviceSeedB), nowB), devicePub(certB))
         // A non-positive ttl means the Go default, as in SignPossession.
-        assertMatchesGoToken(proofB, PossessionProof.mint(certB, signer(deviceSeedB), nowB, ttlSeconds = 0), devicePub(certB))
+        val zeroTtl = PossessionProof.mint(certBTyped, signer(deviceSeedB), nowB, ttlSeconds = 0)
+        assertMatchesGoToken(proofBTyped, zeroTtl, devicePub(certB))
     }
 
     @Test
