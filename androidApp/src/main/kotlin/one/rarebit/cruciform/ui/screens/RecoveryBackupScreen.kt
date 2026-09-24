@@ -1,7 +1,6 @@
 package one.rarebit.cruciform.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.VpnKey
@@ -30,8 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -57,7 +53,6 @@ fun RecoveryBackupScreen(
     modifier: Modifier = Modifier,
 ) {
     SecureScreen()
-    val clipboard = LocalClipboardManager.current
     var revealed by remember { mutableStateOf(true) }
     var wroteDown by remember { mutableStateOf(false) }
     var canRead by remember { mutableStateOf(false) }
@@ -114,18 +109,18 @@ fun RecoveryBackupScreen(
                         style = VbType.RecoveryMono,
                         color = VbColors.Mint,
                     )
+                    // No copy action: the root secret must not pass through the clipboard,
+                    // which keyboards and clipboard managers sync off the device. Write it down.
                     VSpace(14)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { clipboard.setText(AnnotatedString(backup.rawSecret)) },
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(18.dp))
-                        HSpace(8)
-                        Text("Hold to copy", style = MaterialTheme.typography.labelLarge, color = VbColors.Mint)
-                    }
+                    Text(
+                        if (backup.keptOnDevice) {
+                            "This phone also keeps a copy, behind your fingerprint or face."
+                        } else {
+                            "This phone keeps no copy. What you write down is the only one."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = VbColors.TextSecondary,
+                    )
                 }
             }
 

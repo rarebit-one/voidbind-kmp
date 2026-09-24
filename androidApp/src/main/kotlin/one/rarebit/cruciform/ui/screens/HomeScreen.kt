@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material3.Icon
@@ -34,11 +35,13 @@ import androidx.compose.ui.unit.dp
 import one.rarebit.cruciform.domain.DeviceInfo
 import one.rarebit.cruciform.domain.HardwareBacking
 import one.rarebit.cruciform.domain.Identity
+import one.rarebit.cruciform.domain.MembershipHealth
 import one.rarebit.cruciform.domain.TrustedSite
 import one.rarebit.cruciform.ui.components.CruciformMark
 import one.rarebit.cruciform.ui.components.HSpace
 import one.rarebit.cruciform.ui.components.IconCircle
 import one.rarebit.cruciform.ui.components.IdentityFingerprint
+import one.rarebit.cruciform.ui.components.OutlineButton
 import one.rarebit.cruciform.ui.components.RowItem
 import one.rarebit.cruciform.ui.components.ScreenPadding
 import one.rarebit.cruciform.ui.components.SectionLabel
@@ -60,6 +63,8 @@ fun HomeScreen(
     identity: Identity,
     device: DeviceInfo,
     trustedSites: List<TrustedSite>,
+    membership: MembershipHealth,
+    onRenew: () -> Unit,
     onSettings: () -> Unit,
     onCopyIdentity: () -> Unit,
     onDevice: () -> Unit,
@@ -95,6 +100,11 @@ fun HomeScreen(
 
         VSpace(18)
         StrongBoxCard(device)
+
+        if (membership.lapsed || membership.renewalDue) {
+            VSpace(10)
+            MembershipCard(membership, onRenew)
+        }
 
         VSpace(26)
         SectionLabel("This device")
@@ -162,6 +172,45 @@ fun HomeScreen(
                     )
                     if (i < trustedSites.lastIndex) VbHairline(Modifier.padding(start = 74.dp))
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Shown only when this device needs attention: inside the renewal window (renew now,
+ * while the device can still renew itself) or already lapsed (only another device or
+ * the recovery secret can re-admit it).
+ */
+@Composable
+private fun MembershipCard(membership: MembershipHealth, onRenew: () -> Unit) {
+    val accent = if (membership.lapsed) VbColors.Coral else VbColors.Amber
+    WashCard(accent = accent, wash = VbColors.AmberWash, modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Schedule, contentDescription = null, tint = accent, modifier = Modifier.size(28.dp))
+                HSpace(14)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (membership.lapsed) "This device has lapsed" else "Renew this device",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = VbColors.TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        if (membership.lapsed) {
+                            "It can't sign in until it's re-admitted from another device or your recovery secret."
+                        } else {
+                            "Its membership ${membership.renewsByLabel ?: "expires soon"}. Renewing keeps it signed in."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = VbColors.TextSecondary,
+                    )
+                }
+            }
+            if (!membership.lapsed) {
+                VSpace(10)
+                OutlineButton("Renew now", onClick = onRenew, accent = accent, modifier = Modifier.fillMaxWidth())
             }
         }
     }

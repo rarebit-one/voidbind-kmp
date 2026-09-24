@@ -78,6 +78,7 @@ class InviteCoordinatorTest {
         override suspend fun joinPairInvite(code: ScannedCode.PairInvite): EngineResult<PairSession> = error("unused")
         override suspend fun devices(): EngineResult<List<MemberDevice>> = EngineResult.Ready(emptyList())
         override suspend fun removeDevice(deviceId: String): EngineResult<Unit> = EngineResult.Ready(Unit)
+        override suspend fun renewMembership(): EngineResult<Unit> = EngineResult.Ready(Unit)
         override suspend fun renameDevice(name: String): EngineResult<Unit> = error("unused")
         override suspend fun setBiometricApproval(enabled: Boolean): EngineResult<Unit> = error("unused")
         override suspend fun revokeSite(siteId: String): EngineResult<Unit> = error("unused")

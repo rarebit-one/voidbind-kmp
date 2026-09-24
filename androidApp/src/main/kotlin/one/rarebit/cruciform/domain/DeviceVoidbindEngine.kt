@@ -111,11 +111,12 @@ class DeviceVoidbindEngine(
     // The per-RP approval policy + audit trail. Pure commonMain brain; [policyStore]
     // supplies persistence. It records consent AROUND the unchanged hardware signature.
     private val policy = ApprovalPolicyManager(policyStore, policyStore, clock)
+    private val renewal = MembershipRenewal(deviceKeys, clock, ::dateLabel)
     private val _identity = MutableStateFlow<IdentityState>(IdentityState.Loading)
     override val identity: StateFlow<IdentityState> = _identity.asStateFlow()
 
-    // In-session state for multi-step flows.
-    private var sessionUser: UserIdentity? = null
+    // In-session state for multi-step flows. (No user identity is cached here: the
+    // genesis key is unsealed behind a strong biometric at each use and dropped after.)
     private var pendingLogin: Pair<LoginApproval, LoginApproval.Request>? = null
     private var pendingJoin: PendingJoin? = null
     private var pendingAuthorization: Pair<DeviceAuthorization, DeviceAuthorization.Invitation>? = null
@@ -145,22 +146,55 @@ class DeviceVoidbindEngine(
         _identity.value = loadState()
     }
 
-    /** Provision THIS device as the owner for [user]: hardware key, enc key, self-cert. */
+    /**
+     * Provision THIS device as the owner for [user]: hardware key, enc key, self-cert.
+     * Then offer to keep the recovery secret on the phone. That copy is the genesis
+     * authority, so it is sealed only behind a strong biometric: with none enrolled,
+     * or the prompt declined, the phone keeps no copy and the written one is the only
+     * one — the identity itself is provisioned either way.
+     */
     private suspend fun provision(user: UserIdentity): RecoveryBackup {
         val enc = DeviceIdentity.generateEncryptionKey()
         val ks = withDeviceAuth { deviceKeys.getOrCreate() }
         val device = DeviceIdentity(ks.publicKey, enc.publicKey, enc.privateKey) { ks.sign(it) }
         val cert = Enrolment.selfEnrol(user, device, clock())
-        store.saveOwner(cert, user.userPublicKey, enc.publicKey, enc.privateKey, user.recovery.bytes, defaultDeviceName())
-        sessionUser = user
-        return backup(user.recovery)
+        store.saveOwner(cert, user.userPublicKey, enc.publicKey, enc.privateKey, defaultDeviceName())
+        val kept = when (biometric.authenticateStrong(KEEP_RECOVERY_TITLE, STRONG_SUBTITLE)) {
+            StrongAuth.SUCCESS -> runCatching { store.keepRecoverySecret(user.recovery.bytes) }.isSuccess
+            StrongAuth.CANCELLED, StrongAuth.UNAVAILABLE -> false
+        }
+        return backup(user.recovery).copy(keptOnDevice = kept)
     }
 
     override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> = ioResult("Couldn't show the recovery secret.") {
-        check(store.hasUserKey()) { "This device has no recovery secret — it was added by pairing." }
-        if (!biometric.authenticate("Show recovery secret", "Confirm it's you")) return@ioResult cancelledFailure()
-        val bytes = store.recoverySecret() ?: error("recovery secret is not available")
-        EngineResult.Ready(backup(RecoverySecret.of(bytes)))
+        check(store.hasUserKey()) { "This device keeps no copy of the recovery secret." }
+        when (val genesis = unsealGenesis("Show recovery secret")) {
+            is EngineResult.Failed -> genesis
+            is EngineResult.Ready -> EngineResult.Ready(backup(genesis.value.recovery).copy(keptOnDevice = true))
+        }
+    }
+
+    /**
+     * Unseal the kept recovery secret and derive the genesis identity from it, behind a
+     * **strong biometric** — never the screen-lock PIN. Genesis is the one authority
+     * that bypasses the co-signed remove quorum (voidbind-go ADR-0008), so a thief who
+     * knows the PIN must not reach it. The identity is returned for one use and never
+     * cached.
+     */
+    private suspend fun unsealGenesis(title: String): EngineResult<UserIdentity> {
+        val auth = biometric.authenticateStrong(title, STRONG_SUBTITLE)
+        return when (auth) {
+            StrongAuth.CANCELLED -> cancelledFailure()
+
+            StrongAuth.UNAVAILABLE -> strongBiometricRequiredFailure()
+
+            StrongAuth.SUCCESS -> store.recoverySecret()
+                ?.let { EngineResult.Ready(UserIdentity.fromSecret(RecoverySecret.of(it))) }
+                ?: internalFailure(
+                    "This phone's copy of the recovery secret is gone — enrolling a new fingerprint " +
+                        "or face erases it. Use your written recovery secret instead.",
+                )
+        }
     }
 
     // --- Scanning -------------------------------------------------------------
@@ -261,6 +295,39 @@ class DeviceVoidbindEngine(
         policy.recordApproval(domain, request.audience, request.loginId, matchNumber)
         store.upsertTrustedSite(TrustedSite(domain, domain, "", "just now", accentFor(domain)))
         pendingLogin = null
+        // The device key was just unlocked to sign: the cheapest moment to renew.
+        renewIfDue()
+        _identity.value = loadState()
+    }
+
+    // --- Renewal (membership, ADR-0005) ----------------------------------------
+
+    override suspend fun renewMembership(): EngineResult<Unit> = ioResult("Couldn't renew this device.") {
+        val persisted = store.load() ?: return@ioResult internalFailure("No identity on this device.")
+        val op = withDeviceAuth { renewal.selfRenewal(persisted, onlyIfDue = false) }
+            ?: return@ioResult internalFailure(
+                "This device is no longer a member, so it can't renew itself. " +
+                    "Re-admit it from another device, or restore from the recovery secret.",
+            )
+        recordRenewal(op)
+        EngineResult.Ready(Unit)
+    }
+
+    /**
+     * Renew this device if it is inside the renewal window, WITHOUT prompting: called
+     * right after a signature, while the key's auth window is still open. Best effort —
+     * a shut window or any failure just leaves the renewal for next time (or for the
+     * user's "Renew now").
+     */
+    private fun renewIfDue() {
+        val persisted = store.load() ?: return
+        val op = runCatching { renewal.selfRenewal(persisted, onlyIfDue = true) }.getOrNull() ?: return
+        runCatching { recordRenewal(op) }
+    }
+
+    private fun recordRenewal(op: String) {
+        store.renewCredential(op)
+        pushMembership(store.knownOps()) // best-effort; the renewal also travels with every login
         _identity.value = loadState()
     }
 
@@ -318,7 +385,10 @@ class DeviceVoidbindEngine(
             )
         }
         ioResult(PAIRING_FAILED, relayBase) {
-            val authorization = memberAuthorization()
+            val authorization = when (val a = memberAuthorization()) {
+                is EngineResult.Failed -> return@ioResult a
+                is EngineResult.Ready -> a.value
+            }
             when (val outcome = authorization.inviteCatching(relayBase)) {
                 is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
 
@@ -418,7 +488,6 @@ class DeviceVoidbindEngine(
                     val userPub = KeyRef.parse(MembershipOp.verify(admission.op).user).bytes
                     store.saveJoined(admission.op, admission.ops, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
                     pendingJoin = null
-                    sessionUser = null // a joined device holds no user key
                     _identity.value = loadState()
                     EngineResult.Ready(Unit)
                 }
@@ -442,6 +511,7 @@ class DeviceVoidbindEngine(
             store.recordOps(ops)
             pendingAuthorization = null
             pushMembership(ops) // best-effort: the RPs learn the new member now, not at its first login
+            renewIfDue() // the key was just unlocked to sign the add
             _identity.value = loadState()
             return@ioResult EngineResult.Ready(Unit)
         }
@@ -724,6 +794,8 @@ class DeviceVoidbindEngine(
                 )
             },
             biometricApproval = persisted.biometricApproval,
+            holdsRecoverySecret = store.hasUserKey(),
+            membership = renewal.health(persisted, devicePub),
         )
     }
 
@@ -759,24 +831,39 @@ class DeviceVoidbindEngine(
      * which is the one authority that can re-admit — a Restore-based install is
      * exactly that case.
      */
-    private fun memberAuthorization(): DeviceAuthorization {
+    private suspend fun memberAuthorization(): EngineResult<DeviceAuthorization> {
         val persisted = store.load() ?: error("No identity on this device.")
         val device = buildDevice()
         val usr = KeyRef.ed25519(persisted.userPublicKey).render()
         val view = Membership.evaluate(usr, persisted.ops, clock())
         if (view.isMember(device.deviceId.render())) {
-            return DeviceAuthorization(transport, device, persisted.enrolmentCert, persisted.ops, clock, maxWaitMillis = INVITE_TTL_SECONDS * 1000L)
+            return EngineResult.Ready(
+                DeviceAuthorization(
+                    transport,
+                    device,
+                    persisted.enrolmentCert,
+                    persisted.ops,
+                    clock,
+                    maxWaitMillis = INVITE_TTL_SECONDS * 1000L,
+                ),
+            )
         }
         check(store.hasUserKey()) {
             "This device is no longer a member of the identity, so it can't add devices. Re-admit it from another device, or restore from the recovery secret."
         }
-        return DeviceAuthorization(transport, requireUser(), clock, knownOps = persisted.ops, maxWaitMillis = INVITE_TTL_SECONDS * 1000L)
-    }
+        return when (val genesis = unsealGenesis("Add a device with your recovery key")) {
+            is EngineResult.Failed -> genesis
 
-    private fun requireUser(): UserIdentity = sessionUser ?: run {
-        check(store.hasUserKey()) { "This device holds no recovery secret." }
-        val bytes = store.recoverySecret() ?: error("user key is not available")
-        UserIdentity.fromSecret(RecoverySecret.of(bytes)).also { sessionUser = it }
+            is EngineResult.Ready -> EngineResult.Ready(
+                DeviceAuthorization(
+                    transport,
+                    genesis.value,
+                    clock,
+                    knownOps = persisted.ops,
+                    maxWaitMillis = INVITE_TTL_SECONDS * 1000L,
+                ),
+            )
+        }
     }
 
     private suspend fun <T> withDeviceAuth(block: () -> T): T = try {
@@ -823,6 +910,8 @@ class DeviceVoidbindEngine(
         const val INVITE_TTL_SECONDS = 600
 
         private const val PAIRING_FAILED = "Couldn't complete the pairing."
+        private const val KEEP_RECOVERY_TITLE = "Keep a recovery copy on this phone"
+        private const val STRONG_SUBTITLE = "Confirm with your fingerprint or face"
         private const val SIGN_IN_FAILED = "Couldn't complete the sign-in."
         private const val LOGIN_UNREACHABLE = "Couldn't reach the site."
         private const val PUSH_FAILED = "Couldn't register this device for sign-in wake-ups."

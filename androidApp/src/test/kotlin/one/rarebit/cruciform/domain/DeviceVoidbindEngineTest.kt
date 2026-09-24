@@ -45,6 +45,7 @@ class DeviceVoidbindEngineTest {
     private val keys = SoftwareDeviceKeys(HardwareBacking.TEE)
     private var relay = RELAY
     private var notify = ""
+    private var now = NOW
 
     private fun engine(membershipRps: List<String> = emptyList()) = DeviceVoidbindEngine(
         store = store,
@@ -53,7 +54,7 @@ class DeviceVoidbindEngineTest {
         biometric = biometric,
         relay = { relay },
         notify = { notify },
-        clock = { NOW },
+        clock = { now },
         membershipRps = membershipRps,
         deviceKeys = keys,
         defaultDeviceName = { "Test Phone" },
@@ -106,7 +107,35 @@ class DeviceVoidbindEngineTest {
         assertEquals(HardwareBacking.TEE, state.device.backing) // the key's REAL tier, not assumed
         assertTrue(state.device.label.startsWith("dev · "))
         assertTrue(store.hasUserKey())
+        assertTrue(state.holdsRecoverySecret)
+        assertTrue(backup.keptOnDevice)
         assertEquals(1, store.knownOps().size)
+    }
+
+    @Test
+    fun `without a strong biometric the phone keeps no copy, but the identity is still created`() = runTest {
+        for (outcome in listOf(StrongAuth.CANCELLED, StrongAuth.UNAVAILABLE)) {
+            val store = IdentityStore(InMemoryPrefs(), InMemorySealer())
+            biometric.strong = outcome
+            val engine = DeviceVoidbindEngine(
+                store = store,
+                policyStore = policyStore,
+                transport = transport,
+                biometric = biometric,
+                relay = { relay },
+                clock = { now },
+                membershipRps = emptyList(),
+                deviceKeys = SoftwareDeviceKeys(),
+                defaultDeviceName = { "Test Phone" },
+            )
+
+            val backup = ready(engine.createIdentity())
+
+            assertFalse(backup.keptOnDevice)
+            assertTrue(store.isProvisioned())
+            assertFalse(store.hasUserKey())
+            assertFalse(active(engine).holdsRecoverySecret)
+        }
     }
 
     @Test
@@ -149,7 +178,7 @@ class DeviceVoidbindEngineTest {
 
         engine().createIdentity()
 
-        assertEquals(listOf("Authenticate"), biometric.prompts)
+        assertEquals(listOf("Authenticate", "Keep a recovery copy on this phone"), biometric.prompts)
         assertTrue(store.isProvisioned())
     }
 
@@ -198,23 +227,90 @@ class DeviceVoidbindEngineTest {
     }
 
     @Test
-    fun `revealRecoverySecret is biometric-gated and returns the sealed secret`() = runTest {
+    fun `revealRecoverySecret needs a strong biometric and returns the kept secret`() = runTest {
         val engine = engine()
         val backup = ready(engine.createIdentity())
+        biometric.prompts.clear()
 
         assertEquals(EngineResult.Ready(backup), engine.revealRecoverySecret())
         assertEquals(listOf("Show recovery secret"), biometric.prompts)
 
-        biometric.presence = false
+        biometric.strong = StrongAuth.CANCELLED
         assertEquals(EngineFailure.Kind.CANCELLED, failure(engine.revealRecoverySecret()).kind)
     }
 
     @Test
-    fun `revealRecoverySecret refuses on a device that holds no secret`() = runTest {
+    fun `the screen-lock PIN never reveals the recovery secret`() = runTest {
+        val engine = engine()
+        ready(engine.createIdentity())
+        // A PIN satisfies the ordinary presence check, but this device has no strong
+        // biometric: the genesis secret stays sealed.
+        biometric.presence = true
+        biometric.strong = StrongAuth.UNAVAILABLE
+
+        val f = failure(engine.revealRecoverySecret())
+
+        assertNotEquals(EngineFailure.Kind.CANCELLED, f.kind)
+        assertTrue(f.message.contains("PIN can't authorise it"))
+    }
+
+    @Test
+    fun `revealRecoverySecret refuses on a device that keeps no secret`() = runTest {
         val f = failure(engine().revealRecoverySecret())
 
-        assertEquals("This device has no recovery secret — it was added by pairing.", f.message)
+        assertEquals("This device keeps no copy of the recovery secret.", f.message)
         assertTrue(biometric.prompts.isEmpty())
+    }
+
+    // --- renewal (membership, ADR-0005) --------------------------------------------
+
+    @Test
+    fun `a fresh device is not due for renewal`() = runTest {
+        val engine = engine()
+        ready(engine.createIdentity())
+
+        val health = active(engine).membership
+        assertFalse(health.renewalDue)
+        assertFalse(health.lapsed)
+        assertTrue(health.renewsByLabel!!.startsWith("renews by "))
+    }
+
+    @Test
+    fun `inside the window the device renews itself and presents the new add`() = runTest {
+        val engine = engine()
+        ready(engine.createIdentity())
+        val firstCredential = store.load()!!.enrolmentCert
+
+        now = NOW + 70 * DAY // 20 days before the 90-day add lapses
+        engine.refresh()
+        assertTrue(active(engine).membership.renewalDue)
+
+        assertEquals(EngineResult.Ready(Unit), engine.renewMembership())
+
+        val renewed = store.load()!!
+        assertNotEquals(firstCredential, renewed.enrolmentCert)
+        assertEquals(2, renewed.ops.size) // the old add stays as history
+        assertFalse(active(engine).membership.renewalDue)
+
+        // Past the FIRST add's expiry, the device is still a member.
+        now = NOW + 100 * DAY
+        engine.refresh()
+        assertFalse(active(engine).membership.lapsed)
+    }
+
+    @Test
+    fun `a lapsed device cannot renew itself`() = runTest {
+        val engine = engine()
+        ready(engine.createIdentity())
+
+        now = NOW + 100 * DAY
+        engine.refresh()
+        assertTrue(active(engine).membership.lapsed)
+
+        val f = failure(engine.renewMembership())
+
+        assertTrue(f.message.startsWith("This device is no longer a member"))
+        assertEquals(1, store.knownOps().size)
     }
 
     @Test
@@ -331,6 +427,7 @@ class DeviceVoidbindEngineTest {
     @Test
     fun `a declined prompt on approval is CANCELLED`() = runTest {
         engine().createIdentity()
+        biometric.prompts.clear()
         rpServes()
         biometric.presence = false
         // The next signature finds the key's auth window lapsed.
@@ -510,6 +607,7 @@ class DeviceVoidbindEngineTest {
         assertEquals(EngineFailure.Kind.INTERNAL, failure(engine.removeDevice(selfId)).kind)
 
         engine.createIdentity()
+        biometric.prompts.clear()
         assertTrue(failure(engine.removeDevice(selfId)).message.contains("can't remove itself"))
         assertTrue(failure(engine.removeDevice("ed25519:" + "00".repeat(32))).message.contains("not a member"))
         assertTrue(biometric.prompts.isEmpty()) // refused before any prompt
@@ -593,6 +691,7 @@ class DeviceVoidbindEngineTest {
 
     private companion object {
         const val NOW = 1_800_000_000L
+        const val DAY = 24L * 60 * 60
         const val RELAY = "https://relay.example.test/pair"
         const val NOTIFY = "https://notify.example.test"
         const val RP = "https://rp.example.test"
