@@ -1,5 +1,6 @@
 package one.rarebit.voidbind
 
+import java.io.File
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,16 +23,22 @@ import one.rarebit.voidbind.crypto.MiniJson
  */
 class MembershipVectorTest {
 
-    private val cases = listOf(
-        "genesis-a-b", "a-removes-b", "concurrent-mutual-remove", "junior-remove-acknowledged",
-        "readd-refused-unless-genesis", "expired-add", "bad-prev", "foreign-usr", "junk",
-        "v2-cert-as-genesis-add", "concurrent-add-and-remove", "stale-heads-after-removal",
-        "senior-concurrent-add-survives", "cosig-reserved",
-        // ADR-0008 rule 5 (cosig-enforced k-of-N removes, high-water N).
-        "cosig-threshold-met", "cosig-threshold-unmet", "cosig-below-three",
-        "cosig-genesis-bypass", "cosig-nonmember-ignored",
-        "cosig-minimal-prev-downgrade-refused", "cosig-backdated-iat-downgrade-refused",
-    )
+    /**
+     * Every `*.json` under `vectors/membership/`, enumerated from the test resources
+     * rather than hand-listed, so a vector newly re-copied from voidbind-go is replayed
+     * automatically instead of silently skipped. The floor guards against the
+     * enumeration itself breaking (e.g. a resource-path change) and passing vacuously.
+     */
+    private val cases: List<String> = run {
+        val dir = javaClass.getResource("/vectors/membership")
+            ?: error("vectors/membership missing from test resources")
+        val names = File(dir.toURI()).listFiles { f -> f.isFile && f.name.endsWith(".json") }
+            .orEmpty()
+            .map { it.name.removeSuffix(".json") }
+            .sorted()
+        check(names.size >= MIN_VECTORS) { "expected >= $MIN_VECTORS membership vectors, found ${names.size}: $names" }
+        names
+    }
 
     private class Vector(val name: String, val usr: String, val now: Long, val tokens: List<String>, val hashes: List<String>, val expect: Map<String, Any>)
 
@@ -165,5 +172,10 @@ class MembershipVectorTest {
         assertEquals(view.accepted.size, toks.size)
         assertEquals(toks.map { MembershipOp.hash(it) }, toks.map { MembershipOp.hash(it) }.sorted())
         assertTrue(view.rejected.keys.none { h -> toks.any { MembershipOp.hash(it) == h } }, "rejected tokens are not state")
+    }
+
+    private companion object {
+        /** The 21 vectors voidbind-go v0.9.0 + ADR-0008 ship; only ever grows. */
+        const val MIN_VECTORS = 21
     }
 }

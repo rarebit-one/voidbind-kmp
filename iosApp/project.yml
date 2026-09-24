@@ -42,9 +42,10 @@ targets:
     preBuildScripts:
       - name: Assemble Voidbind.xcframework (KMP)
         basedOnDependencyAnalysis: false
+        # Always invoke Gradle: its up-to-date checks make an unchanged rebuild cheap,
+        # and skipping it when the XCFramework merely EXISTS silently links a stale
+        # framework after a Kotlin change.
         script: |
           set -e
           cd "$PROJECT_DIR/.."
-          if [ ! -d "build/XCFrameworks/debug/Voidbind.xcframework" ]; then
-            ./gradlew assembleVoidbindDebugXCFramework
-          fi
+          ./gradlew assembleVoidbindDebugXCFramework

@@ -4,9 +4,11 @@ name: publish
 # jvm, android, iosArm64, iosSimulatorArm64) to GitHub Packages for consumption
 # by relying-party apps (allthing-android, heyarr-mobile).
 #
-# Triggers on a published GitHub Release or a pushed `v*` tag. The build itself
-# stays PR-verified by `test.yml` (a broken publishing config fails those
-# compile/test legs too), so this workflow only does the release-time publish.
+# Triggers on a published GitHub Release or a pushed `v*` tag. Before publishing it
+# (1) fails if the tag does not match `version` in build.gradle.kts — a `v0.9.0`
+# tag must never push a `0.8.0` artifact (or 409 against an existing one) — and
+# (2) re-runs the JVM tests on the tagged commit, so a tag cut from an untested
+# commit cannot publish. (iosSimulatorArm64Test is not run: see test.yml.)
 on:
   release:
     types: [published]
@@ -39,6 +41,28 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
+      - name: tag must equal the build.gradle.kts version
+        env:
+          # A Release carries its tag in the event; a tag push (or a dispatch run
+          # against a tag) has it as the ref.
+          TAG: ${{ github.event.release.tag_name || (github.ref_type == 'tag' && github.ref_name) || '' }}
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' build.gradle.kts)"
+          test -n "$version" || { echo "::error::no top-level version = \"…\" in build.gradle.kts"; exit 1; }
+          if [ -z "$TAG" ]; then
+            echo "::warning::not run from a tag; publishing build.gradle.kts version $version unchecked"
+            exit 0
+          fi
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::tag $TAG does not match build.gradle.kts version $version (expected v$version)"
+            exit 1
+          fi
+          echo "tag $TAG matches version $version"
+      - name: test before publishing
+        run: >-
+          ./gradlew jvmTest
+          --no-daemon --stacktrace
       - name: publish voidbind-client to GitHub Packages
         run: >-
           ./gradlew publishAllPublicationsToGitHubPackagesRepository
