@@ -138,6 +138,7 @@ targets are skipped on a Linux host).
 ./gradlew :androidApp:assembleDebug :androidApp:testDebugUnitTest   # Cruciform app
 ./gradlew compileKotlinIosSimulatorArm64 iosSimulatorArm64Test      # iOS (macOS only)
 ./gradlew assembleVoidbindXCFramework      # → build/XCFrameworks/{debug,release}/Voidbind.xcframework
+./gradlew ktlintCheck detekt              # lint (baselined: only NEW findings fail)
 ```
 
 Targets: `jvm()` (dev/test, software keystore), `androidTarget()` (StrongBox/TEE),
@@ -145,8 +146,11 @@ Targets: `jvm()` (dev/test, software keystore), `androidTarget()` (StrongBox/TEE
 as the `Voidbind` XCFramework). Tests in `commonTest` run on every target; `jvmTest`
 adds the golden-vector parity suites, the JVM keystore test and live-voidbind-go
 interop (skipped when `go`/the voidbind-go checkout is absent). CI (`test.yml`) runs
-`jvmTest` + the Android compile, the app build + unit tests, and the iOS compile +
-simulator tests on macOS. The commonTest cases pinned to Go signature vectors
+`jvmTest` + the Android compile, ktlint + detekt, the app build + unit tests, and
+the iOS compile + simulator tests on macOS. Lint findings that predate the linters
+are frozen in each project's `config/ktlint/baseline.xml` / `config/detekt/baseline.xml`
+(style: `.editorconfig`); fix new findings rather than regenerating the baselines.
+The commonTest cases pinned to Go signature vectors
 compare bytes only where Ed25519 signing is deterministic (JDK, JVM/Android).
 CryptoKit signs with randomized Ed25519, so on iOS they check that the payload is
 byte-identical and that both our signature and Go's verify (`ed25519SigningIsDeterministic`,
