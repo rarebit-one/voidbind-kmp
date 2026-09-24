@@ -16,7 +16,7 @@ element** (Secure Enclave / StrongBox).
 
 ## Status
 
-In use. `voidbind-client` is published (0.8.0) and consumed by heyarr-kmp. All
+In use. `voidbind-client` is published (0.9.0) and consumed by heyarr-kmp. All
 three targets are real. **Android** seals the Ed25519 seed with a StrongBox/TEE
 AndroidKeyStore key. **iOS** seals it with a Secure-Enclave P-256 key through the
 app-provided Swift `SecureEnclaveSealer`. **JVM** is software-only, for dev/test.
@@ -146,13 +146,13 @@ coordinators, `LoginQr`/`WebLogin` + the challenge-v2 number-match), **plus** th
 relying-party apps depend on it over the wire instead of re-implementing the login
 seam.
 
-- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.8.0` (Gradle resolves
+- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.9.0` (Gradle resolves
   the right variant per target: `-jvm`, `-android`, `-iosarm64`,
   `-iossimulatorarm64`).
 - **Registry:** GitHub Packages — `https://maven.pkg.github.com/rarebit-one/voidbind-kmp`
   (private; a read requires a token with `read:packages`).
 - **Published by CI** on a `v*` tag / GitHub Release (`.github/workflows/publish.yml`).
-  The tag must equal `version` in `build.gradle.kts` (`v0.8.0` ↔ `0.8.0`), and the
+  The tag must equal `version` in `build.gradle.kts` (`v0.9.0` ↔ `0.9.0`), and the
   JVM + iOS-simulator tests run before anything is published.
 
 ### What the artifact does NOT carry (stays per-app)
@@ -193,7 +193,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 // app/build.gradle.kts — the single dependency line that replaces the login seam
-implementation("one.rarebit.voidbind:voidbind-client:0.8.0")
+implementation("one.rarebit.voidbind:voidbind-client:0.9.0")
 ```
 
 Adding this lets `allthing-android` / `heyarr-mobile` **delete their thin
