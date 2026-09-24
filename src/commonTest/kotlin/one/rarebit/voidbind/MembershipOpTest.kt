@@ -10,9 +10,11 @@ import one.rarebit.voidbind.crypto.Hex
 /**
  * The membership op's wire contract, pinned against voidbind-go v0.9.0's
  * `genesis-a-b` golden vector: re-signing the vector's ops from its (test-only)
- * seeds must reproduce the exact TOKENS and HASHES the Go side minted — Ed25519 is
- * deterministic, so any byte of drift in the payload encoding shows up here as a
- * different token. Then the structural rules `VerifyOp` enforces.
+ * seeds must reproduce the exact TOKENS and HASHES the Go side minted. The JDK's
+ * Ed25519 is deterministic, so on JVM/Android any byte of drift in the payload
+ * encoding shows up here as a different token. CryptoKit (iOS) signs with randomized
+ * Ed25519, so there the payload must match exactly and both signatures must verify
+ * (see [assertMatchesGoToken]). Then the structural rules `VerifyOp` enforces.
  */
 class MembershipOpTest {
 
@@ -26,6 +28,8 @@ class MembershipOpTest {
     private val bEnc = "x25519:32338a06d4f67a664fcaabbf1e98c1e46f2b5750f2270bd4af127355ed560619"
     private val addAToken =
         "eyJ2IjozLCJ1c3IiOiJlZDI1NTE5OmY5NDdiMTBjODA4OWFhOGZlZDJkNDM1ZmFlMDY5ZDBjYTE1MTNiMzM2OTE5NTVhZTk2M2RmZThiYzViMzk4YzQiLCJvcCI6ImFkZCIsImRldiI6ImVkMjU1MTk6NDRmMjU1Mzc2YmQxMDgyMWY4MmIwZjlmNTY4NTA0Y2FhZjZjMTU4M2M2NWU2ODVkNjZkMDVlYzNhYWMzZDc4OSIsImRlbmMiOiJ4MjU1MTk6OTllMWU1OGFmOTAxZDc1OWU2OTY5ZmVmZTNjM2ZhNDdkOWNkZWY5NTRhYjY0ZTIxZmM5OTBjNWJhZTQ1ZDM1YyIsImJ5IjoiZWQyNTUxOTpmOTQ3YjEwYzgwODlhYThmZWQyZDQzNWZhZTA2OWQwY2ExNTEzYjMzNjkxOTU1YWU5NjNkZmU4YmM1YjM5OGM0IiwicHJldiI6W10sImlhdCI6MTc4ODI2NDAwMCwiZXhwIjoxNzk2MDQwMDAwfQ._6NQ53HSNPWvzQQVNbB2mEnGBwI__2fDvZ50OOMbiNGoFDPLPDSunF4ntlIvf3xnexcx8YAqCShYTszzC7KcDw"
+    private val addBToken =
+        "eyJ2IjozLCJ1c3IiOiJlZDI1NTE5OmY5NDdiMTBjODA4OWFhOGZlZDJkNDM1ZmFlMDY5ZDBjYTE1MTNiMzM2OTE5NTVhZTk2M2RmZThiYzViMzk4YzQiLCJvcCI6ImFkZCIsImRldiI6ImVkMjU1MTk6Y2U5YzgzZjEzYzZhMDY2NjY2NjVlMDQ3MWQ0NWMwYjRkNDEwN2Q4OTJlOGRkYjRkZTdhYzI3NTIwZTM2ZjM3ZCIsImRlbmMiOiJ4MjU1MTk6MzIzMzhhMDZkNGY2N2E2NjRmY2FhYmJmMWU5OGMxZTQ2ZjJiNTc1MGYyMjcwYmQ0YWYxMjczNTVlZDU2MDYxOSIsImJ5IjoiZWQyNTUxOTo0NGYyNTUzNzZiZDEwODIxZjgyYjBmOWY1Njg1MDRjYWFmNmMxNTgzYzY1ZTY4NWQ2NmQwNWVjM2FhYzNkNzg5IiwicHJldiI6WyJzaGEyNTY6OTY0NmI0OTFiNzNlMDYwYzUxYmRkOWUzYjY5Yjg5ZWE4M2ZjMmU1YTY2YzNiMzUxNDFlYzFlMGM1NzhhOGZjNyJdLCJpYXQiOjE3ODgyNjQzMDAsImV4cCI6MTc5NjA0MDMwMH0.xpU7mECpsz-GUYhnwB_26ZyyoT-p0e0en9DGpVri26K-cQmVVrfQcsDP9CYrRXXpzAtm5svBsqaI-JC8azuACg"
     private val addAHash = "sha256:9646b491b73e060c51bdd9e3b69b89ea83fc2e5a66c3b35141ec1e0c578a8fc7"
     private val addBHash = "sha256:3503aea8cf10165ea2417483b66b453610ba07a3c2a1b87c75898e3bb1202d0b"
 
@@ -39,8 +43,9 @@ class MembershipOpTest {
             signer(genesisSeed), pub(genesisSeed), usr, MembershipOp.Kind.ADD, aId, aEnc,
             prev = emptyList(), issuedAt = 1_788_264_000L, lifetimeSeconds = 90L * 24 * 3600,
         )
-        assertEquals(addAToken, tok, "the KMP-minted genesis add must equal Go's token")
-        assertEquals(addAHash, MembershipOp.hash(tok))
+        assertMatchesGoToken(addAToken, tok, pub(genesisSeed), "the KMP-minted genesis add must equal Go's token")
+        assertEquals(addAHash, MembershipOp.hash(addAToken))
+        if (ed25519SigningIsDeterministic) assertEquals(addAHash, MembershipOp.hash(tok))
     }
 
     @Test
@@ -50,7 +55,9 @@ class MembershipOpTest {
             signer(aSeed), pub(aSeed), usr, MembershipOp.Kind.ADD, bId, bEnc,
             prev = listOf(addAHash), issuedAt = 1_788_264_300L, lifetimeSeconds = 90L * 24 * 3600,
         )
-        assertEquals(addBHash, MembershipOp.hash(tok), "add-B must hash to the vector's hash")
+        assertMatchesGoToken(addBToken, tok, pub(aSeed), "the KMP-minted add-B must equal Go's token")
+        assertEquals(addBHash, MembershipOp.hash(addBToken), "add-B must hash to the vector's hash")
+        if (ed25519SigningIsDeterministic) assertEquals(addBHash, MembershipOp.hash(tok))
         val op = MembershipOp.verify(tok)
         assertEquals(MembershipOp.Kind.ADD, op.kind)
         assertEquals(aId, op.by)

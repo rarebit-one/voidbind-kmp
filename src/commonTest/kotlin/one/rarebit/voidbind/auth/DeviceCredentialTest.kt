@@ -3,6 +3,7 @@ package one.rarebit.voidbind.auth
 import one.rarebit.voidbind.Cert
 import one.rarebit.voidbind.Ed25519Engine
 import one.rarebit.voidbind.Ed25519Signer
+import one.rarebit.voidbind.assertMatchesGoToken
 import one.rarebit.voidbind.crypto.Hex
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,6 +23,7 @@ class DeviceCredentialTest {
     private val proof = "eyJ2IjoyLCJjcnQiOiJJdG01WGo5Vmtta2NkQWNOV3JjNEM0QU1LeVppTmx2cFRZM2dfS2FtakxJIiwiaWF0IjoxNzg4MzUwNDAwLCJleHAiOjE3ODgzNTA1MjB9.Qrj11oz4bLp_Zy8xWcHzQkhvYsjcCdy69LGGRcoCABPnlz3WynYLQwVFuxoVlYkn024FaXIDhXGadMAfR5g5Bw"
     private val seed = Hex.decode("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f")
     private val now = 1_788_350_400L
+    private val devicePub = Cert.parse(cert).cert.device.bytes
 
     private var signCount = 0
     private val signer = Ed25519Signer { signCount++; Ed25519Engine.sign(seed, it) }
@@ -29,11 +31,12 @@ class DeviceCredentialTest {
     @Test
     fun headerValueMatchesTheGoVector() {
         val p = DeviceCredential.mint(cert, signer, now)
-        assertEquals("Device $cert~$proof", p.headerValue)
-        assertEquals("$cert~$proof", p.value)
+        assertMatchesGoToken(proof, p.proof, devicePub)
+        assertEquals("Device $cert~${p.proof}", p.headerValue)
+        assertEquals("$cert~${p.proof}", p.value)
         assertEquals(now, p.issuedAt)
         assertEquals(now + 120, p.expiresAt)
-        assertEquals(DeviceCredential.headerValue(cert, proof), p.headerValue)
+        assertEquals(DeviceCredential.headerValue(cert, p.proof), p.headerValue)
     }
 
     @Test
@@ -58,7 +61,8 @@ class DeviceCredentialTest {
 
         val first = cred.current()
         assertEquals(1, signCount)
-        assertEquals("Device $cert~$proof", first.headerValue)
+        assertMatchesGoToken(proof, first.proof, devicePub)
+        assertEquals("Device $cert~${first.proof}", first.headerValue)
 
         clock = now + 89
         assertSame(first, cred.current(), "still inside the reuse window")
@@ -72,7 +76,6 @@ class DeviceCredentialTest {
         assertEquals(now + 210, second.expiresAt)
 
         // The re-minted proof verifies at the new clock, for the same cert, by the device key.
-        val devicePub = Cert.parse(cert).cert.device.bytes
         PossessionProof.verify(second.proof, devicePub, cert, now + 91, Ed25519Engine.verifier())
     }
 
