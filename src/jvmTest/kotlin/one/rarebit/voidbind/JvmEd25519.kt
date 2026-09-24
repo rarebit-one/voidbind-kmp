@@ -10,8 +10,9 @@ import java.security.spec.X509EncodedKeySpec
 
 /**
  * JVM software Ed25519, built on the JDK's own provider (Ed25519 is standard from
- * JDK 15+; this project targets JDK 21). This is the dev/test backend — the keys
- * are ordinary in-heap software keys, NOT hardware-backed. Production signing on a
+ * JDK 15+; this project targets JDK 21). Test-only: it lives in jvmTest and backs
+ * the real-Ed25519 checks in JvmDeviceKeyStoreTest. The keys are ordinary in-heap
+ * software keys, NOT hardware-backed. Production signing on a
  * device must go through the iOS Secure Enclave / Android StrongBox `actual`s.
  */
 internal object JvmEd25519 {

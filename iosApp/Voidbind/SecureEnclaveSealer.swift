@@ -31,7 +31,7 @@ public final class EnclaveSealer: NSObject, SecureEnclaveSealer {
     private let reason: String
 
     /// - Parameter reason: the string shown in the biometric prompt on unseal.
-    public init(reason: String = "Authenticate to use your Voidbind device key") {
+    public init(reason: String = "Authenticate to use your Cruciform device key") {
         self.reason = reason
     }
 

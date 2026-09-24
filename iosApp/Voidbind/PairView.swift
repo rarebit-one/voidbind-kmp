@@ -177,7 +177,7 @@ struct PairView: View {
             Text("Scan this on the new device").font(VB.rounded(20, .bold))
                 .multilineTextAlignment(.center)
             QRCodeView(payload: qr, size: 220)
-            Text("Open Voidbind on your other device and choose “Add this device to an account.”")
+            Text("Open Cruciform on your other device and choose “Add this device to an account.”")
                 .font(VB.rounded(14)).foregroundStyle(VB.textSecondary)
                 .multilineTextAlignment(.center).padding(.horizontal, 8)
             HStack(spacing: 8) { ProgressView().tint(VB.teal).controlSize(.small)

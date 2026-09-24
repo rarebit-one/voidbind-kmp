@@ -20,6 +20,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # Caches the Gradle wrapper/dependency/Kotlin-Native downloads between runs.
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
       - name: gradle jvmTest + android compile
         run: ./gradlew jvmTest compileReleaseKotlinAndroid --no-daemon --stacktrace
 
@@ -35,6 +37,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # Caches the Gradle wrapper/dependency/Kotlin-Native downloads between runs.
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
       - name: gradle assemble app (debug) + pure-JVM unit tests
         run: ./gradlew :androidApp:assembleDebug :androidApp:testDebugUnitTest --no-daemon --stacktrace
 
@@ -48,6 +52,12 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # Caches the Gradle wrapper/dependency/Kotlin-Native downloads between runs.
+      - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
+      # iosSimulatorArm64Test is deliberately NOT run yet: 7 commonTest cases assert
+      # Ed25519 signatures byte-for-byte against Go vectors, and CryptoKit signs
+      # with randomized (hedged) Ed25519, so they can never match on Apple. Enable
+      # it once those tests assert verify() rather than signature bytes.
       - name: gradle iOS compile
         run: >-
           ./gradlew compileKotlinIosArm64 compileKotlinIosSimulatorArm64

@@ -11,7 +11,7 @@ import Voidbind
 /// Screenshot one screen:
 /// ```sh
 /// SIMCTL_CHILD_VOIDBIND_PREVIEW_SCREEN=home \
-///   xcrun simctl launch --terminate-running-process <udid> one.rarebit.voidbind
+///   xcrun simctl launch --terminate-running-process <udid> one.rarebit.cruciform
 /// xcrun simctl io <udid> screenshot home.png
 /// ```
 enum PreviewHarness {
