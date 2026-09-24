@@ -6,6 +6,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import one.rarebit.cruciform.BuildConfig
+import one.rarebit.cruciform.platform.ApprovalPolicyStore
+import one.rarebit.cruciform.platform.BiometricAuthenticator
+import one.rarebit.cruciform.platform.IdentityStore
+import one.rarebit.cruciform.platform.NotifyConfig
+import one.rarebit.cruciform.platform.RelayConfig
+import one.rarebit.cruciform.platform.StrongAuth
 import one.rarebit.voidbind.AuthenticationRequiredException
 import one.rarebit.voidbind.DeviceIdentity
 import one.rarebit.voidbind.Enrolment
@@ -15,14 +22,8 @@ import one.rarebit.voidbind.Membership
 import one.rarebit.voidbind.MembershipOp
 import one.rarebit.voidbind.RecoverySecret
 import one.rarebit.voidbind.UserIdentity
-import one.rarebit.cruciform.BuildConfig
-import one.rarebit.cruciform.platform.ApprovalPolicyStore
-import one.rarebit.cruciform.platform.BiometricAuthenticator
-import one.rarebit.cruciform.platform.IdentityStore
-import one.rarebit.cruciform.platform.NotifyConfig
-import one.rarebit.cruciform.platform.RelayConfig
-import one.rarebit.cruciform.platform.StrongAuth
 import one.rarebit.voidbind.crypto.Hex
+import one.rarebit.voidbind.crypto.MiniJson
 import one.rarebit.voidbind.flow.DeviceAuthorization
 import one.rarebit.voidbind.flow.DevicePairing
 import one.rarebit.voidbind.flow.LoginApproval
@@ -33,7 +34,6 @@ import one.rarebit.voidbind.net.HttpTransport
 import one.rarebit.voidbind.net.NotifyClient
 import one.rarebit.voidbind.policy.ApprovalPolicy
 import one.rarebit.voidbind.policy.ApprovalPolicyManager
-import one.rarebit.voidbind.crypto.MiniJson
 import java.io.InterruptedIOException
 import java.net.URI
 import java.text.SimpleDateFormat
@@ -46,9 +46,12 @@ import java.util.Locale
  * hardware device key ([DeviceKeys]) + a sealed X25519 enc-key store ([IdentityStore]) and an
  * OkHttp [HttpTransport], gating every signature behind [BiometricAuthenticator].
  *
- * All calls that touch hardware or the network run on [Dispatchers.IO]. A hardware
- * signature whose auth window has lapsed throws [AuthenticationRequiredException];
- * [withDeviceAuth] catches it, prompts, and retries once within the window.
+ * Every call runs on [Dispatchers.IO] through [ioResult], which turns any throw into
+ * an [EngineResult.Failed] on that thread (never raw exception text) while letting a
+ * coroutine cancellation propagate ([suspendRunCatching]). A hardware signature whose
+ * auth window has lapsed throws [AuthenticationRequiredException]; [withDeviceAuth]
+ * catches it, prompts, and retries once within the window — and if the human declines,
+ * the step fails as CANCELLED.
  *
  * NOTE (device-tested, not CI): StrongBox non-extractability and the biometric gate
  * exist only on real hardware (docs/DEVICE-TESTING.md). This engine compiles and is
@@ -123,18 +126,22 @@ class DeviceVoidbindEngine(
         val enc: DeviceIdentity.EncryptionKey,
     )
 
-    override suspend fun refresh() = withContext(Dispatchers.IO) {
+    override suspend fun refresh(): EngineResult<Unit> = io("Couldn't load this device's identity.") {
         _identity.value = loadState()
     }
 
     // --- Onboarding -----------------------------------------------------------
 
-    override suspend fun createIdentity(): RecoveryBackup = withContext(Dispatchers.IO) {
+    override suspend fun createIdentity(): EngineResult<RecoveryBackup> = io("Couldn't create the identity.") {
         provision(UserIdentity.create()).also { _identity.value = loadState() }
     }
 
-    override suspend fun restoreIdentity(recoverySecret: String) = withContext(Dispatchers.IO) {
-        provision(UserIdentity.restore(recoverySecret)) // throws on a mistyped secret
+    override suspend fun restoreIdentity(recoverySecret: String): EngineResult<Unit> = io(
+        "That recovery secret could not be read.",
+    ) {
+        // A mistyped secret throws IllegalArgumentException from the parser; its message
+        // (what was wrong with it) is what the Restore screen shows.
+        provision(UserIdentity.restore(recoverySecret))
         _identity.value = loadState()
     }
 
@@ -149,11 +156,11 @@ class DeviceVoidbindEngine(
         return backup(user.recovery)
     }
 
-    override suspend fun revealRecoverySecret(): RecoveryBackup = withContext(Dispatchers.IO) {
+    override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> = ioResult("Couldn't show the recovery secret.") {
         check(store.hasUserKey()) { "This device has no recovery secret — it was added by pairing." }
-        require(biometric.authenticate("Show recovery secret", "Confirm it's you")) { "Authentication cancelled." }
+        if (!biometric.authenticate("Show recovery secret", "Confirm it's you")) return@ioResult cancelledFailure()
         val bytes = store.recoverySecret() ?: error("recovery secret is not available")
-        backup(RecoverySecret.of(bytes))
+        EngineResult.Ready(backup(RecoverySecret.of(bytes)))
     }
 
     // --- Scanning -------------------------------------------------------------
@@ -169,9 +176,12 @@ class DeviceVoidbindEngine(
 
     // --- Web login ------------------------------------------------------------
 
-    override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequestResult = withContext(Dispatchers.IO) {
+    override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): EngineResult<LoginRequest> = ioResult(
+        LOGIN_UNREACHABLE,
+        revealPreconditions = false,
+    ) {
         val persisted = store.load()
-            ?: return@withContext LoginRequestResult.Failed("No identity on this device.")
+            ?: return@ioResult internalFailure("No identity on this device.")
         // The assertion presents the replica (`ops`) beside the admitting op, so an RP
         // that never met the member that admitted this device can still evaluate it.
         val approval = LoginApproval(transport, buildDevice(), persisted.enrolmentCert, knownOps = persisted.ops)
@@ -180,19 +190,26 @@ class DeviceVoidbindEngine(
         // never becomes an uncaught main-thread FATAL. The extra suspendRunCatching is belt-and-braces:
         // no unexpected throw from this boundary may escape the approval coroutine.
         val outcome = suspendRunCatching { approval.beginCatching(LoginQr.Parsed(code.rpBase, code.loginId)) }
-            .getOrElse { LoginApproval.Outcome.Failed(LoginApproval.FailureKind.UNREACHABLE, "Couldn't reach the site.") }
+            .getOrElse { LoginApproval.Outcome.Failed(LoginApproval.FailureKind.UNREACHABLE, LOGIN_UNREACHABLE) }
         when (outcome) {
             is LoginApproval.Outcome.Failed -> {
                 pendingLogin = null
-                LoginRequestResult.Failed(
-                    outcome.message,
-                    expired = outcome.kind == LoginApproval.FailureKind.EXPIRED,
+                EngineResult.Failed(
+                    EngineFailure(
+                        outcome.message,
+                        when (outcome.kind) {
+                            LoginApproval.FailureKind.UNREACHABLE -> EngineFailure.Kind.UNREACHABLE
+                            LoginApproval.FailureKind.EXPIRED -> EngineFailure.Kind.EXPIRED
+                            LoginApproval.FailureKind.REJECTED -> EngineFailure.Kind.REJECTED
+                        },
+                    ),
                 )
             }
+
             is LoginApproval.Outcome.Ready -> {
                 val request = outcome.request
                 pendingLogin = approval to request
-                LoginRequestResult.Ready(
+                EngineResult.Ready(
                     LoginRequest(
                         domain = host(request.rp),
                         appName = "",
@@ -208,13 +225,19 @@ class DeviceVoidbindEngine(
         }
     }
 
-    override suspend fun approveLogin(code: ScannedCode.WebLogin) = withContext(Dispatchers.IO) {
+    // An approval's failure never shows the library's text ("weblogin: approve refused:
+    // HTTP 403"): the RP refusing, the network dropping or nothing being pending all read
+    // as one human message; a declined prompt reads as CANCELLED.
+    override suspend fun approveLogin(code: ScannedCode.WebLogin): EngineResult<Unit> = io(SIGN_IN_FAILED, revealPreconditions = false) {
         val (approval, request) = pendingLogin ?: error("no login in progress")
         withDeviceAuth { approval.approve(request) }
         finishApproval(request, matchNumber = null)
     }
 
-    override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int) = withContext(Dispatchers.IO) {
+    override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int): EngineResult<Unit> = io(
+        SIGN_IN_FAILED,
+        revealPreconditions = false,
+    ) {
         val (approval, request) = pendingLogin ?: error("no login in progress")
         // approval.approve(request, chosen) signs the v2 binding; a decoy tap binds the
         // wrong number and the RP refuses it (thrown) — no site is recorded on refusal.
@@ -222,7 +245,7 @@ class DeviceVoidbindEngine(
         finishApproval(request, matchNumber = chosen)
     }
 
-    override suspend fun denyLogin() = withContext(Dispatchers.IO) {
+    override suspend fun denyLogin(): EngineResult<Unit> = io("Couldn't record the denial.") {
         // The human declined. Nothing is signed; record the denial in the audit trail
         // (trust is untouched — a denial never trusts a site) and drop the pending login.
         pendingLogin?.let { (_, request) ->
@@ -243,33 +266,36 @@ class DeviceVoidbindEngine(
 
     // --- Push wake ------------------------------------------------------------
 
-    override suspend fun registerForPush(endpoint: String): Boolean = withContext(Dispatchers.IO) {
-        val persisted = store.load() ?: return@withContext false
+    // Best-effort, both ways: a failed wake registration just means no background push,
+    // and scanned-QR login is unaffected, so callers log or ignore the Failed.
+    override suspend fun registerForPush(endpoint: String): EngineResult<Unit> = ioResult(
+        PUSH_FAILED,
+        revealPreconditions = false,
+    ) {
+        val persisted = store.load() ?: return@ioResult internalFailure("No identity on this device.")
         // No plane configured (no build default, no Settings override): nothing to
-        // register with. Not an error — scanned-QR login works without a wake channel.
-        val notifyBase = notifyBase.takeIf { it.isNotBlank() } ?: return@withContext false
-        try {
-            NotifyClient(transport, notifyBase).subscribe(persisted.enrolmentCert, endpoint)
-            true
-        } catch (_: Throwable) {
-            // Best-effort: a failed wake registration just means no background push;
-            // scanned QR login is unaffected. Do not surface it as an app error.
-            false
-        }
+        // register with — scanned-QR login works without a wake channel.
+        val notifyBase = notifyBase.takeIf { it.isNotBlank() }
+            ?: return@ioResult internalFailure("No push plane is set up.")
+        NotifyClient(transport, notifyBase).subscribe(persisted.enrolmentCert, endpoint)
+        EngineResult.Ready(Unit)
     }
 
-    override suspend fun unregisterFromPush() = withContext(Dispatchers.IO) {
-        val persisted = store.load() ?: return@withContext
-        val notifyBase = notifyBase.takeIf { it.isNotBlank() } ?: return@withContext
-        runCatching { NotifyClient(transport, notifyBase).unsubscribe(persisted.enrolmentCert) }
-        Unit
+    override suspend fun unregisterFromPush(): EngineResult<Unit> = ioResult(
+        "Couldn't stop sign-in wake-ups for this device.",
+        revealPreconditions = false,
+    ) {
+        val persisted = store.load() ?: return@ioResult EngineResult.Ready(Unit)
+        val notifyBase = notifyBase.takeIf { it.isNotBlank() } ?: return@ioResult EngineResult.Ready(Unit)
+        NotifyClient(transport, notifyBase).unsubscribe(persisted.enrolmentCert)
+        EngineResult.Ready(Unit)
     }
 
     // --- Pairing --------------------------------------------------------------
     //
     // Every step below runs the BLOCKING relay transport on Dispatchers.IO and converts
-    // any failure into an EngineResult.Failed ON THAT THREAD, inside the withContext
-    // block. That is the load-bearing part of the on-device crash fix: a call-site
+    // any failure into an EngineResult.Failed ON THAT THREAD, inside [ioResult]'s
+    // withContext block. That is the load-bearing part of the on-device crash fix: a call-site
     // runCatching in the UI did not save the app, because once the calling coroutine
     // (a LaunchedEffect) had been cancelled, the SocketTimeoutException the blocking
     // call threw 15s later had no caller to be delivered to and went to the uncaught
@@ -291,10 +317,11 @@ class DeviceVoidbindEngine(
                 ),
             )
         }
-        engineCatching(relayBase) {
+        ioResult(PAIRING_FAILED, relayBase) {
             val authorization = memberAuthorization()
             when (val outcome = authorization.inviteCatching(relayBase)) {
                 is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
+
                 is PairingOutcome.Ready -> {
                     val invitation = outcome.value
                     pendingAuthorization = authorization to invitation
@@ -313,138 +340,186 @@ class DeviceVoidbindEngine(
         }
     }
 
-    override suspend fun awaitPairHandshake(): EngineResult<PairSession> = withContext(Dispatchers.IO) {
-        engineCatching(inviteRelay ?: relayBase) {
-            val (authorization, invitation) = pendingAuthorization
-                ?: return@engineCatching internalFailure("No pairing invite is in progress.")
-            // Blocks (polls the relay) until the new device joins and both sides
-            // commit → reveal → open; returns the SAS. Signs nothing yet — the human
-            // matches this against the new device's screen, then confirmPairing()
-            // authorises. handshake() flips the initiator's `handshook` flag so the
-            // subsequent authorise() on the SAME invitation is valid.
-            when (val outcome = authorization.handshakeCatching(invitation)) {
-                is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
-                is PairingOutcome.Ready -> EngineResult.Ready(
+    override suspend fun awaitPairHandshake(): EngineResult<PairSession> = ioResult(
+        PAIRING_FAILED,
+        inviteRelay ?: relayBase,
+    ) {
+        val (authorization, invitation) = pendingAuthorization
+            ?: return@ioResult internalFailure("No pairing invite is in progress.")
+        // Blocks (polls the relay) until the new device joins and both sides
+        // commit → reveal → open; returns the SAS. Signs nothing yet — the human
+        // matches this against the new device's screen, then confirmPairing()
+        // authorises. handshake() flips the initiator's `handshook` flag so the
+        // subsequent authorise() on the SAME invitation is valid.
+        when (val outcome = authorization.handshakeCatching(invitation)) {
+            is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
+
+            is PairingOutcome.Ready -> EngineResult.Ready(
+                PairSession(
+                    thisDeviceName = defaultDeviceName(),
+                    peerDeviceName = "New device",
+                    securityCode = formatSas(outcome.value),
+                    // What the RELAY revealed. The one-tap path (ADR-0008) checks the
+                    // RP's own local report against this; a mismatch signs nothing.
+                    peerDeviceKey = invitation.responderDeviceId,
+                ),
+            )
+        }
+    }
+
+    override suspend fun joinPairInvite(code: ScannedCode.PairInvite): EngineResult<PairSession> = ioResult(
+        PAIRING_FAILED,
+        code.relay,
+    ) {
+        val ks = withDeviceAuth { deviceKeys.getOrCreate() }
+        val enc = existingEncKey() ?: DeviceIdentity.generateEncryptionKey()
+        val device = DeviceIdentity(ks.publicKey, enc.publicKey, enc.privateKey) { ks.sign(it) }
+        val pairing = DevicePairing(transport, device, clock)
+        // beginCatching turns the blocking relay handshake's every failure (no route,
+        // refused, TLS, timeout, relay non-2xx, a commitment that does not open) into a
+        // classified outcome instead of throwing — the SocketTimeoutException that
+        // killed the app arrived through exactly this call.
+        when (val outcome = pairing.beginCatching(code.raw)) {
+            is PairingOutcome.Failed -> {
+                pendingJoin = null
+                EngineResult.Failed(outcome.toEngineFailure())
+            }
+
+            is PairingOutcome.Ready -> {
+                val handshake = outcome.value
+                pendingJoin = PendingJoin(pairing, handshake, enc)
+                EngineResult.Ready(
                     PairSession(
                         thisDeviceName = defaultDeviceName(),
                         peerDeviceName = "New device",
-                        securityCode = formatSas(outcome.value),
-                        // What the RELAY revealed. The one-tap path (ADR-0008) checks the
-                        // RP's own local report against this; a mismatch signs nothing.
-                        peerDeviceKey = invitation.responderDeviceId,
+                        securityCode = formatSas(handshake.sas),
                     ),
                 )
             }
         }
     }
 
-    override suspend fun joinPairInvite(code: ScannedCode.PairInvite): EngineResult<PairSession> = withContext(Dispatchers.IO) {
-        engineCatching(code.relay) {
-            val ks = withDeviceAuth { deviceKeys.getOrCreate() }
-            val enc = existingEncKey() ?: DeviceIdentity.generateEncryptionKey()
-            val device = DeviceIdentity(ks.publicKey, enc.publicKey, enc.privateKey) { ks.sign(it) }
-            val pairing = DevicePairing(transport, device, clock)
-            // beginCatching turns the blocking relay handshake's every failure (no route,
-            // refused, TLS, timeout, relay non-2xx, a commitment that does not open) into a
-            // classified outcome instead of throwing — the SocketTimeoutException that
-            // killed the app arrived through exactly this call.
-            when (val outcome = pairing.beginCatching(code.raw)) {
-                is PairingOutcome.Failed -> {
-                    pendingJoin = null
-                    EngineResult.Failed(outcome.toEngineFailure())
-                }
-                is PairingOutcome.Ready -> {
-                    val handshake = outcome.value
-                    pendingJoin = PendingJoin(pairing, handshake, enc)
-                    EngineResult.Ready(
-                        PairSession(
-                            thisDeviceName = defaultDeviceName(),
-                            peerDeviceName = "New device",
-                            securityCode = formatSas(handshake.sas),
-                        ),
-                    )
-                }
+    override suspend fun confirmPairing(): EngineResult<Unit> = ioResult(
+        PAIRING_FAILED,
+        inviteRelay ?: relayBase,
+    ) {
+        val join = pendingJoin
+        if (join != null) {
+            if (!biometric.authenticate("Confirm pairing", "Approve on this device")) {
+                return@ioResult cancelledFailure()
             }
-        }
-    }
+            return@ioResult when (val outcome = join.pairing.confirmCatching(join.handshake)) {
+                is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
 
-    override suspend fun confirmPairing(): EngineResult<Unit> = withContext(Dispatchers.IO) {
-        engineCatching(inviteRelay ?: relayBase) {
-            val join = pendingJoin
-            if (join != null) {
-                if (!biometric.authenticate("Confirm pairing", "Approve on this device")) {
-                    return@engineCatching cancelledFailure()
-                }
-                return@engineCatching when (val outcome = join.pairing.confirmCatching(join.handshake)) {
-                    is PairingOutcome.Failed -> EngineResult.Failed(outcome.toEngineFailure())
-                    is PairingOutcome.Ready -> {
-                        // The admission: this device's admitting op (its credential) plus
-                        // the ops that authorise it (its replica from here on).
-                        val admission = outcome.value
-                        val userPub = KeyRef.parse(MembershipOp.verify(admission.op).user).bytes
-                        store.saveJoined(admission.op, admission.ops, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
-                        pendingJoin = null
-                        sessionUser = null // a joined device holds no user key
-                        _identity.value = loadState()
-                        EngineResult.Ready(Unit)
-                    }
+                is PairingOutcome.Ready -> {
+                    // The admission: this device's admitting op (its credential) plus
+                    // the ops that authorise it (its replica from here on).
+                    val admission = outcome.value
+                    val userPub = KeyRef.parse(MembershipOp.verify(admission.op).user).bytes
+                    store.saveJoined(admission.op, admission.ops, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
+                    pendingJoin = null
+                    sessionUser = null // a joined device holds no user key
+                    _identity.value = loadState()
+                    EngineResult.Ready(Unit)
                 }
             }
-            val authorization = pendingAuthorization
-            if (authorization != null) {
-                // Admitting a new member is an authority act — strong biometric only, no
-                // PIN fallback, so a thief with the screen-lock secret can't enrol their
-                // own device. (The responder path above only adds THIS device and keeps
-                // the softer presence check.)
-                when (biometric.authenticateStrong("Authorise new device", "Confirm with your fingerprint or face")) {
-                    StrongAuth.SUCCESS -> Unit
-                    StrongAuth.CANCELLED -> return@engineCatching cancelledFailure()
-                    StrongAuth.UNAVAILABLE -> return@engineCatching strongBiometricRequiredFailure()
-                }
-                // authorise() SIGNS the add with this device's hardware key (a member
-                // initiator) — so it runs under withDeviceAuth, which re-prompts if the
-                // keystore's auth window has lapsed; any throw lands in engineCatching.
-                val ops = withDeviceAuth { authorization.first.authorise(authorization.second) }
-                store.recordOps(ops)
-                pendingAuthorization = null
-                pushMembership(ops) // best-effort: the RPs learn the new member now, not at its first login
-                _identity.value = loadState()
-                return@engineCatching EngineResult.Ready(Unit)
-            }
-            internalFailure("No pairing is in progress.")
         }
+        val authorization = pendingAuthorization
+        if (authorization != null) {
+            // Admitting a new member is an authority act — strong biometric only, no
+            // PIN fallback, so a thief with the screen-lock secret can't enrol their
+            // own device. (The responder path above only adds THIS device and keeps
+            // the softer presence check.)
+            when (biometric.authenticateStrong("Authorise new device", "Confirm with your fingerprint or face")) {
+                StrongAuth.SUCCESS -> Unit
+                StrongAuth.CANCELLED -> return@ioResult cancelledFailure()
+                StrongAuth.UNAVAILABLE -> return@ioResult strongBiometricRequiredFailure()
+            }
+            // authorise() SIGNS the add with this device's hardware key (a member
+            // initiator) — so it runs under withDeviceAuth, which re-prompts if the
+            // keystore's auth window has lapsed; any throw lands in ioResult.
+            val ops = withDeviceAuth { authorization.first.authorise(authorization.second) }
+            store.recordOps(ops)
+            pendingAuthorization = null
+            pushMembership(ops) // best-effort: the RPs learn the new member now, not at its first login
+            _identity.value = loadState()
+            return@ioResult EngineResult.Ready(Unit)
+        }
+        internalFailure("No pairing is in progress.")
     }
 
     /**
-     * The last line of defence for a pairing step: whatever [block] throws that the
-     * library's `*Catching` layer did not already classify (a keystore error, a missing
-     * precondition, a bug) becomes a `Failed` here, on the IO thread, so it can never
-     * escape the coroutine. The biometric gate's "cancelled" signal gets its own kind.
+     * The engine's one error boundary. Runs [block] on [Dispatchers.IO] and turns
+     * whatever it throws that the library's `*Catching` layer did not already classify
+     * (a keystore error, a missing precondition, a transport failure, a bug) into a
+     * `Failed` there, on the IO thread, so it can never escape the coroutine — see
+     * [failureOf]. [suspendRunCatching] rethrows a [kotlinx.coroutines.CancellationException],
+     * so a cancelled caller is still torn down rather than handed a failure.
+     *
+     * [relayBase] marks a pairing step: an unclassified throw is then read against that
+     * relay (unreachable / refused / protocol). [revealPreconditions] lets a
+     * precondition's own message (`check`/`require`/`error`) through; turn it off where
+     * such messages are library-internal (an RP's HTTP status), so only [fallback] shows.
      */
-    private inline fun <T> engineCatching(relayBase: String, block: () -> EngineResult<T>): EngineResult<T> = try {
-        block()
-    } catch (e: AuthenticationRequiredException) {
-        cancelledFailure()
-    } catch (e: IllegalStateException) {
-        // check()/error() in this engine: "Only the device that created the identity can
-        // add new devices", "no identity" — a precondition, not a network problem.
-        EngineResult.Failed(EngineFailure(e.message ?: "Couldn't start the pairing.", EngineFailure.Kind.INTERNAL, retryable = false))
-    } catch (e: InterruptedIOException) {
-        // The blocking relay call was interrupted (the thread, not the network): this is
-        // NOT "can't reach the relay" — the relay never answered badly. Distinct kind so
-        // the dialog doesn't send the user to check Wi-Fi.
-        EngineResult.Failed(EngineFailure("The pairing was interrupted. Start again with a fresh invite.", EngineFailure.Kind.CANCELLED, retryable = true))
-    } catch (e: InterruptedException) {
-        EngineResult.Failed(EngineFailure("The pairing was interrupted. Start again with a fresh invite.", EngineFailure.Kind.CANCELLED, retryable = true))
-    } catch (e: Throwable) {
-        EngineResult.Failed(PairingFailures.classify(e, relayBase).toEngineFailure())
+    private suspend fun <T> ioResult(
+        fallback: String,
+        relayBase: String? = null,
+        revealPreconditions: Boolean = true,
+        block: suspend () -> EngineResult<T>,
+    ): EngineResult<T> = withContext(Dispatchers.IO) {
+        suspendRunCatching { block() }
+            .getOrElse { EngineResult.Failed(failureOf(it, fallback, relayBase, revealPreconditions)) }
+    }
+
+    /** [ioResult] for a step whose success is a plain value. */
+    private suspend fun <T> io(
+        fallback: String,
+        revealPreconditions: Boolean = true,
+        block: suspend () -> T,
+    ): EngineResult<T> = ioResult(fallback, revealPreconditions = revealPreconditions) { EngineResult.Ready(block()) }
+
+    /** Classify a throw that reached [ioResult]. Never raw exception text for an unexpected throw. */
+    private fun failureOf(
+        e: Throwable,
+        fallback: String,
+        relayBase: String?,
+        revealPreconditions: Boolean,
+    ): EngineFailure {
+        fun precondition() = EngineFailure(
+            (if (revealPreconditions) e.message else null) ?: fallback,
+            EngineFailure.Kind.INTERNAL,
+            retryable = false,
+        )
+        return when {
+            // The keystore wanted a fresh authentication and the human declined the prompt.
+            e is AuthenticationRequiredException -> CANCELLED_FAILURE
+
+            // check()/error() in this engine: "no identity", "no login in progress", "This
+            // device is no longer a member…" — a precondition, not a network problem.
+            e is IllegalStateException -> precondition()
+
+            // require() in the library's parsers ("not a valid recovery secret: …").
+            relayBase == null && e is IllegalArgumentException -> precondition()
+
+            relayBase == null -> precondition().copy(message = fallback)
+
+            // The blocking relay call was interrupted (the thread, not the network): this is
+            // NOT "can't reach the relay" — the relay never answered badly. Distinct kind so
+            // the dialog doesn't send the user to check Wi-Fi.
+            e is InterruptedIOException || e is InterruptedException -> EngineFailure(
+                "The pairing was interrupted. Start again with a fresh invite.",
+                EngineFailure.Kind.CANCELLED,
+                retryable = true,
+            )
+
+            else -> PairingFailures.classify(e, relayBase).toEngineFailure()
+        }
     }
 
     private fun <T> internalFailure(message: String): EngineResult<T> =
         EngineResult.Failed(EngineFailure(message, EngineFailure.Kind.INTERNAL, retryable = false))
 
-    private fun <T> cancelledFailure(): EngineResult<T> =
-        EngineResult.Failed(EngineFailure("Authentication cancelled.", EngineFailure.Kind.CANCELLED, retryable = false))
+    private fun <T> cancelledFailure(): EngineResult<T> = EngineResult.Failed(CANCELLED_FAILURE)
 
     /**
      * A destructive/authority act asked for a strong biometric and this device has
@@ -479,12 +554,12 @@ class DeviceVoidbindEngine(
 
     // --- Devices (membership, ADR-0005) ---------------------------------------
 
-    override suspend fun devices(): List<MemberDevice> = withContext(Dispatchers.IO) {
-        val persisted = store.load() ?: return@withContext emptyList()
+    override suspend fun devices(): EngineResult<List<MemberDevice>> = ioResult("Couldn't load this identity's devices.") {
+        val persisted = store.load() ?: return@ioResult EngineResult.Ready(emptyList())
         val usr = KeyRef.ed25519(persisted.userPublicKey).render()
         val self = KeyRef.ed25519(deviceKeys.getOrCreate().publicKey).render()
         val view = Membership.evaluate(usr, persisted.ops, clock())
-        view.members.values
+        val members = view.members.values
             .sortedWith(compareBy<Membership.Member> { it.device != self }.thenBy { it.admittedAt })
             .map { m ->
                 val admitting = view.accepted[m.admittedBy]
@@ -502,44 +577,56 @@ class DeviceVoidbindEngine(
                     expiresLabel = "renews by ${dateLabel(m.expiresAt)}",
                 )
             }
+        EngineResult.Ready(members)
     }
 
-    override suspend fun removeDevice(deviceId: String): EngineResult<Unit> = withContext(Dispatchers.IO) {
-        engineCatching(relayBase) {
-            val persisted = store.load() ?: return@engineCatching internalFailure("No identity on this device.")
-            val ks = deviceKeys.getOrCreate()
-            val selfPub = ks.publicKey
-            val self = KeyRef.ed25519(selfPub).render()
-            if (deviceId == self) return@engineCatching internalFailure("This device can't remove itself. Remove it from another device.")
-            val usr = KeyRef.ed25519(persisted.userPublicKey).render()
-            val now = clock()
-            val view = Membership.evaluate(usr, persisted.ops, now)
-            if (!view.isMember(self)) return@engineCatching internalFailure("This device is no longer a member, so it can't remove others.")
-            if (!view.isMember(deviceId)) return@engineCatching internalFailure("That device is not a member any more.")
-            // Strong biometric only, no PIN fallback: an unlocked stolen phone whose
-            // screen-lock secret is known must NOT be able to purge the fleet (ADR-0005 —
-            // seniority alone can't tell owner from thief; this is the "biometric on
-            // remove" mitigation).
-            when (biometric.authenticateStrong("Remove device", "Confirm with your fingerprint or face")) {
-                StrongAuth.SUCCESS -> Unit
-                StrongAuth.CANCELLED -> return@engineCatching cancelledFailure()
-                StrongAuth.UNAVAILABLE -> return@engineCatching strongBiometricRequiredFailure()
-            }
-            // The remove is signed by THIS device's hardware key, citing the replica's heads —
-            // the causal evidence that it was a member when it said so (ADR-0005 rule 2).
-            val removeOp = withDeviceAuth {
-                MembershipOp.sign(
-                    { ks.sign(it) }, selfPub, usr, MembershipOp.Kind.REMOVE,
-                    dev = deviceId, deviceEnc = "", prev = view.heads, issuedAt = now,
-                )
-            }
-            store.recordOps(listOf(removeOp))
-            val ops = store.knownOps()
-            check(!Membership.evaluate(usr, ops, now).isMember(deviceId)) { "the removal did not take effect locally" }
-            pushMembership(ops)
-            _identity.value = loadState()
-            EngineResult.Ready(Unit)
+    override suspend fun removeDevice(deviceId: String): EngineResult<Unit> = ioResult(
+        "Couldn't remove the device.",
+        relayBase,
+    ) {
+        val persisted = store.load() ?: return@ioResult internalFailure("No identity on this device.")
+        val ks = deviceKeys.getOrCreate()
+        val selfPub = ks.publicKey
+        val self = KeyRef.ed25519(selfPub).render()
+        if (deviceId == self) {
+            return@ioResult internalFailure("This device can't remove itself. Remove it from another device.")
         }
+        val usr = KeyRef.ed25519(persisted.userPublicKey).render()
+        val now = clock()
+        val view = Membership.evaluate(usr, persisted.ops, now)
+        if (!view.isMember(self)) {
+            return@ioResult internalFailure("This device is no longer a member, so it can't remove others.")
+        }
+        if (!view.isMember(deviceId)) return@ioResult internalFailure("That device is not a member any more.")
+        // Strong biometric only, no PIN fallback: an unlocked stolen phone whose
+        // screen-lock secret is known must NOT be able to purge the fleet (ADR-0005 —
+        // seniority alone can't tell owner from thief; this is the "biometric on
+        // remove" mitigation).
+        when (biometric.authenticateStrong("Remove device", "Confirm with your fingerprint or face")) {
+            StrongAuth.SUCCESS -> Unit
+            StrongAuth.CANCELLED -> return@ioResult cancelledFailure()
+            StrongAuth.UNAVAILABLE -> return@ioResult strongBiometricRequiredFailure()
+        }
+        // The remove is signed by THIS device's hardware key, citing the replica's heads —
+        // the causal evidence that it was a member when it said so (ADR-0005 rule 2).
+        val removeOp = withDeviceAuth {
+            MembershipOp.sign(
+                { ks.sign(it) },
+                selfPub,
+                usr,
+                MembershipOp.Kind.REMOVE,
+                dev = deviceId,
+                deviceEnc = "",
+                prev = view.heads,
+                issuedAt = now,
+            )
+        }
+        store.recordOps(listOf(removeOp))
+        val ops = store.knownOps()
+        check(!Membership.evaluate(usr, ops, now).isMember(deviceId)) { "the removal did not take effect locally" }
+        pushMembership(ops)
+        _identity.value = loadState()
+        EngineResult.Ready(Unit)
     }
 
     /**
@@ -568,17 +655,17 @@ class DeviceVoidbindEngine(
 
     // --- Settings -------------------------------------------------------------
 
-    override suspend fun renameDevice(name: String) = withContext(Dispatchers.IO) {
+    override suspend fun renameDevice(name: String): EngineResult<Unit> = io("Couldn't rename this device.") {
         store.setDeviceName(name)
         _identity.value = loadState()
     }
 
-    override suspend fun setBiometricApproval(enabled: Boolean) = withContext(Dispatchers.IO) {
+    override suspend fun setBiometricApproval(enabled: Boolean): EngineResult<Unit> = io("Couldn't change biometric approval.") {
         store.setBiometricApproval(enabled)
         _identity.value = loadState()
     }
 
-    override suspend fun revokeSite(siteId: String) = withContext(Dispatchers.IO) {
+    override suspend fun revokeSite(siteId: String): EngineResult<Unit> = io("Couldn't revoke $siteId.") {
         store.removeTrustedSite(siteId)
         policy.forget(siteId) // the site's TrustedSite.id is its host, the policy key
         _identity.value = loadState()
@@ -586,7 +673,7 @@ class DeviceVoidbindEngine(
 
     // --- Per-RP approval policy + audit ---------------------------------------
 
-    override suspend fun sitePolicy(rp: String): SitePolicyView = withContext(Dispatchers.IO) {
+    override suspend fun sitePolicy(rp: String): EngineResult<SitePolicyView> = io("Couldn't read $rp's approval policy.") {
         val p = policy.policyFor(rp)
         SitePolicyView(
             rp = rp,
@@ -595,12 +682,16 @@ class DeviceVoidbindEngine(
         )
     }
 
-    override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean) = withContext(Dispatchers.IO) {
+    override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean): EngineResult<Unit> = io(
+        "Couldn't change $rp's approval policy.",
+    ) {
         if (alwaysAsk) policy.setAlwaysAsk(rp) else policy.trust(rp)
         _identity.value = loadState()
     }
 
-    override suspend fun approvalActivity(limit: Int): List<ApprovalActivity> = withContext(Dispatchers.IO) {
+    override suspend fun approvalActivity(limit: Int): EngineResult<List<ApprovalActivity>> = io(
+        "Couldn't load the approval activity.",
+    ) {
         val now = clock()
         policy.auditEntries(limit).map { ApprovalActivity.from(it, relativeTime(now, it.timestampSeconds)) }
     }
@@ -692,8 +783,11 @@ class DeviceVoidbindEngine(
     private suspend fun <T> withDeviceAuth(block: () -> T): T = try {
         block()
     } catch (e: AuthenticationRequiredException) {
-        if (biometric.authenticate("Authenticate", "Confirm it's you to use your device key")) block()
-        else throw e
+        if (biometric.authenticate("Authenticate", "Confirm it's you to use your device key")) {
+            block()
+        } else {
+            throw e
+        }
     }
 
     private fun backup(secret: RecoverySecret): RecoveryBackup {
@@ -729,6 +823,13 @@ class DeviceVoidbindEngine(
          * enrolment: the initiator gave up before the responder posted its commit).
          */
         const val INVITE_TTL_SECONDS = 600
+
+        private const val PAIRING_FAILED = "Couldn't complete the pairing."
+        private const val SIGN_IN_FAILED = "Couldn't complete the sign-in."
+        private const val LOGIN_UNREACHABLE = "Couldn't reach the site."
+        private const val PUSH_FAILED = "Couldn't register this device for sign-in wake-ups."
+        private val CANCELLED_FAILURE =
+            EngineFailure("Authentication cancelled.", EngineFailure.Kind.CANCELLED, retryable = false)
 
         /**
          * The default pairing relay when Settings holds no override — a build-time value,

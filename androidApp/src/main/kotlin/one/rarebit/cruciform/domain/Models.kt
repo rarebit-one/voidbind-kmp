@@ -167,26 +167,6 @@ data class LoginRequest(
 }
 
 /**
- * The result of fetching a web-login request. A fetch touches the network (the RP is the
- * source of truth for the challenge), so it can fail — an unreachable RP, a TLS error, a
- * timeout, a non-2xx, or a cleartext-blocked URL. The engine catches every such failure
- * and returns [Failed] rather than throwing, so the UI can render an error instead of the
- * app crashing with an uncaught main-thread exception (see [VoidbindEngine.fetchLoginRequest]).
- */
-sealed interface LoginRequestResult {
-    /** The RP answered; show the approval sheet for [request]. */
-    data class Ready(val request: LoginRequest) : LoginRequestResult
-
-    /**
-     * The fetch failed; show [message] (already human-readable, no raw exception text).
-     * [expired] is true when the login code was stale (a 404/410 on the challenge fetch) rather
-     * than unreachable or refused — the UI can then title the dialog "Expired" and tell the user
-     * to scan a fresh QR instead of the generic "Sign-in unavailable".
-     */
-    data class Failed(val message: String, val expired: Boolean = false) : LoginRequestResult
-}
-
-/**
  * A user-facing failure from an engine step that touches the network or the hardware
  * gate. [message] is already human-readable and says what to do ("Can't reach the relay
  * at <host>. Check Wi-Fi or your VPN and try again.") — never raw exception text.
@@ -202,14 +182,25 @@ data class EngineFailure(
     enum class Kind {
         /** No route to the relay / RP (Wi-Fi, VPN, DNS, TLS, timeout). Retry when the network is back. */
         UNREACHABLE,
+
         /** The peer never showed up: the invite expired unjoined. Retry = a fresh invite. */
         TIMEOUT,
+
         /** The relay was reached but refused (stale / used session, server error). */
         REJECTED,
+
         /** The bytes did not verify — do not retry the same session. */
         PROTOCOL,
+
         /** The human cancelled the biometric prompt. */
         CANCELLED,
+
+        /**
+         * A short-lived code went stale before it was used — a web-login id the RP no
+         * longer knows (404/410 on the challenge fetch). Scan a fresh QR; not retryable.
+         */
+        EXPIRED,
+
         /** Anything else (a bug, a missing precondition such as no identity). */
         INTERNAL,
     }
@@ -217,7 +208,7 @@ data class EngineFailure(
 
 /**
  * The result of an engine step that MUST NOT throw for a transport/hardware failure:
- * every pairing entry point returns one, so a blocking relay call that blows up inside
+ * every suspending [VoidbindEngine] call returns one, so a blocking relay call that blows up inside
  * `withContext(Dispatchers.IO)` is turned into a value on the IO thread — it never
  * escapes the coroutine. (A call-site `runCatching` is not enough: when the calling
  * coroutine has already been cancelled, an exception thrown later by the blocking call
@@ -228,6 +219,15 @@ sealed interface EngineResult<out T> {
     data class Ready<T>(val value: T) : EngineResult<T>
     data class Failed(val failure: EngineFailure) : EngineResult<Nothing>
 }
+
+/** The value of a [EngineResult.Ready], or null for a failure. */
+fun <T> EngineResult<T>.valueOrNull(): T? = when (this) {
+    is EngineResult.Ready -> value
+    is EngineResult.Failed -> null
+}
+
+/** The failure of a [EngineResult.Failed], or null on success. */
+fun EngineResult<*>.failureOrNull(): EngineFailure? = (this as? EngineResult.Failed)?.failure
 
 /** SAS-compare state for the pair VERIFY step. */
 data class PairSession(

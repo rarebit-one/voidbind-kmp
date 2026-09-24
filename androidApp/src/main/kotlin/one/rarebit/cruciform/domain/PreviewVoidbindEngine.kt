@@ -38,22 +38,23 @@ class PreviewVoidbindEngine(
         policy.recordDenial("unknown.example", "https://unknown.example", "L-1002")
     }
 
-    override suspend fun refresh() { /* already seeded */ }
+    override suspend fun refresh(): EngineResult<Unit> = EngineResult.Ready(Unit) // already seeded
 
-    override suspend fun createIdentity(): RecoveryBackup {
+    override suspend fun createIdentity(): EngineResult<RecoveryBackup> {
         delay(400)
         _identity.value = SampleData.activeState
-        return SampleData.recoveryBackup
+        return EngineResult.Ready(SampleData.recoveryBackup)
     }
 
-    override suspend fun restoreIdentity(recoverySecret: String) {
+    override suspend fun restoreIdentity(recoverySecret: String): EngineResult<Unit> {
         delay(400)
         _identity.value = SampleData.activeState
+        return EngineResult.Ready(Unit)
     }
 
-    override suspend fun revealRecoverySecret(): RecoveryBackup {
+    override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> {
         delay(200)
-        return SampleData.recoveryBackup
+        return EngineResult.Ready(SampleData.recoveryBackup)
     }
 
     override fun parseScanned(raw: String): ScannedCode = when {
@@ -62,20 +63,26 @@ class PreviewVoidbindEngine(
         else -> ScannedCode.Unknown(raw)
     }
 
-    override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequestResult {
+    override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): EngineResult<LoginRequest> {
         delay(300)
-        return LoginRequestResult.Ready(SampleData.loginRequest)
+        return EngineResult.Ready(SampleData.loginRequest)
     }
 
-    override suspend fun approveLogin(code: ScannedCode.WebLogin) { delay(600) }
+    override suspend fun approveLogin(code: ScannedCode.WebLogin): EngineResult<Unit> = done(600)
 
-    override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int) { delay(600) }
+    override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int): EngineResult<Unit> = done(600)
 
-    override suspend fun denyLogin() { delay(100) }
+    override suspend fun denyLogin(): EngineResult<Unit> = done(100)
 
-    override suspend fun registerForPush(endpoint: String): Boolean { delay(150); return true }
+    override suspend fun registerForPush(endpoint: String): EngineResult<Unit> = done(150)
 
-    override suspend fun unregisterFromPush() { delay(150) }
+    override suspend fun unregisterFromPush(): EngineResult<Unit> = done(150)
+
+    /** A step that just takes a moment and succeeds. */
+    private suspend fun done(millis: Long): EngineResult<Unit> {
+        delay(millis)
+        return EngineResult.Ready(Unit)
+    }
 
     override suspend fun startPairInvite(): EngineResult<PairInviteDisplay> {
         delay(200)
@@ -103,11 +110,17 @@ class PreviewVoidbindEngine(
         return EngineResult.Ready(SampleData.pairSession)
     }
 
-    override suspend fun confirmPairing(): EngineResult<Unit> { delay(600); return EngineResult.Ready(Unit) }
+    override suspend fun confirmPairing(): EngineResult<Unit> {
+        delay(600)
+        return EngineResult.Ready(Unit)
+    }
 
     private val previewDevices = SampleData.devices.toMutableList()
 
-    override suspend fun devices(): List<MemberDevice> { delay(100); return previewDevices.toList() }
+    override suspend fun devices(): EngineResult<List<MemberDevice>> {
+        delay(100)
+        return EngineResult.Ready(previewDevices.toList())
+    }
 
     override suspend fun removeDevice(deviceId: String): EngineResult<Unit> {
         delay(400)
@@ -118,34 +131,39 @@ class PreviewVoidbindEngine(
         return EngineResult.Ready(Unit)
     }
 
-    override suspend fun renameDevice(name: String) {
+    override suspend fun renameDevice(name: String): EngineResult<Unit> {
         _identity.update { s ->
             if (s is IdentityState.Active) s.copy(device = s.device.copy(name = name)) else s
         }
+        return EngineResult.Ready(Unit)
     }
 
-    override suspend fun setBiometricApproval(enabled: Boolean) {
+    override suspend fun setBiometricApproval(enabled: Boolean): EngineResult<Unit> {
         _identity.update { s -> if (s is IdentityState.Active) s.copy(biometricApproval = enabled) else s }
+        return EngineResult.Ready(Unit)
     }
 
-    override suspend fun revokeSite(siteId: String) {
+    override suspend fun revokeSite(siteId: String): EngineResult<Unit> {
         policy.forget(siteId)
         _identity.update { s ->
             if (s is IdentityState.Active) s.copy(trustedSites = s.trustedSites.filterNot { it.id == siteId }) else s
         }
+        return EngineResult.Ready(Unit)
     }
 
-    override suspend fun sitePolicy(rp: String): SitePolicyView {
+    override suspend fun sitePolicy(rp: String): EngineResult<SitePolicyView> {
         val p = policy.policyFor(rp)
-        return SitePolicyView(rp, p?.policy ?: ApprovalPolicy.AlwaysAsk, p?.pinnedAlwaysAsk ?: false)
+        val view = SitePolicyView(rp, p?.policy ?: ApprovalPolicy.AlwaysAsk, p?.pinnedAlwaysAsk ?: false)
+        return EngineResult.Ready(view)
     }
 
-    override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean) {
+    override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean): EngineResult<Unit> {
         if (alwaysAsk) policy.setAlwaysAsk(rp) else policy.trust(rp)
+        return EngineResult.Ready(Unit)
     }
 
-    override suspend fun approvalActivity(limit: Int): List<ApprovalActivity> =
-        policy.auditEntries(limit).map { ApprovalActivity.from(it, whenLabel = "recently") }
+    override suspend fun approvalActivity(limit: Int): EngineResult<List<ApprovalActivity>> =
+        EngineResult.Ready(policy.auditEntries(limit).map { ApprovalActivity.from(it, whenLabel = "recently") })
 }
 
 /** Sample content mirroring the product mockups. Placeholder only. */
@@ -204,13 +222,19 @@ object SampleData {
     val devices = listOf(
         MemberDevice(
             id = "ed25519:a29f67b1000000000000000000000000000000000000000000000000000000a1",
-            fingerprint = "A29F 67B1", isThisDevice = true,
-            admittedByLabel = "genesis (recovery key)", admittedLabel = "1 Sep 2026", expiresLabel = "renews by 30 Nov 2026",
+            fingerprint = "A29F 67B1",
+            isThisDevice = true,
+            admittedByLabel = "genesis (recovery key)",
+            admittedLabel = "1 Sep 2026",
+            expiresLabel = "renews by 30 Nov 2026",
         ),
         MemberDevice(
             id = "ed25519:5c1e88d4000000000000000000000000000000000000000000000000000000b2",
-            fingerprint = "5C1E 88D4", isThisDevice = false,
-            admittedByLabel = "A29F 67B1", admittedLabel = "2 Sep 2026", expiresLabel = "renews by 1 Dec 2026",
+            fingerprint = "5C1E 88D4",
+            isThisDevice = false,
+            admittedByLabel = "A29F 67B1",
+            admittedLabel = "2 Sep 2026",
+            expiresLabel = "renews by 1 Dec 2026",
         ),
     )
 

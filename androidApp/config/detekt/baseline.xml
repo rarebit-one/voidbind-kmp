@@ -5,7 +5,6 @@
     <ID>ComplexCondition:RpPairHandoff.kt$RpPairHandoff$ch in 'A'..'Z' || ch in 'a'..'z' || ch in '0'..'9' || ch == '-' || ch == '_' || ch == '.' || ch == '~'</ID>
     <ID>CyclomaticComplexMethod:CruciformNavHost.kt$@Composable fun CruciformNavHost( viewModel: AppViewModel, handoff: Handoff? = null, onHandoffFinished: (Handoff, approved: Boolean) -&gt; Unit = { _, _ -&gt; }, /** * A `cruciform://pair-joined` report from a relying-party app on this phone * (ADR-0008). Handed to the invite coordinator, which checks it against the relay * before anything is shown. */ samePhoneJoin: SamePhoneJoin? = null, /** * The one-tap add is signed and delivered: send the human back to the RP's * `&lt;scheme&gt;://pair-done?session=` landing and finish. `(rpScheme, session)`. */ onSamePhoneDone: (String?, String) -&gt; Unit = { _, _ -&gt; }, /** * The one-tap report was refused (a key or code that disagreed with the relay): * tell the RP through its `pair-done?outcome=refused` leg so it stops waiting. * `(rpScheme, session, reason)`. Cruciform's own failure dialog stays up. */ onSamePhoneRefused: (String?, String, String) -&gt; Unit = { _, _, _ -&gt; }, )</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable private fun EndpointField( title: String, description: String, fieldLabel: String, url: String, defaultUrl: String, isDefault: Boolean, validate: (String) -&gt; RelayConfig.Validation, onSave: (String) -&gt; RelayConfig.Validation, onReset: () -&gt; Unit, focus: Boolean, onFocused: () -&gt; Unit, )</ID>
-    <ID>EmptyFunctionBlock:InviteCoordinatorTest.kt$InviteCoordinatorTest.FakeEngine${}</ID>
     <ID>FunctionNaming:ApprovalActivityScreen.kt$@Composable fun ApprovalActivityScreen( activity: List&lt;ApprovalActivity&gt;, onBack: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>FunctionNaming:ApprovalActivityScreen.kt$@Composable private fun ActivityRow(entry: ApprovalActivity)</ID>
     <ID>FunctionNaming:ApprovalActivityScreen.kt$@Composable private fun EmptyState()</ID>
@@ -53,7 +52,7 @@
     <ID>FunctionNaming:QrScanner.kt$@Composable fun QrScanner( onQr: (String) -&gt; Unit, modifier: Modifier = Modifier, noPermission: @Composable () -&gt; Unit = {}, )</ID>
     <ID>FunctionNaming:RecoveryBackupScreen.kt$@Composable fun RecoveryBackupScreen( backup: RecoveryBackup, onBack: () -&gt; Unit, onSaved: () -&gt; Unit, stepLabel: String = "1 of 3 · BACKUP REQUIRED", modifier: Modifier = Modifier, )</ID>
     <ID>FunctionNaming:RecoveryBackupScreen.kt$@Composable private fun AckRow(text: String, checked: Boolean, onChange: (Boolean) -&gt; Unit)</ID>
-    <ID>FunctionNaming:RestoreScreen.kt$@Composable fun RestoreScreen( onBack: () -&gt; Unit, onRestore: suspend (String) -&gt; Unit, onDone: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:RestoreScreen.kt$@Composable fun RestoreScreen( onBack: () -&gt; Unit, onRestore: suspend (String) -&gt; EngineResult&lt;Unit&gt;, onDone: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>FunctionNaming:Rows.kt$@Composable fun IdentityFingerprint( label: String, fingerprint: String, modifier: Modifier = Modifier, onCopy: (() -&gt; Unit)? = null, )</ID>
     <ID>FunctionNaming:Rows.kt$@Composable fun RowItem( title: String, modifier: Modifier = Modifier, subtitle: String? = null, leading: (@Composable () -&gt; Unit)? = null, trailing: (@Composable () -&gt; Unit)? = null, titleColor: Color = VbColors.TextPrimary, onClick: (() -&gt; Unit)? = null, )</ID>
     <ID>FunctionNaming:Rows.kt$@Composable fun SiteAvatar(accent: SiteAccent, modifier: Modifier = Modifier, diameter: Int = 44)</ID>
@@ -78,7 +77,7 @@
     <ID>LongMethod:PairVerifyScreen.kt$@Composable fun PairVerifyScreen( session: PairSession, onCancel: () -&gt; Unit, onConfirm: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>LongMethod:QrScanner.kt$@Composable fun QrScanner( onQr: (String) -&gt; Unit, modifier: Modifier = Modifier, noPermission: @Composable () -&gt; Unit = {}, )</ID>
     <ID>LongMethod:RecoveryBackupScreen.kt$@Composable fun RecoveryBackupScreen( backup: RecoveryBackup, onBack: () -&gt; Unit, onSaved: () -&gt; Unit, stepLabel: String = "1 of 3 · BACKUP REQUIRED", modifier: Modifier = Modifier, )</ID>
-    <ID>LongMethod:RestoreScreen.kt$@Composable fun RestoreScreen( onBack: () -&gt; Unit, onRestore: suspend (String) -&gt; Unit, onDone: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:RestoreScreen.kt$@Composable fun RestoreScreen( onBack: () -&gt; Unit, onRestore: suspend (String) -&gt; EngineResult&lt;Unit&gt;, onDone: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>LongMethod:ScanScreen.kt$@Composable fun ScanScreen( onClose: () -&gt; Unit, onCode: (String) -&gt; Unit, onEnterManually: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen( state: IdentityState.Active, onRename: () -&gt; Unit, onToggleBiometric: (Boolean) -&gt; Unit, onRevoke: (TrustedSite) -&gt; Unit, onManageSites: () -&gt; Unit, onRecoveryBackup: () -&gt; Unit, onApprovalActivity: () -&gt; Unit, onDevices: () -&gt; Unit, onAbout: () -&gt; Unit, onSecurity: () -&gt; Unit, onLicenses: () -&gt; Unit, modifier: Modifier = Modifier, relayUrl: String = RelayConfig.DEFAULT_RELAY, relayIsDefault: Boolean = true, onSaveRelay: (String) -&gt; RelayConfig.Validation = { RelayConfig.validate(it) }, onResetRelay: () -&gt; Unit = {}, focusRelay: Boolean = false, onRelayFocused: () -&gt; Unit = {}, notifyUrl: String = NotifyConfig.DEFAULT_NOTIFY, notifyIsDefault: Boolean = true, onSaveNotify: (String) -&gt; RelayConfig.Validation = { NotifyConfig.validate(it) }, onResetNotify: () -&gt; Unit = {}, )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable private fun EndpointField( title: String, description: String, fieldLabel: String, url: String, defaultUrl: String, isDefault: Boolean, validate: (String) -&gt; RelayConfig.Validation, onSave: (String) -&gt; RelayConfig.Validation, onReset: () -&gt; Unit, focus: Boolean, onFocused: () -&gt; Unit, )</ID>
@@ -269,22 +268,13 @@
     <ID>MaxLineLength:BottomBar.kt$Icon(Icons.Rounded.QrCodeScanner, contentDescription = "Scan", tint = VbColors.Blue, modifier = Modifier.size(28.dp))</ID>
     <ID>MaxLineLength:BottomBar.kt$Text(label, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = tint, textAlign = TextAlign.Center)</ID>
     <ID>MaxLineLength:CruciformNavHost.kt$(st.failure.kind == EngineFailure.Kind.UNREACHABLE || st.failure.kind == EngineFailure.Kind.REJECTED)</ID>
-    <ID>MaxLineLength:CruciformNavHost.kt$.</ID>
     <ID>MaxLineLength:CruciformNavHost.kt$LaunchedEffect(Unit) { nav.navigate(Routes.ONBOARDING) { popUpTo(nav.graph.id) { inclusive = true } } }</ID>
     <ID>MaxLineLength:CruciformNavHost.kt$if (activeHandoff?.returnsToCaller != true &amp;&amp; !result.failure.retryable) decided(false)</ID>
     <ID>MaxLineLength:CruciformNavHost.kt$is InviteCoordinator.State.Waiting -&gt; "Waiting for the new device to join… you can switch apps; this keeps waiting."</ID>
     <ID>MaxLineLength:CruciformNavHost.kt$onSettings = { if (route != Routes.SETTINGS) nav.navigate(Routes.SETTINGS) { launchSingleTop = true } }</ID>
-    <ID>MaxLineLength:CruciformNavHost.kt$val result = suspendRunCatching { engine.confirmPairing() }.getOrElse { EngineResult.Failed(unexpected(it)) }</ID>
-    <ID>MaxLineLength:CruciformNavHost.kt$val result = suspendRunCatching { engine.joinPairInvite(code) }.getOrElse { EngineResult.Failed(unexpected(it)) }</ID>
-    <ID>MaxLineLength:CruciformNavHost.kt$val result = suspendRunCatching { engine.removeDevice(device.id) }.getOrElse { EngineResult.Failed(unexpected(it, "Couldn't remove the device.")) }</ID>
     <ID>MaxLineLength:CruciformNavHost.kt$val target = if (samePhone is InviteCoordinator.SamePhone.Verified) Routes.PAIR_ALLOW else Routes.PAIR_VERIFY</ID>
     <ID>MaxLineLength:CruciformNavHost.kt$var approvalActivity by remember { mutableStateOf&lt;List&lt;one.rarebit.cruciform.domain.ApprovalActivity&gt;&gt;(emptyList()) }</ID>
     <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$"This device is no longer a member of the identity, so it can't add devices. Re-admit it from another device, or restore from the recovery secret."</ID>
-    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$.</ID>
-    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$EngineResult.Failed(EngineFailure("The pairing was interrupted. Start again with a fresh invite.", EngineFailure.Kind.CANCELLED, retryable = true))</ID>
-    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$EngineResult.Failed(EngineFailure(e.message ?: "Couldn't start the pairing.", EngineFailure.Kind.INTERNAL, retryable = false))</ID>
-    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$if (!view.isMember(self)) return@engineCatching internalFailure("This device is no longer a member, so it can't remove others.")</ID>
-    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$if (deviceId == self) return@engineCatching internalFailure("This device can't remove itself. Remove it from another device.")</ID>
     <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$inviteId = "INV · ${invitation.relaySession.uppercase().take(8).chunked(4).joinToString(" ")}"</ID>
     <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$override suspend</ID>
     <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$return DeviceAuthorization(transport, device, persisted.enrolmentCert, persisted.ops, clock, maxWaitMillis = INVITE_TTL_SECONDS * 1000L)</ID>
@@ -370,7 +360,6 @@
     <ID>MaxLineLength:PreviewVoidbindEngine.kt$SampleData$TrustedSite("bartley", "bartley.home", "Home Assistant", "6 days ago", SiteAccent.MINT, policy = ApprovalPolicy.TrustedTofu)</ID>
     <ID>MaxLineLength:PreviewVoidbindEngine.kt$SampleData$TrustedSite("cove", "home.cove.lan", "Cove Control", "yesterday", SiteAccent.PURPLE, policy = ApprovalPolicy.AlwaysAsk, pinnedAlwaysAsk = true)</ID>
     <ID>MaxLineLength:PreviewVoidbindEngine.kt$SampleData$TrustedSite("thesim", "thesim.family", "All Thing", "last used today", SiteAccent.BLUE, policy = ApprovalPolicy.TrustedTofu)</ID>
-    <ID>MaxLineLength:PreviewVoidbindEngine.kt$SampleData$admittedByLabel = "genesis (recovery key)"</ID>
     <ID>MaxLineLength:RecoveryBackupScreen.kt$Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(18.dp))</ID>
     <ID>MaxLineLength:RecoveryBackupScreen.kt$Icon(Icons.Rounded.VpnKey, contentDescription = null, tint = VbColors.Amber, modifier = Modifier.size(60.dp))</ID>
     <ID>MaxLineLength:RecoveryBackupScreen.kt$Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = VbColors.Amber, modifier = Modifier.size(28.dp))</ID>
@@ -438,18 +427,14 @@
     <ID>ReturnCount:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$private fun param(query: String, key: String): String?</ID>
     <ID>ReturnCount:SealedSecretStore.kt$SealedSecretStore$override fun unseal(name: String): ByteArray?</ID>
     <ID>ReturnCount:TrustedSiteCodec.kt$TrustedSiteCodec$fun decode(raw: String?): List&lt;TrustedSite&gt;</ID>
-    <ID>SwallowedException:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$e: AuthenticationRequiredException</ID>
-    <ID>SwallowedException:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$e: InterruptedIOException</ID>
     <ID>SwallowedException:MainActivity.kt$MainActivity$e: ActivityNotFoundException</ID>
     <ID>SwallowedException:MainActivity.kt$MainActivity$e: SecurityException</ID>
     <ID>SwallowedException:RelayConfig.kt$RelayConfig$e: URISyntaxException</ID>
     <ID>SwallowedException:RpPairLauncher.kt$RpPairLauncher$e: ActivityNotFoundException</ID>
     <ID>SwallowedException:RpPairLauncher.kt$RpPairLauncher$e: SecurityException</ID>
     <ID>SwallowedException:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$e: IllegalArgumentException</ID>
-    <ID>TooGenericExceptionCaught:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$e: Throwable</ID>
     <ID>TooGenericExceptionCaught:InviteCoordinator.kt$InviteCoordinator$t: Throwable</ID>
     <ID>TooGenericExceptionCaught:PairInviteService.kt$PairInviteService.Companion$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:RestoreScreen.kt$e: Throwable</ID>
     <ID>TooGenericExceptionCaught:RpAppIdentity.kt$RpAppIdentity.Companion$e: Exception</ID>
     <ID>TooGenericExceptionCaught:RpPairLauncher.kt$RpPairLauncher$e: Exception</ID>
     <ID>TooGenericExceptionCaught:SuspendRunCatching.kt$e: Throwable</ID>

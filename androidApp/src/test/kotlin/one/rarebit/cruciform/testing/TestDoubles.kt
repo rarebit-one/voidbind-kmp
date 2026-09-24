@@ -12,6 +12,7 @@ import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.net.HttpResponse
 import one.rarebit.voidbind.net.HttpTransport
 import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
 // Plain-JVM stand-ins for the Android pieces the engine and stores touch. The unit-test
 // `android.jar` is stubs only (every method throws), so nothing here calls into it: the
@@ -130,13 +131,18 @@ class FakeBiometric(
 ) : BiometricAuthenticator {
     val prompts = mutableListOf<String>()
 
+    /** When set, every prompt throws it — the caller's coroutine being torn down mid-prompt. */
+    var cancelWith: CancellationException? = null
+
     override suspend fun authenticate(title: String, subtitle: String): Boolean {
         prompts += title
+        cancelWith?.let { throw it }
         return presence
     }
 
     override suspend fun authenticateStrong(title: String, subtitle: String): StrongAuth {
         prompts += title
+        cancelWith?.let { throw it }
         return strong
     }
 }
