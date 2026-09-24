@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +66,8 @@ fun HomeScreen(
     trustedSites: List<TrustedSite>,
     membership: MembershipHealth,
     onRenew: () -> Unit,
+    backupPending: Boolean,
+    onCheckBackup: () -> Unit,
     onSettings: () -> Unit,
     onCopyIdentity: () -> Unit,
     onDevice: () -> Unit,
@@ -100,6 +103,11 @@ fun HomeScreen(
 
         VSpace(18)
         StrongBoxCard(device)
+
+        if (backupPending) {
+            VSpace(10)
+            BackupCard(onCheckBackup)
+        }
 
         if (membership.lapsed || membership.renewalDue) {
             VSpace(10)
@@ -173,6 +181,47 @@ fun HomeScreen(
                     if (i < trustedSites.lastIndex) VbHairline(Modifier.padding(start = 74.dp))
                 }
             }
+        }
+    }
+}
+
+/**
+ * Shown until the recovery secret written down at creation has been checked back
+ * (voidbind-go ADR-0010): an unchecked backup is found to be wrong only when needed.
+ */
+@Composable
+private fun BackupCard(onCheck: () -> Unit) {
+    WashCard(accent = VbColors.Amber, wash = VbColors.AmberWash, modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.VpnKey,
+                    contentDescription = null,
+                    tint = VbColors.Amber,
+                    modifier = Modifier.size(28.dp),
+                )
+                HSpace(14)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Check your recovery secret",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = VbColors.TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "You haven't confirmed what you wrote down. It's the only way back if you lose your devices.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = VbColors.TextSecondary,
+                    )
+                }
+            }
+            VSpace(10)
+            OutlineButton(
+                "Check it now",
+                onClick = onCheck,
+                accent = VbColors.Amber,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

@@ -21,6 +21,7 @@ import one.rarebit.cruciform.domain.MemberDevice
 import one.rarebit.cruciform.domain.PairInviteDisplay
 import one.rarebit.cruciform.domain.PairSession
 import one.rarebit.cruciform.domain.RecoveryBackup
+import one.rarebit.cruciform.domain.RecoveryCheck
 import one.rarebit.cruciform.domain.ScannedCode
 import one.rarebit.cruciform.domain.SitePolicyView
 import one.rarebit.cruciform.domain.VoidbindEngine
@@ -79,6 +80,12 @@ class InviteCoordinatorTest {
         override suspend fun devices(): EngineResult<List<MemberDevice>> = EngineResult.Ready(emptyList())
         override suspend fun removeDevice(deviceId: String): EngineResult<Unit> = EngineResult.Ready(Unit)
         override suspend fun renewMembership(): EngineResult<Unit> = EngineResult.Ready(Unit)
+        override suspend fun verifyRecoverySecret(secret: String): EngineResult<RecoveryCheck> {
+            val check = RecoveryCheck(fingerprint = "")
+            return EngineResult.Ready(check)
+        }
+        override suspend fun confirmBackup(): EngineResult<Unit> = EngineResult.Ready(Unit)
+        override suspend fun forgetRecoverySecret(): EngineResult<Unit> = EngineResult.Ready(Unit)
         override suspend fun renameDevice(name: String): EngineResult<Unit> = error("unused")
         override suspend fun setBiometricApproval(enabled: Boolean): EngineResult<Unit> = error("unused")
         override suspend fun revokeSite(siteId: String): EngineResult<Unit> = error("unused")

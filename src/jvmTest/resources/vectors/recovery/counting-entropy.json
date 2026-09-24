@@ -1,0 +1,10 @@
+{
+  "name": "counting-entropy",
+  "description": "bytes 0x00..0x1f: distinct values in every position",
+  "entropy": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "secret": "heyarr1qqqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0s6e0ucu",
+  "secret_upper": "HEYARR1QQQSYQCYQ5RQWZQFPG9SCRGWPUGPZYSNZS23V9CCRYDPK8QARC0S6E0UCU",
+  "user_id": "ed25519:40521a413f04f5e76d309dc8aebd8980d877291e62fedbf573ed3b45f7aa54a0",
+  "encryption_recipient": "x25519:9b7171447f7b68861a57f7db1d34f2de4c5330e71bc94b876be574c997397c74",
+  "fingerprint": "PYJI XGNZ K7ZH XHEJ"
+}

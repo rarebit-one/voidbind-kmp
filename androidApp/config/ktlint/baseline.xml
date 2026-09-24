@@ -14,6 +14,10 @@
         <error line="886" column="59" source="standard:function-signature" />
         <error line="889" column="49" source="standard:function-signature" />
         <error line="898" column="53" source="standard:function-signature" />
+        <error line="698" column="55" source="standard:function-signature" />
+        <error line="861" column="59" source="standard:function-signature" />
+        <error line="864" column="49" source="standard:function-signature" />
+        <error line="873" column="53" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/domain/Models.kt">
         <error line="6" column="1" source="standard:kdoc" />
@@ -21,6 +25,7 @@
     <file name="src/main/kotlin/one/rarebit/cruciform/domain/PreviewVoidbindEngine.kt">
         <error line="165" column="94" source="standard:function-signature" />
         <error line="170" column="94" source="standard:function-signature" />
+        <error line="182" column="94" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/handoff/RpAppIdentity.kt">
         <error line="61" column="93" source="standard:function-signature" />
@@ -57,6 +62,7 @@
     <file name="src/main/kotlin/one/rarebit/cruciform/platform/IdentityStore.kt">
         <error line="144" column="42" source="standard:function-signature" />
         <error line="163" column="42" source="standard:function-signature" />
+        <error line="176" column="42" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/platform/NotifyConfig.kt">
         <error line="41" column="58" source="standard:function-signature" />
@@ -105,6 +111,7 @@
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/nav/CruciformNavHost.kt">
         <error line="89" column="5" source="standard:function-naming" />
+        <error line="92" column="5" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/nav/FlowDialogs.kt">
         <error line="24" column="14" source="standard:function-naming" />
@@ -132,6 +139,11 @@
         <error line="206" column="13" source="standard:function-naming" />
         <error line="220" column="13" source="standard:function-naming" />
         <error line="255" column="13" source="standard:function-naming" />
+        <error line="63" column="5" source="standard:function-naming" />
+        <error line="193" column="13" source="standard:function-naming" />
+        <error line="235" column="13" source="standard:function-naming" />
+        <error line="269" column="13" source="standard:function-naming" />
+        <error line="304" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/LoginApprovalScreen.kt">
         <error line="64" column="5" source="standard:function-naming" />
@@ -183,6 +195,11 @@
         <error line="447" column="13" source="standard:function-naming" />
         <error line="458" column="13" source="standard:function-naming" />
         <error line="461" column="13" source="standard:function-naming" />
+        <error line="94" column="5" source="standard:function-naming" />
+        <error line="385" column="13" source="standard:function-naming" />
+        <error line="504" column="13" source="standard:function-naming" />
+        <error line="518" column="13" source="standard:function-naming" />
+        <error line="529" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/theme/Color.kt">
         <error line="1" column="1" source="standard:filename" />
@@ -195,5 +212,10 @@
         <error line="107" column="112" source="standard:function-signature" />
         <error line="302" column="97" source="standard:function-signature" />
         <error line="303" column="97" source="standard:function-signature" />
+        <error line="114" column="112" source="standard:function-signature" />
+        <error line="310" column="97" source="standard:function-signature" />
+    </file>
+    <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/RecoveryCheckScreen.kt">
+        <error line="47" column="5" source="standard:function-naming" />
     </file>
 </baseline>

@@ -262,6 +262,86 @@ class DeviceVoidbindEngineTest {
         assertTrue(biometric.prompts.isEmpty())
     }
 
+    // --- the written backup (voidbind-go ADR-0010) --------------------------------
+
+    @Test
+    fun `a created identity asks for its backup to be confirmed, a restored one does not`() = runTest {
+        val engine = engine()
+        val backup = ready(engine.createIdentity())
+        assertTrue(active(engine).backup.confirmPending)
+        assertEquals(null, active(engine).backup.lastCheckedLabel)
+        // The identity's fingerprint is the printable one, as on paper and the CLI.
+        assertTrue(Regex("[A-Z2-7]{4}( [A-Z2-7]{4}){3}").matches(active(engine).identity.fingerprint))
+
+        val otherStore = IdentityStore(InMemoryPrefs(), InMemorySealer())
+        val restored = DeviceVoidbindEngine(
+            store = otherStore,
+            policyStore = ApprovalPolicyStore(InMemoryPrefs()),
+            transport = transport,
+            biometric = biometric,
+            relay = { relay },
+            clock = { now },
+            membershipRps = emptyList(),
+            deviceKeys = SoftwareDeviceKeys(),
+            defaultDeviceName = { "Second Phone" },
+        )
+        ready(restored.restoreIdentity(backup.groupedSecret))
+        assertFalse(active(restored).backup.confirmPending)
+        assertTrue(active(restored).backup.lastCheckedLabel!!.startsWith("Checked "))
+    }
+
+    @Test
+    fun `verifying the written secret records the check and signs nothing`() = runTest {
+        val engine = engine()
+        val backup = ready(engine.createIdentity())
+        val opsBefore = store.knownOps()
+        biometric.prompts.clear()
+
+        val check = ready(engine.verifyRecoverySecret(backup.groupedSecret.uppercase()))
+
+        assertEquals(active(engine).identity.fingerprint, check.fingerprint)
+        assertFalse(active(engine).backup.confirmPending)
+        assertEquals(opsBefore, store.knownOps())
+        assertTrue(biometric.prompts.isEmpty()) // knowing the secret is the proof
+    }
+
+    @Test
+    fun `another identity's secret, or a typo, is refused`() = runTest {
+        val engine = engine()
+        val backup = ready(engine.createIdentity())
+
+        val other = failure(engine.verifyRecoverySecret(UserIdentity.create().recovery.format()))
+        assertTrue(other.message.startsWith("That secret belongs to a different identity"))
+
+        val raw = backup.rawSecret
+        val typo = raw.dropLast(1) + (if (raw.last() == 'q') 'p' else 'q')
+        assertEquals(EngineFailure.Kind.INTERNAL, failure(engine.verifyRecoverySecret(typo)).kind)
+        assertTrue(active(engine).backup.confirmPending)
+    }
+
+    @Test
+    fun `the phone's copy can be removed only after a check, and only with a strong biometric`() = runTest {
+        val engine = engine()
+        val backup = ready(engine.createIdentity())
+
+        val tooEarly = failure(engine.forgetRecoverySecret())
+        assertTrue(tooEarly.message.startsWith("Check your written recovery secret first"))
+        assertTrue(store.hasUserKey())
+
+        ready(engine.verifyRecoverySecret(backup.rawSecret))
+        biometric.strong = StrongAuth.UNAVAILABLE
+        assertTrue(failure(engine.forgetRecoverySecret()).message.contains("PIN can't authorise it"))
+        assertTrue(store.hasUserKey())
+
+        biometric.strong = StrongAuth.SUCCESS
+        assertEquals(EngineResult.Ready(Unit), engine.forgetRecoverySecret())
+        assertFalse(store.hasUserKey())
+        assertFalse(active(engine).holdsRecoverySecret)
+        // The device is still a member and can still check the paper.
+        assertFalse(active(engine).membership.lapsed)
+        ready(engine.verifyRecoverySecret(backup.rawSecret))
+    }
+
     // --- renewal (membership, ADR-0005) --------------------------------------------
 
     @Test

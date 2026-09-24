@@ -51,6 +51,28 @@ interface VoidbindEngine {
      */
     suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup>
 
+    /**
+     * Check a written recovery secret against this identity WITHOUT using it: parse it
+     * (a typo is refused by the checksum), derive its identity, compare. Signs nothing
+     * and needs no biometric — knowing the secret is the point. On a match it records
+     * the check (see [BackupStatus]); a different identity's secret is a `Failed`.
+     */
+    suspend fun verifyRecoverySecret(secret: String): EngineResult<RecoveryCheck>
+
+    /**
+     * Record that the user confirmed the backup they just wrote down (the create flow
+     * checks groups of it against the secret still on screen).
+     */
+    suspend fun confirmBackup(): EngineResult<Unit>
+
+    /**
+     * Remove this phone's copy of the recovery secret, behind a strong biometric. Only
+     * once the written secret has been checked here and this device is a member (so it
+     * renews itself and needs no genesis). Afterwards, re-admitting a device takes the
+     * written secret.
+     */
+    suspend fun forgetRecoverySecret(): EngineResult<Unit>
+
     // --- Scanning -------------------------------------------------------------
 
     /** Parse a scanned QR string into a dispatchable [ScannedCode]. */

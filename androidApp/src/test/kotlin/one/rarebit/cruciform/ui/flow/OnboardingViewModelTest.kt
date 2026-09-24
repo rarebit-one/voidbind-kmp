@@ -68,6 +68,41 @@ class OnboardingViewModelTest {
     }
 
     @Test
+    fun `the confirm step asks for three groups past the fixed prefix`() {
+        vm.create()
+
+        val challenge = vm.challenge.value
+        val groups = ScriptedEngine.BACKUP.groupedSecret.split(" ")
+        assertEquals(OnboardingViewModel.CHALLENGE_SIZE, challenge.size)
+        assertEquals(challenge.sorted(), challenge)
+        assertTrue(challenge.all { it in OnboardingViewModel.FIRST_CHECKED_GROUP..groups.size })
+    }
+
+    @Test
+    fun `the right groups confirm the backup, in any case`() = runTest {
+        vm.create()
+        val groups = ScriptedEngine.BACKUP.groupedSecret.split(" ")
+        val answers = vm.challenge.value.map { " ${groups[it - 1].uppercase()} " }
+
+        assertTrue(vm.confirmGroups(answers) is EngineResult.Ready)
+        assertEquals(listOf("createIdentity", "confirmBackup"), engine.calls)
+    }
+
+    @Test
+    fun `a wrong group names itself and records nothing`() = runTest {
+        vm.create()
+        val groups = ScriptedEngine.BACKUP.groupedSecret.split(" ")
+        val challenge = vm.challenge.value
+        val answers = challenge.mapIndexed { i, pos -> if (i == 1) "zzzz" else groups[pos - 1] }
+
+        val result = vm.confirmGroups(answers)
+
+        val failure = (result as EngineResult.Failed).failure
+        assertTrue(failure.message.contains("group ${challenge[1]}"))
+        assertEquals(listOf("createIdentity"), engine.calls)
+    }
+
+    @Test
     fun `restore passes the typed secret straight to the engine`() = runTest {
         assertEquals(EngineResult.Ready(Unit), vm.restore("heyarr1test"))
         assertEquals(listOf("restoreIdentity"), engine.calls)

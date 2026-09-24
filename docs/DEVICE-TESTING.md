@@ -102,6 +102,28 @@ iOS; the Android onboarding screens).
    keystore` / a keystore listing: `voidbind.secret.wrap.recovery` is gone and
    `voidbind.secret.wrap-strong.recovery` exists.
 
+## Test 2c — prove the backup; remove the phone's copy (voidbind-go ADR-0010)
+
+1. **Confirm on create.** After "I've saved it", the app asks for three random groups
+   (never groups 1–2) from what you wrote. A wrong group is named and nothing is
+   recorded. The right groups, in any case, finish onboarding. "Not now" also
+   finishes, but Home then shows an amber **Check your recovery secret** card until
+   a check passes.
+2. **Drill.** Settings → **Test recovery secret**: type the whole written secret,
+   spaces and all. On a match it shows the identity's fingerprint (`XXXX XXXX XXXX
+   XXXX`), the same one the Home identity card shows, and the row then reads
+   "Checked <date>". Another identity's secret is refused, naming both fingerprints.
+   No biometric prompt appears and no op is signed (Settings → Devices is unchanged).
+3. **Restore counts as a check.** A Restore-provisioned phone shows no card, and
+   Settings reads "Checked <date>".
+4. **Remove the copy.** Settings → Recovery → **Remove the copy on this phone**:
+   - before any drill, it refuses and points at the drill;
+   - after one, it asks for a strong biometric (no PIN option), then the Recovery
+     backup and Remove rows disappear;
+   - the phone still signs in and renews itself;
+   - adding a device from it still works (member-signed); re-admitting a REMOVED
+     device now needs the paper (Restore on that device).
+
 ## Test 2b — membership renewal (a device renews itself before its add lapses)
 
 An add lasts 90 days. Inside the last 30 the device renews itself: silently right

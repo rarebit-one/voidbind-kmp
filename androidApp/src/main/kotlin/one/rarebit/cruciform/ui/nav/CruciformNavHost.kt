@@ -49,6 +49,7 @@ import one.rarebit.cruciform.ui.screens.PairAllowScreen
 import one.rarebit.cruciform.ui.screens.PairConnectScreen
 import one.rarebit.cruciform.ui.screens.PairVerifyScreen
 import one.rarebit.cruciform.ui.screens.RecoveryBackupScreen
+import one.rarebit.cruciform.ui.screens.RecoveryCheckScreen
 import one.rarebit.cruciform.ui.screens.RestoreScreen
 import one.rarebit.cruciform.ui.screens.ScanScreen
 import one.rarebit.cruciform.ui.screens.SettingsScreen
@@ -69,6 +70,8 @@ object Routes {
     /** The same-phone one-tap sheet (ADR-0008) — shown instead of PAIR_VERIFY when the RP checked out. */
     const val PAIR_ALLOW = "pair_allow"
     const val RECOVERY = "recovery"
+    const val BACKUP_CONFIRM = "backup_confirm"
+    const val RECOVERY_DRILL = "recovery_drill"
     const val ACTIVITY = "activity"
     const val DEVICES = "devices"
 }
@@ -426,13 +429,46 @@ fun CruciformNavHost(
                             onboardingVm.finished()
                             nav.popBackStack()
                         },
-                        onSaved = {
-                            onboardingVm.finished()
-                            goHome()
-                        },
+                        // Written down: now prove it by re-entering a few groups.
+                        onSaved = { nav.navigate(Routes.BACKUP_CONFIRM) },
                         stepLabel = "BACKUP REQUIRED",
                     )
                 }
+            }
+
+            composable(Routes.BACKUP_CONFIRM) {
+                val challenge by onboardingVm.challenge.collectAsStateWithLifecycle()
+                val leave = {
+                    onboardingVm.finished()
+                    goHome()
+                }
+                if (challenge.isEmpty()) {
+                    // The secret is gone (process death): Home keeps asking for the check.
+                    LaunchedEffect(Unit) { leave() }
+                } else {
+                    RecoveryCheckScreen(
+                        title = "Check your backup",
+                        intro = "From what you wrote down, enter the groups below. " +
+                            "This proves you can read it back before you ever need it.",
+                        fields = challenge.map { "Group $it" },
+                        onCheck = onboardingVm::confirmGroups,
+                        onDone = leave,
+                        onBack = { nav.popBackStack() },
+                        onSkip = leave,
+                    )
+                }
+            }
+
+            composable(Routes.RECOVERY_DRILL) {
+                RecoveryCheckScreen(
+                    title = "Test recovery secret",
+                    intro = "Type your written recovery secret, spaces and all. It is checked against this " +
+                        "identity and nothing is signed or stored. A single wrong character is caught.",
+                    fields = listOf("Recovery secret"),
+                    onCheck = { settingsVm.checkRecoverySecret(it.single()) },
+                    onDone = { nav.popBackStack() },
+                    onBack = { nav.popBackStack() },
+                )
             }
 
             composable(Routes.RESTORE) {
@@ -455,6 +491,8 @@ fun CruciformNavHost(
                         trustedSites = active.trustedSites,
                         membership = active.membership,
                         onRenew = { settingsVm.renewMembership() },
+                        backupPending = active.backup.confirmPending,
+                        onCheckBackup = { nav.navigate(Routes.RECOVERY_DRILL) },
                         onSettings = { nav.navigate(Routes.SETTINGS) },
                         onCopyIdentity = { clipboard.setText(AnnotatedString(active.identity.fullKey)) },
                         onDevice = { startInvite() },
@@ -494,6 +532,8 @@ fun CruciformNavHost(
                         onRevoke = settingsVm::revoke,
                         onManageSites = { /* full list — later */ },
                         onRecoveryBackup = settingsVm::revealRecovery,
+                        onTestRecovery = { nav.navigate(Routes.RECOVERY_DRILL) },
+                        onForgetRecovery = settingsVm::forgetRecoverySecret,
                         onApprovalActivity = { settingsVm.loadActivity(open = true) },
                         onDevices = { settingsVm.loadDevices(open = true) },
                         onAbout = { },

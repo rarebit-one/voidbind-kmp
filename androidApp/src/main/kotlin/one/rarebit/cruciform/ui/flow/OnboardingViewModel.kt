@@ -44,6 +44,15 @@ class OnboardingViewModel(
     /** The new recovery secret to back up — memory only. */
     val backup: StateFlow<RecoveryBackup?> = _backup.asStateFlow()
 
+    private val _challenge = MutableStateFlow<List<Int>>(emptyList())
+
+    /**
+     * The group positions (1-based) the user re-enters from their paper to confirm the
+     * backup: [CHALLENGE_SIZE] random groups, never the first two (`heya`, `rr1…` are
+     * the same in every secret).
+     */
+    val challenge: StateFlow<List<Int>> = _challenge.asStateFlow()
+
     private val _error = MutableStateFlow<EngineErrorState?>(null)
     val error: StateFlow<EngineErrorState?> = _error.asStateFlow()
 
@@ -68,7 +77,11 @@ class OnboardingViewModel(
         creating = true
         viewModelScope.launch {
             when (val result = engine.createIdentity()) {
-                is EngineResult.Ready -> _backup.value = result.value
+                is EngineResult.Ready -> {
+                    _backup.value = result.value
+                    val groups = result.value.groupedSecret.split(" ").size
+                    _challenge.value = (FIRST_CHECKED_GROUP..groups).shuffled().take(CHALLENGE_SIZE).sorted()
+                }
 
                 is EngineResult.Failed -> {
                     saved.remove<Boolean>(KEY_STARTED)
@@ -80,6 +93,38 @@ class OnboardingViewModel(
         }
     }
 
+    /**
+     * Check the [answers] (one per [challenge] position) against the secret still on
+     * screen, and record the confirmed backup. Case and surrounding space are ignored.
+     */
+    suspend fun confirmGroups(answers: List<String>): EngineResult<String> {
+        val groups = _backup.value?.groupedSecret?.split(" ")
+        val wrong = _challenge.value.zip(answers)
+            .filterNot { (position, answer) ->
+                groups?.getOrNull(position - 1).equals(answer.trim(), ignoreCase = true)
+            }
+            .map { it.first }
+        return when {
+            groups == null -> EngineResult.Failed(
+                EngineFailure(NO_BACKUP, EngineFailure.Kind.INTERNAL, retryable = false),
+            )
+
+            wrong.isNotEmpty() -> EngineResult.Failed(
+                EngineFailure(
+                    "That doesn't match ${wrong.joinToString(", ") { "group $it" }}. " +
+                        "Check what you wrote against the previous screen.",
+                    EngineFailure.Kind.INTERNAL,
+                    retryable = true,
+                ),
+            )
+
+            else -> when (val recorded = engine.confirmBackup()) {
+                is EngineResult.Ready -> EngineResult.Ready(CONFIRMED)
+                is EngineResult.Failed -> recorded
+            }
+        }
+    }
+
     /** Restore from a typed recovery secret; the result is the Restore screen's to show. */
     suspend fun restore(secret: String): EngineResult<Unit> = engine.restoreIdentity(secret)
 
@@ -87,6 +132,7 @@ class OnboardingViewModel(
     fun finished() {
         saved.remove<Boolean>(KEY_STARTED)
         _backup.value = null
+        _challenge.value = emptyList()
     }
 
     fun dismissError() {
@@ -95,6 +141,10 @@ class OnboardingViewModel(
 
     companion object {
         const val KEY_STARTED = "onboarding.create.started"
+        const val CHALLENGE_SIZE = 3
+        const val CONFIRMED = "Your written secret matches. Keep it somewhere safe and offline."
+        const val FIRST_CHECKED_GROUP = 3
+        const val NO_BACKUP = "The secret is no longer on screen. Check it later from Settings → Test recovery secret."
         const val INTERRUPTED =
             "Cruciform was closed while your identity was being created. If it was created, " +
                 "back up its recovery secret now from Settings → Recovery backup; otherwise, start again."

@@ -39,6 +39,9 @@ class UserIdentity private constructor(
     /** The user identity rendered as `ed25519:<hex>` — the pinned principal. */
     val userId: KeyRef get() = KeyRef.ed25519(userPublicKey)
 
+    /** The printable fingerprint of the user key ([UserFingerprint]). */
+    val fingerprint: String get() = UserFingerprint.of(userPublicKey)
+
     /** An [Ed25519Signer] over the user key — used to sign device enrolment certs. */
     fun signer(): Ed25519Signer = Ed25519Signer { message -> Ed25519Engine.sign(userSeed, message) }
 

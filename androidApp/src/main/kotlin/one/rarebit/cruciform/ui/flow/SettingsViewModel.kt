@@ -119,6 +119,26 @@ class SettingsViewModel(
         viewModelScope.launch { engine.revokeSite(site.id).failureOrNull()?.let(::fail) }
     }
 
+    /**
+     * Check a written recovery secret against this identity (signs nothing). The drill
+     * screen shows the returned line, or the failure inline.
+     */
+    suspend fun checkRecoverySecret(secret: String): EngineResult<String> {
+        val result = engine.verifyRecoverySecret(secret)
+        return when (result) {
+            is EngineResult.Ready -> EngineResult.Ready("It matches this identity: ${result.value.fingerprint}")
+            is EngineResult.Failed -> result
+        }
+    }
+
+    /** Remove this phone's recovery copy (strong-biometric-gated); a refusal is a dialog. */
+    fun forgetRecoverySecret() {
+        viewModelScope.launch {
+            val result = engine.forgetRecoverySecret()
+            if (result is EngineResult.Failed) fail(result.failure)
+        }
+    }
+
     /** Biometric-gated reveal; a cancelled prompt is a dialog, not a crash. */
     fun revealRecovery() {
         viewModelScope.launch {

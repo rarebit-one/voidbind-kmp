@@ -12,6 +12,7 @@ import one.rarebit.cruciform.domain.MemberDevice
 import one.rarebit.cruciform.domain.PairInviteDisplay
 import one.rarebit.cruciform.domain.PairSession
 import one.rarebit.cruciform.domain.RecoveryBackup
+import one.rarebit.cruciform.domain.RecoveryCheck
 import one.rarebit.cruciform.domain.ScannedCode
 import one.rarebit.cruciform.domain.SitePolicyView
 import one.rarebit.cruciform.domain.VoidbindEngine
@@ -34,6 +35,8 @@ class ScriptedEngine : VoidbindEngine {
     var devicesResult: EngineResult<List<MemberDevice>> = EngineResult.Ready(emptyList())
     var removeResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var renewResult: EngineResult<Unit> = EngineResult.Ready(Unit)
+    var verifyResult: EngineResult<RecoveryCheck> = EngineResult.Ready(RecoveryCheck("PYJI XGNZ K7ZH XHEJ"))
+    var forgetResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var settingsResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var activityResult: EngineResult<List<ApprovalActivity>> = EngineResult.Ready(emptyList())
     var policyResult: EngineResult<SitePolicyView> =
@@ -71,6 +74,9 @@ class ScriptedEngine : VoidbindEngine {
     override suspend fun devices() = r("devices", devicesResult)
     override suspend fun removeDevice(deviceId: String) = r("removeDevice:$deviceId", removeResult)
     override suspend fun renewMembership() = r("renewMembership", renewResult)
+    override suspend fun verifyRecoverySecret(secret: String) = r("verifyRecoverySecret", verifyResult)
+    override suspend fun confirmBackup() = r("confirmBackup", EngineResult.Ready(Unit))
+    override suspend fun forgetRecoverySecret() = r("forgetRecoverySecret", forgetResult)
     override suspend fun renameDevice(name: String) = r("renameDevice", settingsResult)
     override suspend fun setBiometricApproval(enabled: Boolean) = r("setBiometricApproval:$enabled", settingsResult)
     override suspend fun revokeSite(siteId: String) = r("revokeSite:$siteId", settingsResult)
@@ -79,7 +85,10 @@ class ScriptedEngine : VoidbindEngine {
     override suspend fun approvalActivity(limit: Int) = r("approvalActivity", activityResult)
 
     companion object {
-        val BACKUP = RecoveryBackup(groupedSecret = "heyarr1 test", rawSecret = "heyarr1test")
+        val BACKUP = RecoveryBackup(
+            groupedSecret = "heya rr1q qqsy qcyq 5rqw zqfp g9sc rgwp ugpz ysnz s23v 9ccr ydpk 8qar c0s6 e0uc u",
+            rawSecret = "heyarr1qqqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0s6e0ucu",
+        )
         val REQUEST = LoginRequest(
             domain = "rp.example.test",
             appName = "",
