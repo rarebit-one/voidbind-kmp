@@ -1,0 +1,91 @@
+{
+  "name": "overlap-cert-v2-possession-v2",
+  "description": "cert v2 and a possession proof share v:2. A v2 body carrying both shapes' fields, signed by a key that is both the pinned user and the device, is UNTYPED accepted as a cert AND as a possession proof. Typed, it is only what its typ says",
+  "now": 1790251200,
+  "keys": {
+    "device": {
+      "sign_seed": "d721c834b1d967bcf2c1635686ad8817c0577e452279f4a7f4f4743882d772eb",
+      "id": "ed25519:8256344bfdd93680c637386ad0195f01ae9bc6a7ea32bcb12c9c1b500ca7c839"
+    },
+    "user": {
+      "sign_seed": "99d56175dc3aa4346d6226043ae922888feb59e6c0bc0ef1e155356a4f103879",
+      "id": "ed25519:e17116170a4db3671d211d171021a31708a45e1a97d2f8d3ca542a75bdf77344"
+    }
+  },
+  "tokens": {
+    "anchor": "eyJ2IjoyLCJ1c3IiOiJlZDI1NTE5OjgyNTYzNDRiZmRkOTM2ODBjNjM3Mzg2YWQwMTk1ZjAxYWU5YmM2YTdlYTMyYmNiMTJjOWMxYjUwMGNhN2M4MzkiLCJkZXYiOiJlZDI1NTE5OmUxNzExNjE3MGE0ZGIzNjcxZDIxMWQxNzEwMjFhMzE3MDhhNDVlMWE5N2QyZjhkM2NhNTQyYTc1YmRmNzczNDQiLCJpYXQiOjE3OTAyNTEyMDAsImV4cCI6MTc5MDI1NDgwMH0.fKmv5HlXSiyuh-qRuPxXlQ8WzNeZQt9v_lpCWc3MLqLIqJD1w9vVmUuGJxUvm1daGkeTVuUoqPz7JW5Oa_J7Aw",
+    "typed-cert": "eyJ2IjoyLCJ0eXAiOiJ2b2lkYmluZC5jZXJ0IiwidXNyIjoiZWQyNTUxOTo4MjU2MzQ0YmZkZDkzNjgwYzYzNzM4NmFkMDE5NWYwMWFlOWJjNmE3ZWEzMmJjYjEyYzljMWI1MDBjYTdjODM5IiwiZGV2IjoiZWQyNTUxOTplMTcxMTYxNzBhNGRiMzY3MWQyMTFkMTcxMDIxYTMxNzA4YTQ1ZTFhOTdkMmY4ZDNjYTU0MmE3NWJkZjc3MzQ0IiwiY3J0IjoiVTRhWVVnLWd1cXlmZFQ5dkdicmQzOUJXeEVRVG54VVBHZHhaYVhEdXhtOCIsImlhdCI6MTc5MDI1MTIwMCwiZXhwIjoxNzkwMjU0ODAwfQ.2DSzta2s8jngcHn-qlkekVeVbqZ5TDIbqNM8RxOZm6Q5ioDZewIsokyqBRNykeu31cDzJtK2Yki2tjd-WA85Dg",
+    "typed-possession": "eyJ2IjoyLCJ0eXAiOiJ2b2lkYmluZC5wb3NzZXNzaW9uIiwidXNyIjoiZWQyNTUxOTo4MjU2MzQ0YmZkZDkzNjgwYzYzNzM4NmFkMDE5NWYwMWFlOWJjNmE3ZWEzMmJjYjEyYzljMWI1MDBjYTdjODM5IiwiZGV2IjoiZWQyNTUxOTplMTcxMTYxNzBhNGRiMzY3MWQyMTFkMTcxMDIxYTMxNzA4YTQ1ZTFhOTdkMmY4ZDNjYTU0MmE3NWJkZjc3MzQ0IiwiY3J0IjoiVTRhWVVnLWd1cXlmZFQ5dkdicmQzOUJXeEVRVG54VVBHZHhaYVhEdXhtOCIsImlhdCI6MTc5MDI1MTIwMCwiZXhwIjoxNzkwMjU0ODAwfQ.wa9AeWg5wYwSoaHAEsSQ8r0gjk6L-ecBA66fAAWQYs1H_mJ_23PKyd0cMnH0_Jaifq9Xu4bH9pRfS7syPXu6AA",
+    "untyped": "eyJ2IjoyLCJ1c3IiOiJlZDI1NTE5OjgyNTYzNDRiZmRkOTM2ODBjNjM3Mzg2YWQwMTk1ZjAxYWU5YmM2YTdlYTMyYmNiMTJjOWMxYjUwMGNhN2M4MzkiLCJkZXYiOiJlZDI1NTE5OmUxNzExNjE3MGE0ZGIzNjcxZDIxMWQxNzEwMjFhMzE3MDhhNDVlMWE5N2QyZjhkM2NhNTQyYTc1YmRmNzczNDQiLCJjcnQiOiJVNGFZVWctZ3VxeWZkVDl2R2JyZDM5Qld4RVFUbnhVUEdkeFphWER1eG04IiwiaWF0IjoxNzkwMjUxMjAwLCJleHAiOjE3OTAyNTQ4MDB9.kcAgPhazPvH9-kEoPIFfIrQrIAeOBewDKwaY9BjEHzqguO6wvzhGwdSO7bIV4eVIyEJZPdZk_JOdO3QUFl1UBg"
+  },
+  "grant_request": {
+    "principal": "device:alpha",
+    "resource": "space:one",
+    "capability": "read"
+  },
+  "checks": [
+    {
+      "verifier": "cert",
+      "token": "untyped",
+      "key": "device",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "possession",
+      "token": "untyped",
+      "key": "device",
+      "cert": "anchor",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "possession",
+      "token": "typed-possession",
+      "key": "device",
+      "cert": "anchor",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "ok"
+      }
+    },
+    {
+      "verifier": "cert",
+      "token": "typed-possession",
+      "key": "device",
+      "expect": {
+        "accept": "wrong_type",
+        "emit": "wrong_type",
+        "require": "wrong_type"
+      }
+    },
+    {
+      "verifier": "cert",
+      "token": "typed-cert",
+      "key": "device",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "ok"
+      }
+    },
+    {
+      "verifier": "possession",
+      "token": "typed-cert",
+      "key": "device",
+      "cert": "anchor",
+      "expect": {
+        "accept": "wrong_type",
+        "emit": "wrong_type",
+        "require": "wrong_type"
+      }
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "name": "overlap-grant-v1-cert-v1",
+  "description": "grant v1 and cert v1 share v:1 and the user key signs both. A v1 body carrying both shapes' fields is, UNTYPED, accepted by BOTH the grant and the cert verifier today: only field-name disjointness has kept real tokens apart. Typed voidbind.grant it is a grant only; typed voidbind.cert it is a cert only",
+  "now": 1790251200,
+  "keys": {
+    "device": {
+      "sign_seed": "d721c834b1d967bcf2c1635686ad8817c0577e452279f4a7f4f4743882d772eb",
+      "id": "ed25519:8256344bfdd93680c637386ad0195f01ae9bc6a7ea32bcb12c9c1b500ca7c839"
+    },
+    "user": {
+      "sign_seed": "99d56175dc3aa4346d6226043ae922888feb59e6c0bc0ef1e155356a4f103879",
+      "id": "ed25519:e17116170a4db3671d211d171021a31708a45e1a97d2f8d3ca542a75bdf77344"
+    }
+  },
+  "tokens": {
+    "typed-cert": "eyJ2IjoxLCJ0eXAiOiJ2b2lkYmluZC5jZXJ0IiwiaXNzIjoiZWQyNTUxOTplMTcxMTYxNzBhNGRiMzY3MWQyMTFkMTcxMDIxYTMxNzA4YTQ1ZTFhOTdkMmY4ZDNjYTU0MmE3NWJkZjc3MzQ0IiwicHJuIjoiZGV2aWNlOmFscGhhIiwicmVzIjoic3BhY2U6b25lIiwiY2FwIjpbInJlYWQiXSwidXNyIjoiZWQyNTUxOTplMTcxMTYxNzBhNGRiMzY3MWQyMTFkMTcxMDIxYTMxNzA4YTQ1ZTFhOTdkMmY4ZDNjYTU0MmE3NWJkZjc3MzQ0IiwiZGV2IjoiZWQyNTUxOTo4MjU2MzQ0YmZkZDkzNjgwYzYzNzM4NmFkMDE5NWYwMWFlOWJjNmE3ZWEzMmJjYjEyYzljMWI1MDBjYTdjODM5IiwiaWF0IjoxNzkwMjUxMjAwLCJleHAiOjE3OTAyNTQ4MDB9.rTVaJT3DakKjwvNWyFROHJT3-kPy-a3_JYWjOj5ltMACMyPbjkcUGBC_ZI3PZrHxABfYRAw6L5fixFeAcnIBDA",
+    "typed-grant": "eyJ2IjoxLCJ0eXAiOiJ2b2lkYmluZC5ncmFudCIsImlzcyI6ImVkMjU1MTk6ZTE3MTE2MTcwYTRkYjM2NzFkMjExZDE3MTAyMWEzMTcwOGE0NWUxYTk3ZDJmOGQzY2E1NDJhNzViZGY3NzM0NCIsInBybiI6ImRldmljZTphbHBoYSIsInJlcyI6InNwYWNlOm9uZSIsImNhcCI6WyJyZWFkIl0sInVzciI6ImVkMjU1MTk6ZTE3MTE2MTcwYTRkYjM2NzFkMjExZDE3MTAyMWEzMTcwOGE0NWUxYTk3ZDJmOGQzY2E1NDJhNzViZGY3NzM0NCIsImRldiI6ImVkMjU1MTk6ODI1NjM0NGJmZGQ5MzY4MGM2MzczODZhZDAxOTVmMDFhZTliYzZhN2VhMzJiY2IxMmM5YzFiNTAwY2E3YzgzOSIsImlhdCI6MTc5MDI1MTIwMCwiZXhwIjoxNzkwMjU0ODAwfQ.Qhf_DbPVjNZQLvFcjPNHVD9YY55ild0F50MJ8AEaMRzsjINn8emVjl7oxNyAM9vAekuZHw3_a3wzhrF0FUlAAw",
+    "untyped": "eyJ2IjoxLCJpc3MiOiJlZDI1NTE5OmUxNzExNjE3MGE0ZGIzNjcxZDIxMWQxNzEwMjFhMzE3MDhhNDVlMWE5N2QyZjhkM2NhNTQyYTc1YmRmNzczNDQiLCJwcm4iOiJkZXZpY2U6YWxwaGEiLCJyZXMiOiJzcGFjZTpvbmUiLCJjYXAiOlsicmVhZCJdLCJ1c3IiOiJlZDI1NTE5OmUxNzExNjE3MGE0ZGIzNjcxZDIxMWQxNzEwMjFhMzE3MDhhNDVlMWE5N2QyZjhkM2NhNTQyYTc1YmRmNzczNDQiLCJkZXYiOiJlZDI1NTE5OjgyNTYzNDRiZmRkOTM2ODBjNjM3Mzg2YWQwMTk1ZjAxYWU5YmM2YTdlYTMyYmNiMTJjOWMxYjUwMGNhN2M4MzkiLCJpYXQiOjE3OTAyNTEyMDAsImV4cCI6MTc5MDI1NDgwMH0.xkn5RZsIDpoKy1WZhA3pvr23cnFzeIFOlYwcHQu_hk-5JqYHPxeeoKsToWvJlhMZbYK6Bau4tDEEMi_zw8C8CQ"
+  },
+  "grant_request": {
+    "principal": "device:alpha",
+    "resource": "space:one",
+    "capability": "read"
+  },
+  "checks": [
+    {
+      "verifier": "grant",
+      "token": "untyped",
+      "key": "user",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "cert",
+      "token": "untyped",
+      "key": "user",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "grant",
+      "token": "typed-grant",
+      "key": "user",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "ok"
+      }
+    },
+    {
+      "verifier": "cert",
+      "token": "typed-grant",
+      "key": "user",
+      "expect": {
+        "accept": "wrong_type",
+        "emit": "wrong_type",
+        "require": "wrong_type"
+      }
+    },
+    {
+      "verifier": "op",
+      "token": "typed-grant",
+      "expect": {
+        "accept": "wrong_type",
+        "emit": "wrong_type",
+        "require": "wrong_type"
+      }
+    },
+    {
+      "verifier": "cert",
+      "token": "typed-cert",
+      "key": "user",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "ok"
+      }
+    },
+    {
+      "verifier": "grant",
+      "token": "typed-cert",
+      "key": "user",
+      "expect": {
+        "accept": "wrong_type",
+        "emit": "wrong_type",
+        "require": "wrong_type"
+      }
+    }
+  ]
+}

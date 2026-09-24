@@ -4,6 +4,7 @@ import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.algorithms.SHA256
 import one.rarebit.voidbind.Ed25519Signer
 import one.rarebit.voidbind.Ed25519Verifier
+import one.rarebit.voidbind.TokenType
 import one.rarebit.voidbind.crypto.Base64Url
 import one.rarebit.voidbind.crypto.MiniJson
 
@@ -47,13 +48,24 @@ object PossessionProof {
     const val SKEW_SECONDS = 30L
 
     /** Why a proof was refused, in the server's check order. */
-    enum class Reason { MALFORMED, BAD_SIGNATURE, WRONG_CERT, NOT_YET_VALID, EXPIRED }
+    enum class Reason { MALFORMED, BAD_SIGNATURE, WRONG_CERT, NOT_YET_VALID, EXPIRED, WRONG_TYPE }
 
     /** A refused proof, carrying the server-side [reason]. */
-    class Refused(val reason: Reason, message: String) : IllegalArgumentException(message)
+    class Refused(
+        val reason: Reason,
+        message: String,
+        cause: Throwable? = null,
+    ) : IllegalArgumentException(message, cause)
 
     /** The parsed, NOT-yet-verified payload of a proof. Times are unix seconds. */
-    data class Payload(val version: Int, val certHash: String, val issuedAt: Long, val expiresAt: Long)
+    data class Payload(
+        val version: Int,
+        val certHash: String,
+        val issuedAt: Long,
+        val expiresAt: Long,
+        /** ADR-0009 `typ`: [TokenType.POSSESSION], or `""` for an untyped proof. */
+        val typ: String = "",
+    )
 
     private val sha256 = CryptographyProvider.Default.get(SHA256).hasher()
 
@@ -63,14 +75,24 @@ object PossessionProof {
 
     /** The exact JSON bytes the device signs: `{"v":2,"crt":…,"iat":…,"exp":…}`. */
     fun signingBytes(certToken: String, issuedAt: Long, expiresAt: Long): ByteArray =
-        MiniJson.encodeObject(
-            listOf(
-                "v" to VERSION,
-                "crt" to certHash(certToken),
-                "iat" to issuedAt,
-                "exp" to expiresAt,
-            ),
-        ).encodeToByteArray()
+        signingBytesTyped("", certToken, issuedAt, expiresAt)
+
+    /** [signingBytes] with an ADR-0009 `typ` (second, after `v`; `""` omits it). */
+    internal fun signingBytesTyped(
+        typ: String,
+        certToken: String,
+        issuedAt: Long,
+        expiresAt: Long,
+    ): ByteArray {
+        val fields = listOfNotNull(
+            "v" to VERSION,
+            if (typ.isNotEmpty()) "typ" to typ else null,
+            "crt" to certHash(certToken),
+            "iat" to issuedAt,
+            "exp" to expiresAt,
+        )
+        return MiniJson.encodeObject(fields).encodeToByteArray()
+    }
 
     /**
      * Mint a proof over [certToken] issued at [now] (unix seconds) for [ttlSeconds],
@@ -83,13 +105,46 @@ object PossessionProof {
         signer: Ed25519Signer,
         now: Long,
         ttlSeconds: Long = DEFAULT_TTL_SECONDS,
+    ): String = mintTyped("", certToken, signer, now, ttlSeconds)
+
+    /**
+     * [mint] with an explicit ADR-0009 `typ` (`""` mints the untyped legacy body):
+     * the phase-2 emit path, internal until every verifier accepts `typ`.
+     */
+    internal fun mintTyped(
+        typ: String,
+        certToken: String,
+        signer: Ed25519Signer,
+        now: Long,
+        ttlSeconds: Long = DEFAULT_TTL_SECONDS,
     ): String {
         require(certToken.isNotEmpty()) { "possession proof needs a cert token to bind to" }
         val ttl = if (ttlSeconds <= 0) DEFAULT_TTL_SECONDS else ttlSeconds
-        val body = signingBytes(certToken, now, now + ttl)
+        val body = signingBytesTyped(typ, certToken, now, now + ttl)
         val sig = signer.sign(body)
         require(sig.size == 64) { "device signer returned ${sig.size} bytes, want a 64-byte Ed25519 signature" }
         return Base64Url.encode(body) + "." + Base64Url.encode(sig)
+    }
+
+    /**
+     * ADR-0009: a present `typ` must say possession. It can only refuse, so, as in
+     * voidbind-go, [verify] reads it before the signature. A cert or op this device key
+     * signed is not a possession proof, whatever fields it carries.
+     */
+    private fun checkTyp(body: ByteArray) {
+        // A body that is not a JSON object is not a type question: leave it to the
+        // checks below, so a body corrupted in flight is still BAD_SIGNATURE (Go's
+        // sigtoken.CheckTyp does the same).
+        val obj = runCatching { MiniJson.parseObject(body.decodeToString()) }.getOrNull() ?: return
+        try {
+            TokenType.check(obj, TokenType.POSSESSION)
+        } catch (e: TokenType.TypeException) {
+            val r = when (e.failure) {
+                TokenType.Failure.WRONG_TYPE -> Reason.WRONG_TYPE
+                TokenType.Failure.MALFORMED -> Reason.MALFORMED
+            }
+            throw Refused(r, e.message ?: "bad typ", e)
+        }
     }
 
     /** Split and decode a proof WITHOUT verifying it (a client-side freshness read). */
@@ -102,6 +157,7 @@ object PossessionProof {
             certHash = obj["crt"] as String,
             issuedAt = obj["iat"] as Long,
             expiresAt = obj["exp"] as Long,
+            typ = obj["typ"] as? String ?: "",
         )
     } catch (e: Refused) {
         throw e
@@ -133,6 +189,7 @@ object PossessionProof {
         } catch (e: IllegalArgumentException) {
             throw Refused(Reason.MALFORMED, "possession proof is not base64url: ${e.message}")
         }
+        checkTyp(body)
         if (sig.size != 64 || !verifier.verify(devicePublicKey, body, sig)) {
             throw Refused(Reason.BAD_SIGNATURE, "possession proof is not signed by the device key")
         }

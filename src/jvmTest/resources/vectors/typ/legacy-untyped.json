@@ -1,0 +1,124 @@
+{
+  "name": "legacy-untyped",
+  "description": "untyped tokens as every minter emits them before phase 2: accepted in phases 1 and 2; in phase 3 refused as untyped by the grant, cert and possession verifiers, while the op verifiers keep untyped v1-v3 history forever. The untyped possession proof at the cert verifier is refused only because it lacks usr/dev: field disjointness, the guard typ replaces",
+  "now": 1790251200,
+  "keys": {
+    "device": {
+      "sign_seed": "d721c834b1d967bcf2c1635686ad8817c0577e452279f4a7f4f4743882d772eb",
+      "id": "ed25519:8256344bfdd93680c637386ad0195f01ae9bc6a7ea32bcb12c9c1b500ca7c839"
+    },
+    "user": {
+      "sign_seed": "99d56175dc3aa4346d6226043ae922888feb59e6c0bc0ef1e155356a4f103879",
+      "id": "ed25519:e17116170a4db3671d211d171021a31708a45e1a97d2f8d3ca542a75bdf77344"
+    }
+  },
+  "tokens": {
+    "cert": "eyJ2IjoyLCJ1c3IiOiJlZDI1NTE5OmUxNzExNjE3MGE0ZGIzNjcxZDIxMWQxNzEwMjFhMzE3MDhhNDVlMWE5N2QyZjhkM2NhNTQyYTc1YmRmNzczNDQiLCJkZXYiOiJlZDI1NTE5OjgyNTYzNDRiZmRkOTM2ODBjNjM3Mzg2YWQwMTk1ZjAxYWU5YmM2YTdlYTMyYmNiMTJjOWMxYjUwMGNhN2M4MzkiLCJkZW5jIjoieDI1NTE5OjA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDciLCJpYXQiOjE3OTAyNTEyMDAsImV4cCI6MTc5MDI1NDgwMH0.cSalYSTX5lh71aLrCTfqfeC-xhwvUhXs-0YbBlU6xaT2hZ3QFsLigia1VQWAAb2WOeDqJYymMfYBEWc9Q66kDg",
+    "grant": "eyJ2IjoxLCJpc3MiOiJlZDI1NTE5OmUxNzExNjE3MGE0ZGIzNjcxZDIxMWQxNzEwMjFhMzE3MDhhNDVlMWE5N2QyZjhkM2NhNTQyYTc1YmRmNzczNDQiLCJwcm4iOiJkZXZpY2U6YWxwaGEiLCJyZXMiOiJzcGFjZTpvbmUiLCJjYXAiOlsicmVhZCJdLCJpYXQiOjE3OTAyNTEyMDAsImV4cCI6MTc5MDI1NDgwMH0.a2CfVSGrM0Ndo0oYfTOI34yRJb_9Fm95iXTE5jVgDDltNTkZ1MkU0PSfmJEbN0ZQFdgdDvNJylatwZAqqpwaAg",
+    "op": "eyJ2IjozLCJ1c3IiOiJlZDI1NTE5OmUxNzExNjE3MGE0ZGIzNjcxZDIxMWQxNzEwMjFhMzE3MDhhNDVlMWE5N2QyZjhkM2NhNTQyYTc1YmRmNzczNDQiLCJvcCI6ImFkZCIsImRldiI6ImVkMjU1MTk6ODI1NjM0NGJmZGQ5MzY4MGM2MzczODZhZDAxOTVmMDFhZTliYzZhN2VhMzJiY2IxMmM5YzFiNTAwY2E3YzgzOSIsImRlbmMiOiJ4MjU1MTk6MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNzA3MDcwNyIsImJ5IjoiZWQyNTUxOTplMTcxMTYxNzBhNGRiMzY3MWQyMTFkMTcxMDIxYTMxNzA4YTQ1ZTFhOTdkMmY4ZDNjYTU0MmE3NWJkZjc3MzQ0IiwicHJldiI6W10sImlhdCI6MTc5MDI1MTIwMCwiZXhwIjoxNzkwMjU0ODAwfQ.g5o2jw-Fr3_j4oqikNgnJiECqOehwA_5SG-ioDVXcbeYUugi5p2i7xxVi34lmXaybMQ-uwcR4k1z8zFh2-O0CA",
+    "possession": "eyJ2IjoyLCJjcnQiOiJEb0Fxa2ladFppSlBsY3ZJclk5TnlTLXZvVnVLSTh1dGlfS1R6dDNTMWhBIiwiaWF0IjoxNzkwMjUxMjAwLCJleHAiOjE3OTAyNTEyNjB9.kc_xAnzIk6Ho0fKZsReXyxK7Tg54nm_rgHl0odX4w5sCet_McEuJJfCFOQck0R24x1MSGN68-X3tSOrf4OvoAQ"
+  },
+  "grant_request": {
+    "principal": "device:alpha",
+    "resource": "space:one",
+    "capability": "read"
+  },
+  "checks": [
+    {
+      "verifier": "grant",
+      "token": "grant",
+      "key": "user",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "cert",
+      "token": "cert",
+      "key": "user",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "cert_user",
+      "token": "cert",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "op",
+      "token": "cert",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "ok"
+      }
+    },
+    {
+      "verifier": "possession",
+      "token": "possession",
+      "key": "device",
+      "cert": "cert",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "op",
+      "token": "op",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "ok"
+      }
+    },
+    {
+      "verifier": "op_user",
+      "token": "op",
+      "expect": {
+        "accept": "ok",
+        "emit": "ok",
+        "require": "ok"
+      }
+    },
+    {
+      "verifier": "cert",
+      "token": "possession",
+      "key": "device",
+      "expect": {
+        "accept": "malformed",
+        "emit": "malformed",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "cert",
+      "token": "grant",
+      "key": "user",
+      "expect": {
+        "accept": "malformed",
+        "emit": "malformed",
+        "require": "untyped"
+      }
+    },
+    {
+      "verifier": "op",
+      "token": "possession",
+      "expect": {
+        "accept": "malformed",
+        "emit": "malformed",
+        "require": "malformed"
+      }
+    }
+  ]
+}
