@@ -1,15 +1,15 @@
 package one.rarebit.voidbind.flow
 
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import one.rarebit.voidbind.DeviceIdentity
 import one.rarebit.voidbind.Ed25519Engine
 import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.crypto.Ed25519Group
 import one.rarebit.voidbind.net.HttpResponse
 import one.rarebit.voidbind.net.HttpTransport
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 /**
  * The POST-handshake pairing steps against a failing transport: after both sides have
@@ -23,8 +23,11 @@ class PairingConfirmErrorTest {
     /** The CoordinatorPairingTest relay with a kill switch + a tamper hook. */
     private class RelayTransport : HttpTransport {
         private val slots = ConcurrentHashMap<String, ByteArray>()
+
         @Volatile var down = false
+
         @Volatile var status: Int? = null
+
         /** Skip the poll sleeps so the relay's 60s wait elapses instantly (a timeout test). */
         @Volatile var instantSleep = false
 
@@ -40,8 +43,11 @@ class PairingConfirmErrorTest {
             gate()
             status?.let { return HttpResponse(it, ByteArray(0)) }
             val key = url.substringAfter("/v1/sessions/")
-            return if (slots.putIfAbsent(key, body) != null) HttpResponse(409, ByteArray(0))
-            else HttpResponse(204, ByteArray(0))
+            return if (slots.putIfAbsent(key, body) != null) {
+                HttpResponse(409, ByteArray(0))
+            } else {
+                HttpResponse(204, ByteArray(0))
+            }
         }
         override fun get(url: String): HttpResponse {
             gate()
@@ -50,9 +56,13 @@ class PairingConfirmErrorTest {
             val v = slots[key] ?: return HttpResponse(404, ByteArray(0))
             return HttpResponse(200, v)
         }
-        override fun sleep(millis: Long) { if (!instantSleep) Thread.sleep(millis) }
+        override fun sleep(millis: Long) {
+            if (!instantSleep) Thread.sleep(millis)
+        }
 
-        fun tamper(key: String, bytes: ByteArray) { slots[key] = bytes }
+        fun tamper(key: String, bytes: ByteArray) {
+            slots[key] = bytes
+        }
     }
 
     private fun device(): DeviceIdentity {
@@ -80,7 +90,10 @@ class PairingConfirmErrorTest {
         var responder: PairingOutcome<DevicePairing.Handshake>? = null
         val tA = Thread { initiator = auth.handshakeCatching(invitation) }
         val tB = Thread { responder = pairing.beginCatching(invitation.inviteQr) }
-        tA.start(); tB.start(); tA.join(15_000); tB.join(15_000)
+        tA.start()
+        tB.start()
+        tA.join(15_000)
+        tB.join(15_000)
         val sas = assertIs<PairingOutcome.Ready<String>>(initiator).value
         val handshake = assertIs<PairingOutcome.Ready<DevicePairing.Handshake>>(responder).value
         assertEquals(sas, handshake.sas, "the catching handshakes must agree on the SAS like the throwing ones")

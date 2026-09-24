@@ -82,16 +82,15 @@ object WebLogin {
      *
      * This is the v1 preimage; [signingBytesV2] appends the framed match number.
      */
-    fun signingBytes(challenge: Challenge): ByteArray =
-        frame(
-            listOf(
-                ASSERTION_DOMAIN.encodeToByteArray(),
-                challenge.id.encodeToByteArray(),
-                challenge.nonce,
-                challenge.audience.encodeToByteArray(),
-                be64(challenge.expiresAt),
-            ),
-        )
+    fun signingBytes(challenge: Challenge): ByteArray = frame(
+        listOf(
+            ASSERTION_DOMAIN.encodeToByteArray(),
+            challenge.id.encodeToByteArray(),
+            challenge.nonce,
+            challenge.audience.encodeToByteArray(),
+            be64(challenge.expiresAt),
+        ),
+    )
 
     /**
      * The v2 (number-matching) preimage: the v1 fields under the v2 domain, plus the
@@ -101,17 +100,16 @@ object WebLogin {
      * tapping a decoy yields a signature that cannot verify against the true
      * challenge (the binding holds even if the equality gate were bypassed).
      */
-    fun signingBytesV2(challenge: Challenge, chosen: Int): ByteArray =
-        frame(
-            listOf(
-                ASSERTION_DOMAIN_V2.encodeToByteArray(),
-                challenge.id.encodeToByteArray(),
-                challenge.nonce,
-                challenge.audience.encodeToByteArray(),
-                be64(challenge.expiresAt),
-                be64(chosen.toLong()),
-            ),
-        )
+    fun signingBytesV2(challenge: Challenge, chosen: Int): ByteArray = frame(
+        listOf(
+            ASSERTION_DOMAIN_V2.encodeToByteArray(),
+            challenge.id.encodeToByteArray(),
+            challenge.nonce,
+            challenge.audience.encodeToByteArray(),
+            be64(challenge.expiresAt),
+            be64(chosen.toLong()),
+        ),
+    )
 
     /**
      * Sign [challenge] with the device key and return the assertion to POST. [sign]

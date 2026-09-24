@@ -30,10 +30,9 @@ actual class DeviceKeyStore private constructor(
          * targets but **ignored**: a plain JVM has no secure element and no user-presence gate,
          * so there is no authentication window to bind. Software key, dev/test only.
          */
-        actual fun getOrCreate(alias: String, userAuthValiditySeconds: Int): DeviceKeyStore =
-            store.getOrPut(alias) {
-                val g = Ed25519Engine.generate()
-                DeviceKeyStore(g.privateSeed, g.publicKey)
-            }
+        actual fun getOrCreate(alias: String, userAuthValiditySeconds: Int): DeviceKeyStore = store.getOrPut(alias) {
+            val g = Ed25519Engine.generate()
+            DeviceKeyStore(g.privateSeed, g.publicKey)
+        }
     }
 }

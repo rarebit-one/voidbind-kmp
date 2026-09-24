@@ -1,11 +1,5 @@
 package one.rarebit.voidbind.flow
 
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 import one.rarebit.voidbind.DeviceIdentity
 import one.rarebit.voidbind.Ed25519Engine
 import one.rarebit.voidbind.Enrolment
@@ -17,6 +11,12 @@ import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.crypto.Ed25519Group
 import one.rarebit.voidbind.net.HttpResponse
 import one.rarebit.voidbind.net.HttpTransport
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 /**
  * The two pairing coordinators against each other through an in-memory relay, in
@@ -46,8 +46,11 @@ class CoordinatorPairingTest {
         }
         override fun put(url: String, body: ByteArray, contentType: String?): HttpResponse {
             val key = url.substringAfter("/v1/sessions/")
-            return if (slots.putIfAbsent(key, body) != null) HttpResponse(409, ByteArray(0))
-            else HttpResponse(204, ByteArray(0))
+            return if (slots.putIfAbsent(key, body) != null) {
+                HttpResponse(409, ByteArray(0))
+            } else {
+                HttpResponse(204, ByteArray(0))
+            }
         }
         override fun get(url: String): HttpResponse {
             val key = url.substringAfter("/v1/sessions/")
@@ -78,7 +81,10 @@ class CoordinatorPairingTest {
         var responderError: Throwable? = null
         val tA = Thread { runCatching { sasInitiator = auth.handshake(invitation) } }
         val tB = Thread { runCatching { responderHandshake = pairing.begin(invitation.inviteQr) }.onFailure { responderError = it } }
-        tA.start(); tB.start(); tA.join(15_000); tB.join(15_000)
+        tA.start()
+        tB.start()
+        tA.join(15_000)
+        tB.join(15_000)
         responderError?.let { throw it }
         return sasInitiator to responderHandshake!!
     }
@@ -194,7 +200,10 @@ class CoordinatorPairingTest {
         var responderOutcome: PairingOutcome<DevicePairing.Handshake>? = null
         val tA = Thread { initiatorOutcome = auth.handshakeCatching(invitation) }
         val tB = Thread { responderOutcome = pairing.beginCatching(forged) }
-        tA.start(); tB.start(); tA.join(15_000); tB.join(15_000)
+        tA.start()
+        tB.start()
+        tA.join(15_000)
+        tB.join(15_000)
         val failed = assertIs<PairingOutcome.Failed>(responderOutcome)
         assertEquals(PairingFailureKind.PROTOCOL, failed.kind)
         // The initiator side completed its handshake (it cannot know), but nothing was authorised.

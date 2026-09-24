@@ -11,8 +11,7 @@ import one.rarebit.voidbind.crypto.MiniJson
  * a caller can tell "the site refused this" from "couldn't reach the site" and show the
  * right message. [status] is the HTTP code; [op] names the call (e.g. "fetch challenge").
  */
-class WebLoginHttpException(val status: Int, val op: String) :
-    RuntimeException("weblogin: $op: HTTP $status")
+class WebLoginHttpException(val status: Int, val op: String) : RuntimeException("weblogin: $op: HTTP $status")
 
 /**
  * Client for the Voidbind web QR-login (voidbind-go `weblogin`): the DEVICE side
@@ -96,6 +95,7 @@ class WebLoginClient(
         // apart from a transport failure (which arrives as the platform transport's own throw).
         if (resp.status != 200) throw WebLoginHttpException(resp.status, "fetch challenge")
         val o = MiniJson.parseObject(resp.body.decodeToString())
+
         @Suppress("UNCHECKED_CAST")
         val candidates = (o["candidates"] as? List<Long>)?.map { it.toInt() } ?: emptyList()
         return WebLogin.Challenge(

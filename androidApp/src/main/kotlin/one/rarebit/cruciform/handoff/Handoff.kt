@@ -51,8 +51,10 @@ object HandoffRouter {
         return when (val parsed = VoidbindDeepLink.parseOrNull(uri)) {
             is VoidbindDeepLink.Parsed.Login ->
                 Handoff(Handoff.Kind.LOGIN, Handoff.Origin.DEEP_LINK, parsed.tuple, parsed.callback, seq)
+
             is VoidbindDeepLink.Parsed.Pair ->
                 Handoff(Handoff.Kind.PAIR, Handoff.Origin.DEEP_LINK, parsed.tuple, parsed.callback, seq)
+
             null -> null
         }
     }

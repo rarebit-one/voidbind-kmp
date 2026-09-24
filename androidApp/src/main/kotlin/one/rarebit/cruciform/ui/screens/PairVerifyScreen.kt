@@ -16,9 +16,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.TabletMac
 import androidx.compose.material.icons.rounded.WarningAmber

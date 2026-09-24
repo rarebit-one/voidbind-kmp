@@ -33,9 +33,11 @@ class UnifiedPushReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             ACTION_MESSAGE -> onMessage(context, extractMessage(intent))
+
             ACTION_NEW_ENDPOINT -> intent.getStringExtra(EXTRA_ENDPOINT)?.let {
                 PushEndpointStore(context).save(it)
             }
+
             ACTION_REGISTRATION_FAILED, ACTION_UNREGISTERED -> PushEndpointStore(context).clear()
         }
     }
@@ -62,11 +64,10 @@ class UnifiedPushReceiver : BroadcastReceiver() {
      * feature) carries it as `bytesMessage`; the older keys are kept for v2 distributors.
      * Verified on-device 2026-09-04: ntfy's MESSAGE arrived with `extras=[bytesMessage, token]`.
      */
-    private fun extractMessage(intent: Intent): ByteArray? =
-        intent.getByteArrayExtra(EXTRA_BYTES_MESSAGE)
-            ?: intent.getByteArrayExtra(EXTRA_BYTES)
-            ?: intent.getByteArrayExtra(EXTRA_MESSAGE_BYTES)
-            ?: intent.getStringExtra(EXTRA_MESSAGE_STRING)?.encodeToByteArray()
+    private fun extractMessage(intent: Intent): ByteArray? = intent.getByteArrayExtra(EXTRA_BYTES_MESSAGE)
+        ?: intent.getByteArrayExtra(EXTRA_BYTES)
+        ?: intent.getByteArrayExtra(EXTRA_MESSAGE_BYTES)
+        ?: intent.getStringExtra(EXTRA_MESSAGE_STRING)?.encodeToByteArray()
 
     companion object {
         // The UnifiedPush broadcast contract (org.unifiedpush.android.connector.*).

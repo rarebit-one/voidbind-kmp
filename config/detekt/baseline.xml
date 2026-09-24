@@ -254,7 +254,6 @@
     <ID>MaxLineLength:DeviceCredentialTest.kt$DeviceCredentialTest$assertFailsWith&lt;IllegalArgumentException&gt; { DeviceCredential(cert, signer, { now }, ttlSeconds = 60, reuseForSeconds = 61) }</ID>
     <ID>MaxLineLength:DeviceCredentialTest.kt$DeviceCredentialTest$private</ID>
     <ID>MaxLineLength:DeviceCredentialTest.kt$DeviceCredentialTest$private val proof = "eyJ2IjoyLCJjcnQiOiJJdG01WGo5Vmtta2NkQWNOV3JjNEM0QU1LeVppTmx2cFRZM2dfS2FtakxJIiwiaWF0IjoxNzg4MzUwNDAwLCJleHAiOjE3ODgzNTA1MjB9.Qrj11oz4bLp_Zy8xWcHzQkhvYsjcCdy69LGGRcoCABPnlz3WynYLQwVFuxoVlYkn024FaXIDhXGadMAfR5g5Bw"</ID>
-    <ID>MaxLineLength:Ed25519Group.kt$Ed25519Group$val t = LongArray(16)</ID>
     <ID>MaxLineLength:GoInteropTest.kt$GoInteropTest$PairflowAuthority.Genesis({ Ed25519Engine.sign(user.privateSeed, it) }, user.publicKey, emptyList(), 7_776_000L)</ID>
     <ID>MaxLineLength:GoSignatureAssertions.kt$internal</ID>
     <ID>MaxLineLength:Invite.kt$Invite$require(salt.size &gt;= Pairing.MIN_SALT_LEN) { "invite salt is too short (${salt.size} &lt; ${Pairing.MIN_SALT_LEN})" }</ID>

@@ -28,9 +28,8 @@ fun versionCodeOf(name: String): Int {
 // properties (locally: ~/.gradle/gradle.properties). NOTHING is ever committed —
 // `*.jks` is git-ignored and the keystore is materialised into build/ from base64.
 // The keys live at ~/.config/rarebit-android-signing/ and in 1Password (Sysadmins).
-fun releaseSecret(env: String, property: String): String? =
-    System.getenv(env)?.takeIf { it.isNotBlank() }
-        ?: providers.gradleProperty(property).orNull?.takeIf { it.isNotBlank() }
+fun releaseSecret(env: String, property: String): String? = System.getenv(env)?.takeIf { it.isNotBlank() }
+    ?: providers.gradleProperty(property).orNull?.takeIf { it.isNotBlank() }
 
 val releaseKeystoreBase64 = releaseSecret("RELEASE_KEYSTORE_BASE64", "release.keystoreBase64")
 val releaseKeystorePassword = releaseSecret("RELEASE_KEYSTORE_PASSWORD", "release.keystorePassword")

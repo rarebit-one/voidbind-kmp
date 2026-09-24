@@ -65,10 +65,15 @@ object ApprovalPolicyMachine {
     fun onSuccessfulApproval(current: SitePolicy?, rp: String, at: Long): SitePolicy = when {
         current == null ->
             SitePolicy(rp, ApprovalPolicy.TrustedTofu, pinnedAlwaysAsk = false, firstTrustedAt = at)
+
         current.pinnedAlwaysAsk ->
-            current.copy(rp = rp) // honour the user's "always ask"; do not auto-trust
+            current.copy(rp = rp)
+
+        // honour the user's "always ask"; do not auto-trust
         current.policy == ApprovalPolicy.TrustedTofu ->
-            current.copy(rp = rp) // already trusted; keep the original firstTrustedAt
+            current.copy(rp = rp)
+
+        // already trusted; keep the original firstTrustedAt
         else ->
             current.copy(policy = ApprovalPolicy.TrustedTofu, firstTrustedAt = current.firstTrustedAt ?: at)
     }
@@ -84,11 +89,10 @@ object ApprovalPolicyMachine {
      * The user explicitly chooses to trust [rp] (at unix-seconds [at]): set it
      * [ApprovalPolicy.TrustedTofu] and clear any always-ask pin.
      */
-    fun trust(current: SitePolicy?, rp: String, at: Long): SitePolicy =
-        SitePolicy(
-            rp,
-            ApprovalPolicy.TrustedTofu,
-            pinnedAlwaysAsk = false,
-            firstTrustedAt = current?.firstTrustedAt ?: at,
-        )
+    fun trust(current: SitePolicy?, rp: String, at: Long): SitePolicy = SitePolicy(
+        rp,
+        ApprovalPolicy.TrustedTofu,
+        pinnedAlwaysAsk = false,
+        firstTrustedAt = current?.firstTrustedAt ?: at,
+    )
 }

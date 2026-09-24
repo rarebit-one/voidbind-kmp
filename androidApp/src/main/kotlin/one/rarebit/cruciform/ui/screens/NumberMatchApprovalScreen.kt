@@ -47,8 +47,8 @@ import one.rarebit.cruciform.ui.components.HSpace
 import one.rarebit.cruciform.ui.components.VSpace
 import one.rarebit.cruciform.ui.components.VbCard
 import one.rarebit.cruciform.ui.components.VbHairline
-import one.rarebit.cruciform.ui.theme.VbColors
 import one.rarebit.cruciform.ui.theme.CruciformTheme
+import one.rarebit.cruciform.ui.theme.VbColors
 
 /**
  * Number-match approval — the anti-phishing sheet for a **push-woken** login (a v2

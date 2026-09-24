@@ -1,22 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <baseline version="1.0">
     <file name="build.gradle.kts">
-        <error line="31" column="60" source="standard:function-signature" />
-        <error line="65" column="63" source="standard:function-signature" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/MainActivity.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
-        <error line="186" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="190" column="1" source="standard:blank-line-between-when-conditions" />
+        <error line="64" column="63" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/domain/DeviceVoidbindEngine.kt">
         <error line="519" column="72" source="standard:function-signature" />
-        <error line="531" column="72" source="standard:function-signature" />
-        <error line="653" column="55" source="standard:function-signature" />
-        <error line="798" column="54" source="standard:function-signature" />
-        <error line="801" column="59" source="standard:function-signature" />
-        <error line="804" column="49" source="standard:function-signature" />
-        <error line="813" column="53" source="standard:function-signature" />
+        <error line="652" column="55" source="standard:function-signature" />
+        <error line="799" column="59" source="standard:function-signature" />
+        <error line="802" column="49" source="standard:function-signature" />
+        <error line="811" column="53" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/domain/Models.kt">
         <error line="6" column="1" source="standard:kdoc" />
@@ -24,88 +16,46 @@
     <file name="src/main/kotlin/one/rarebit/cruciform/domain/PreviewVoidbindEngine.kt">
         <error line="165" column="94" source="standard:function-signature" />
     </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/domain/SuspendRunCatching.kt">
-        <error line="13" column="72" source="standard:function-signature" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/handoff/Handoff.kt">
-        <error line="54" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="56" column="1" source="standard:blank-line-between-when-conditions" />
-    </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/handoff/RpAppIdentity.kt">
         <error line="61" column="93" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/handoff/RpPairHandoff.kt">
-        <error line="98" column="74" source="standard:function-signature" />
-        <error line="111" column="101" source="standard:function-signature" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/handoff/RpPairLauncher.kt">
-        <error line="52" column="59" source="standard:function-signature" />
+        <error line="110" column="101" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/handoff/SamePhonePairCallback.kt">
-        <error line="81" column="9" source="standard:spacing-between-declarations-with-comments" />
-        <error line="175" column="84" source="standard:function-signature" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/pairing/InviteCoordinator.kt">
-        <error line="45" column="9" source="standard:spacing-between-declarations-with-comments" />
-        <error line="47" column="9" source="standard:spacing-between-declarations-with-comments" />
-        <error line="105" column="9" source="standard:spacing-between-declarations-with-comments" />
-        <error line="151" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="222" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="226" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="227" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="263" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="286" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="306" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="329" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="337" column="1" source="standard:blank-line-between-when-conditions" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/pairing/PairInviteService.kt">
-        <error line="42" column="19" source="standard:argument-list-wrapping" />
+        <error line="176" column="84" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/platform/ApprovalPolicyStore.kt">
-        <error line="24" column="67" source="standard:class-signature" />
-        <error line="24" column="84" source="standard:class-signature" />
-        <error line="44" column="58" source="standard:function-signature" />
-        <error line="73" column="65" source="standard:function-signature" />
-        <error line="76" column="56" source="standard:function-signature" />
+        <error line="46" column="58" source="standard:function-signature" />
+        <error line="77" column="56" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/platform/BiometricAuthenticator.kt">
-        <error line="82" column="82" source="standard:function-signature" />
-        <error line="95" column="91" source="standard:function-signature" />
-        <error line="122" column="88" source="standard:function-signature" />
+        <error line="94" column="91" source="standard:function-signature" />
+        <error line="104" column="1" source="standard:indent" />
+        <error line="105" column="1" source="standard:indent" />
+        <error line="106" column="1" source="standard:indent" />
+        <error line="107" column="1" source="standard:indent" />
+        <error line="108" column="1" source="standard:indent" />
+        <error line="109" column="1" source="standard:indent" />
+        <error line="110" column="1" source="standard:indent" />
+        <error line="111" column="1" source="standard:indent" />
+        <error line="112" column="1" source="standard:indent" />
+        <error line="113" column="1" source="standard:indent" />
+        <error line="114" column="1" source="standard:indent" />
+        <error line="115" column="1" source="standard:indent" />
+        <error line="116" column="1" source="standard:indent" />
+        <error line="117" column="1" source="standard:indent" />
+        <error line="118" column="1" source="standard:indent" />
+        <error line="119" column="1" source="standard:indent" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/platform/IdentityStore.kt">
         <error line="144" column="42" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/platform/NotifyConfig.kt">
         <error line="41" column="58" source="standard:function-signature" />
-        <error line="45" column="50" source="standard:function-signature" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/platform/OkHttpTransport.kt">
-        <error line="21" column="50" source="standard:function-signature" />
-        <error line="49" column="58" source="standard:function-signature" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/platform/SealedSecretStore.kt">
-        <error line="64" column="43" source="standard:statement-wrapping" />
-        <error line="65" column="42" source="standard:statement-wrapping" />
-        <error line="68" column="17" source="standard:statement-wrapping" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/platform/TrustedSiteCodec.kt">
-        <error line="39" column="53" source="standard:multiline-if-else" />
-        <error line="40" column="18" source="standard:multiline-if-else" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/platform/push/LoginWakeNotifier.kt">
-        <error line="37" column="22" source="standard:argument-list-wrapping" />
-        <error line="37" column="39" source="standard:argument-list-wrapping" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/platform/push/UnifiedPushReceiver.kt">
-        <error line="36" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="39" column="1" source="standard:blank-line-between-when-conditions" />
-        <error line="56" column="64" source="standard:function-signature" />
-        <error line="65" column="61" source="standard:function-signature" />
-    </file>
-    <file name="src/main/kotlin/one/rarebit/cruciform/platform/push/UnifiedPushRegistrar.kt">
-        <error line="36" column="55" source="standard:function-signature" />
+        <error line="58" column="64" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/components/Buttons.kt">
         <error line="26" column="19" source="standard:property-naming" />
@@ -164,54 +114,38 @@
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/DevicesScreen.kt">
         <error line="51" column="5" source="standard:function-naming" />
-        <error line="64" column="40" source="standard:statement-wrapping" />
-        <error line="64" column="61" source="standard:statement-wrapping" />
-        <error line="64" column="79" source="standard:statement-wrapping" />
-        <error line="119" column="13" source="standard:function-naming" />
-        <error line="144" column="13" source="standard:function-naming" />
+        <error line="122" column="13" source="standard:function-naming" />
+        <error line="147" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/HomeScreen.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
         <error line="59" column="5" source="standard:function-naming" />
         <error line="171" column="13" source="standard:function-naming" />
         <error line="206" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/LoginApprovalScreen.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
         <error line="64" column="5" source="standard:function-naming" />
         <error line="172" column="13" source="standard:function-naming" />
-        <error line="184" column="53" source="standard:multiline-if-else" />
-        <error line="185" column="50" source="standard:multiline-if-else" />
-        <error line="186" column="30" source="standard:multiline-if-else" />
-        <error line="206" column="13" source="standard:function-naming" />
+        <error line="210" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/NumberMatchApprovalScreen.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
         <error line="66" column="5" source="standard:function-naming" />
         <error line="173" column="13" source="standard:function-naming" />
         <error line="201" column="13" source="standard:function-naming" />
         <error line="217" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/OnboardingScreen.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
         <error line="43" column="5" source="standard:function-naming" />
         <error line="113" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/PairAllowScreen.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
         <error line="58" column="5" source="standard:function-naming" />
         <error line="134" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/PairConnectScreen.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
         <error line="59" column="5" source="standard:function-naming" />
-        <error line="80" column="68" source="standard:statement-wrapping" />
-        <error line="80" column="80" source="standard:statement-wrapping" />
-        <error line="80" column="101" source="standard:statement-wrapping" />
-        <error line="187" column="13" source="standard:function-naming" />
+        <error line="192" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/PairVerifyScreen.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
         <error line="49" column="5" source="standard:function-naming" />
         <error line="126" column="13" source="standard:function-naming" />
         <error line="138" column="13" source="standard:function-naming" />
@@ -226,14 +160,9 @@
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/ScanScreen.kt">
         <error line="45" column="5" source="standard:function-naming" />
         <error line="107" column="68" source="standard:function-signature" />
-        <error line="110" column="39" source="standard:statement-wrapping" />
-        <error line="111" column="60" source="standard:statement-wrapping" />
-        <error line="112" column="57" source="standard:statement-wrapping" />
-        <error line="113" column="78" source="standard:statement-wrapping" />
-        <error line="157" column="13" source="standard:function-naming" />
+        <error line="161" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/SettingsScreen.kt">
-        <error line="3" column="1" source="standard:import-ordering" />
         <error line="92" column="5" source="standard:function-naming" />
         <error line="325" column="13" source="standard:function-naming" />
         <error line="444" column="13" source="standard:function-naming" />
@@ -244,14 +173,6 @@
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/theme/Theme.kt">
         <error line="42" column="5" source="standard:function-naming" />
-    </file>
-    <file name="src/test/kotlin/one/rarebit/cruciform/handoff/RpPairHandoffTest.kt">
-        <error line="106" column="32" source="standard:statement-wrapping" />
-        <error line="106" column="86" source="standard:statement-wrapping" />
-        <error line="106" column="94" source="standard:statement-wrapping" />
-        <error line="106" column="103" source="standard:statement-wrapping" />
-        <error line="106" column="131" source="standard:statement-wrapping" />
-        <error line="106" column="136" source="standard:statement-wrapping" />
     </file>
     <file name="src/test/kotlin/one/rarebit/cruciform/pairing/InviteCoordinatorTest.kt">
         <error line="106" column="112" source="standard:function-signature" />

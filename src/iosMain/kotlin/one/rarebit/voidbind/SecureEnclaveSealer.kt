@@ -52,8 +52,7 @@ object VoidbindIos {
         sealerRef = sealer
     }
 
-    internal fun requireSealer(): SecureEnclaveSealer =
-        sealerRef ?: throw DeviceKeyStoreException(
-            "VoidbindIos.init(sealer) must be called before using DeviceKeyStore on iOS",
-        )
+    internal fun requireSealer(): SecureEnclaveSealer = sealerRef ?: throw DeviceKeyStoreException(
+        "VoidbindIos.init(sealer) must be called before using DeviceKeyStore on iOS",
+    )
 }

@@ -70,12 +70,15 @@ object PossessionProof {
     private val sha256 = CryptographyProvider.Default.get(SHA256).hasher()
 
     /** `base64url(sha256(certToken))` — the `crt` field, computed over the token's UTF-8 bytes. */
-    fun certHash(certToken: String): String =
-        Base64Url.encode(sha256.hashBlocking(certToken.encodeToByteArray()))
+    fun certHash(certToken: String): String = Base64Url.encode(sha256.hashBlocking(certToken.encodeToByteArray()))
 
     /** The exact JSON bytes the device signs: `{"v":2,"crt":…,"iat":…,"exp":…}`. */
-    fun signingBytes(certToken: String, issuedAt: Long, expiresAt: Long): ByteArray =
-        signingBytesTyped("", certToken, issuedAt, expiresAt)
+    fun signingBytes(certToken: String, issuedAt: Long, expiresAt: Long): ByteArray = signingBytesTyped(
+        "",
+        certToken,
+        issuedAt,
+        expiresAt,
+    )
 
     /** [signingBytes] with an ADR-0009 `typ` (second, after `v`; `""` omits it). */
     internal fun signingBytesTyped(

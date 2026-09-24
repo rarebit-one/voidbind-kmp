@@ -103,7 +103,13 @@ class RpPairHandoffTest {
         val out = ArrayList<Byte>()
         var i = 0
         while (i < s.length) {
-            if (s[i] == '%') { out.add(s.substring(i + 1, i + 3).toInt(16).toByte()); i += 3 } else { out.add(s[i].code.toByte()); i++ }
+            if (s[i] == '%') {
+                out.add(s.substring(i + 1, i + 3).toInt(16).toByte())
+                i += 3
+            } else {
+                out.add(s[i].code.toByte())
+                i++
+            }
         }
         return out.toByteArray().decodeToString()
     }

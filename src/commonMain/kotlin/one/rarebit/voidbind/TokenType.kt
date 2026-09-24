@@ -47,7 +47,7 @@ object TokenType {
         if (caseVariant || (raw != null && raw !is String)) {
             throw TypeException(Failure.MALFORMED, "typ is not a string, or its key is a case variant")
         }
-        val typ = raw as? String ?: return ""
+        val typ: String = raw ?: return ""
         if (typ !in allowed) {
             throw TypeException(Failure.WRONG_TYPE, "token type \"$typ\" is not ${allowed.joinToString(" or ")}")
         }

@@ -48,15 +48,13 @@ internal object JvmEd25519 {
         return s.sign()
     }
 
-    fun verify(rawPublicKey: ByteArray, message: ByteArray, signature: ByteArray): Boolean {
-        return try {
-            val s = Signature.getInstance("Ed25519")
-            s.initVerify(publicKeyFromRaw(rawPublicKey))
-            s.update(message)
-            s.verify(signature)
-        } catch (_: Exception) {
-            false
-        }
+    fun verify(rawPublicKey: ByteArray, message: ByteArray, signature: ByteArray): Boolean = try {
+        val s = Signature.getInstance("Ed25519")
+        s.initVerify(publicKeyFromRaw(rawPublicKey))
+        s.update(message)
+        s.verify(signature)
+    } catch (_: Exception) {
+        false
     }
 
     /** An [Ed25519Verifier] backed by the JDK provider — usable from tests. */

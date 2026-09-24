@@ -36,7 +36,10 @@ class WebLoginTest {
         }
         assertEquals("CERT.TOKEN", a.cert)
         assertMatchesGoSignature(
-            goldenSig, a.sig, Ed25519Group.publicKeyFromSeed(deviceSeed), WebLogin.signingBytes(challenge),
+            goldenSig,
+            a.sig,
+            Ed25519Group.publicKeyFromSeed(deviceSeed),
+            WebLogin.signingBytes(challenge),
             "the assertion signature must match voidbind-go byte-for-byte",
         )
     }

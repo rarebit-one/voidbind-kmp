@@ -17,8 +17,7 @@ object VoidbindAndroid {
         appContext = context.applicationContext
     }
 
-    internal fun requireContext(): Context =
-        appContext ?: throw DeviceKeyStoreException(
-            "VoidbindAndroid.init(context) must be called before using DeviceKeyStore on Android",
-        )
+    internal fun requireContext(): Context = appContext ?: throw DeviceKeyStoreException(
+        "VoidbindAndroid.init(context) must be called before using DeviceKeyStore on Android",
+    )
 }

@@ -1,11 +1,11 @@
 package one.rarebit.voidbind
 
+import one.rarebit.voidbind.crypto.Ed25519Group
+import one.rarebit.voidbind.crypto.Hex
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
-import one.rarebit.voidbind.crypto.Ed25519Group
-import one.rarebit.voidbind.crypto.Hex
 
 /**
  * The membership op's wire contract, pinned against voidbind-go v0.9.0's

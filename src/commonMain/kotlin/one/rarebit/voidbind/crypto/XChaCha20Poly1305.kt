@@ -58,7 +58,10 @@ internal object XChaCha20Poly1305 {
      */
     private fun hChaCha20(key: ByteArray, nonce16: ByteArray): ByteArray {
         val s = IntArray(16)
-        s[0] = C0; s[1] = C1; s[2] = C2; s[3] = C3
+        s[0] = C0
+        s[1] = C1
+        s[2] = C2
+        s[3] = C3
         for (i in 0 until 8) s[4 + i] = leU32(key, i * 4)
         for (i in 0 until 4) s[12 + i] = leU32(nonce16, i * 4)
         repeat(10) {
@@ -72,23 +75,32 @@ internal object XChaCha20Poly1305 {
             quarterRound(s, 3, 4, 9, 14)
         }
         val out = ByteArray(32)
-        putLeU32(s[0], out, 0); putLeU32(s[1], out, 4); putLeU32(s[2], out, 8); putLeU32(s[3], out, 12)
-        putLeU32(s[12], out, 16); putLeU32(s[13], out, 20); putLeU32(s[14], out, 24); putLeU32(s[15], out, 28)
+        putLeU32(s[0], out, 0)
+        putLeU32(s[1], out, 4)
+        putLeU32(s[2], out, 8)
+        putLeU32(s[3], out, 12)
+        putLeU32(s[12], out, 16)
+        putLeU32(s[13], out, 20)
+        putLeU32(s[14], out, 24)
+        putLeU32(s[15], out, 28)
         return out
     }
 
     private fun quarterRound(s: IntArray, a: Int, b: Int, c: Int, d: Int) {
-        s[a] += s[b]; s[d] = (s[d] xor s[a]).rotateLeft(16)
-        s[c] += s[d]; s[b] = (s[b] xor s[c]).rotateLeft(12)
-        s[a] += s[b]; s[d] = (s[d] xor s[a]).rotateLeft(8)
-        s[c] += s[d]; s[b] = (s[b] xor s[c]).rotateLeft(7)
+        s[a] += s[b]
+        s[d] = (s[d] xor s[a]).rotateLeft(16)
+        s[c] += s[d]
+        s[b] = (s[b] xor s[c]).rotateLeft(12)
+        s[a] += s[b]
+        s[d] = (s[d] xor s[a]).rotateLeft(8)
+        s[c] += s[d]
+        s[b] = (s[b] xor s[c]).rotateLeft(7)
     }
 
-    private fun leU32(b: ByteArray, off: Int): Int =
-        (b[off].toInt() and 0xff) or
-            ((b[off + 1].toInt() and 0xff) shl 8) or
-            ((b[off + 2].toInt() and 0xff) shl 16) or
-            ((b[off + 3].toInt() and 0xff) shl 24)
+    private fun leU32(b: ByteArray, off: Int): Int = (b[off].toInt() and 0xff) or
+        ((b[off + 1].toInt() and 0xff) shl 8) or
+        ((b[off + 2].toInt() and 0xff) shl 16) or
+        ((b[off + 3].toInt() and 0xff) shl 24)
 
     private fun putLeU32(v: Int, out: ByteArray, off: Int) {
         out[off] = (v and 0xff).toByte()

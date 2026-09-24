@@ -56,7 +56,7 @@ data class Cert(
             "denc" to deviceEnc.render(),
             "iat" to issuedAt,
             "exp" to expiresAt,
-        )
+        ),
     ).encodeToByteArray()
 
     /** Sign the payload with the user identity key and render the token. */
@@ -114,12 +114,10 @@ data class Cert(
 
     /** A parsed token: the [cert], the raw signed [payload] bytes, and the [signature]. */
     data class Parsed(val cert: Cert, val payload: ByteArray, val signature: ByteArray) {
-        fun verify(verifier: Ed25519Verifier): Boolean =
-            verifier.verify(cert.user.bytes, payload, signature)
+        fun verify(verifier: Ed25519Verifier): Boolean = verifier.verify(cert.user.bytes, payload, signature)
 
-        override fun equals(other: Any?): Boolean =
-            other is Parsed && cert == other.cert &&
-                payload.contentEquals(other.payload) && signature.contentEquals(other.signature)
+        override fun equals(other: Any?): Boolean = other is Parsed && cert == other.cert &&
+            payload.contentEquals(other.payload) && signature.contentEquals(other.signature)
 
         override fun hashCode(): Int {
             var h = cert.hashCode()

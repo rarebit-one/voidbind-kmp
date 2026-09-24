@@ -123,7 +123,12 @@ class LoginApproval(
         val client = WebLoginClient(http, parsed.rp)
         val challenge = client.fetchChallenge(parsed.id)
         return Request(
-            parsed.rp, parsed.id, challenge.audience, challenge.expiresAt, challenge.candidates, challenge,
+            parsed.rp,
+            parsed.id,
+            challenge.audience,
+            challenge.expiresAt,
+            challenge.candidates,
+            challenge,
         )
     }
 

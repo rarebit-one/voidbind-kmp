@@ -66,9 +66,13 @@ class InMemorySitePolicyStore : SitePolicyStore {
     private val byRp = mutableMapOf<String, SitePolicy>()
 
     override fun get(rp: String): SitePolicy? = byRp[rp]
-    override fun put(policy: SitePolicy) { byRp[policy.rp] = policy }
+    override fun put(policy: SitePolicy) {
+        byRp[policy.rp] = policy
+    }
     override fun all(): List<SitePolicy> = byRp.values.toList()
-    override fun remove(rp: String) { byRp.remove(rp) }
+    override fun remove(rp: String) {
+        byRp.remove(rp)
+    }
 }
 
 /**
@@ -84,6 +88,5 @@ class InMemoryApprovalAuditLog(private val capacity: Int = 500) : ApprovalAuditL
         while (log.size > capacity) log.removeFirst()
     }
 
-    override fun entries(limit: Int): List<ApprovalAuditEntry> =
-        log.asReversed().take(limit)
+    override fun entries(limit: Int): List<ApprovalAuditEntry> = log.asReversed().take(limit)
 }
