@@ -353,9 +353,15 @@ private fun EndpointField(
                 )
             }
             HSpace(8)
+            // No build default and no override: the field is empty and nothing is dialled.
+            val notSet = isDefault && defaultUrl.isBlank()
             StatusPill(
-                text = if (isDefault) "Default" else "Custom",
-                accent = if (isDefault) VbColors.Mint else VbColors.Amber,
+                text = when {
+                    notSet -> "Not set"
+                    isDefault -> "Default"
+                    else -> "Custom"
+                },
+                accent = if (isDefault && !notSet) VbColors.Mint else VbColors.Amber,
                 leadingIcon = Icons.Rounded.Hub,
             )
         }
@@ -365,7 +371,7 @@ private fun EndpointField(
             onValueChange = { draft = it; saveError = null },
             modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             label = { Text(fieldLabel) },
-            placeholder = { Text(defaultUrl) },
+            placeholder = { Text(defaultUrl.ifBlank { "https://" }) },
             isError = error != null,
             singleLine = true,
             textStyle = TextStyle(fontFamily = FontFamily.Monospace),
@@ -383,7 +389,7 @@ private fun EndpointField(
         )
         VSpace(8)
         Text(
-            error ?: "Default: $defaultUrl",
+            error ?: if (defaultUrl.isBlank()) "No default in this build — enter a URL to use one." else "Default: $defaultUrl",
             style = MaterialTheme.typography.bodyMedium,
             color = if (error != null) VbColors.Coral else VbColors.TextMuted,
         )
@@ -401,7 +407,7 @@ private fun EndpointField(
                 modifier = Modifier.weight(1f),
             )
             OutlineButton(
-                "Reset to default",
+                if (defaultUrl.isBlank()) "Clear" else "Reset to default",
                 onClick = { saveError = null; onReset(); draft = defaultUrl },
                 enabled = !isDefault || draft != defaultUrl,
                 accent = VbColors.TextSecondary,

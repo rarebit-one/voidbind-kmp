@@ -16,6 +16,7 @@ import one.rarebit.voidbind.Membership
 import one.rarebit.voidbind.MembershipOp
 import one.rarebit.voidbind.RecoverySecret
 import one.rarebit.voidbind.UserIdentity
+import one.rarebit.cruciform.BuildConfig
 import one.rarebit.cruciform.platform.ApprovalPolicyStore
 import one.rarebit.cruciform.platform.BiometricAuthenticator
 import one.rarebit.cruciform.platform.IdentityStore
@@ -161,7 +162,7 @@ class DeviceVoidbindEngine(
             is one.rarebit.voidbind.VoidbindQr.Login -> ScannedCode.WebLogin(qr.request.rp, qr.request.id, raw)
             is one.rarebit.voidbind.VoidbindQr.Pair -> ScannedCode.PairInvite(qr.invite.relay, qr.invite.session, raw)
         }
-    } catch (_: Throwable) {
+    } catch (_: Exception) {
         ScannedCode.Unknown(raw)
     }
 
@@ -175,9 +176,9 @@ class DeviceVoidbindEngine(
         val approval = LoginApproval(transport, buildDevice(), persisted.enrolmentCert, knownOps = persisted.ops)
         // beginCatching converts every transport/IO failure and non-2xx into an Outcome.Failed
         // instead of throwing, so an unreachable/misconfigured RP surfaces as a login error and
-        // never becomes an uncaught main-thread FATAL. The extra runCatching is belt-and-braces:
+        // never becomes an uncaught main-thread FATAL. The extra suspendRunCatching is belt-and-braces:
         // no unexpected throw from this boundary may escape the approval coroutine.
-        val outcome = runCatching { approval.beginCatching(LoginQr.Parsed(code.rpBase, code.loginId)) }
+        val outcome = suspendRunCatching { approval.beginCatching(LoginQr.Parsed(code.rpBase, code.loginId)) }
             .getOrElse { LoginApproval.Outcome.Failed(LoginApproval.FailureKind.UNREACHABLE, "Couldn't reach the site.") }
         when (outcome) {
             is LoginApproval.Outcome.Failed -> {
@@ -243,6 +244,9 @@ class DeviceVoidbindEngine(
 
     override suspend fun registerForPush(endpoint: String): Boolean = withContext(Dispatchers.IO) {
         val persisted = store.load() ?: return@withContext false
+        // No plane configured (no build default, no Settings override): nothing to
+        // register with. Not an error — scanned-QR login works without a wake channel.
+        val notifyBase = notifyBase.takeIf { it.isNotBlank() } ?: return@withContext false
         try {
             NotifyClient(transport, notifyBase).subscribe(persisted.enrolmentCert, endpoint)
             true
@@ -255,6 +259,7 @@ class DeviceVoidbindEngine(
 
     override suspend fun unregisterFromPush() = withContext(Dispatchers.IO) {
         val persisted = store.load() ?: return@withContext
+        val notifyBase = notifyBase.takeIf { it.isNotBlank() } ?: return@withContext
         runCatching { NotifyClient(transport, notifyBase).unsubscribe(persisted.enrolmentCert) }
         Unit
     }
@@ -274,6 +279,17 @@ class DeviceVoidbindEngine(
         // invite time, so a change applies to the next invite with no restart.
         val relayBase = relayBase
         inviteRelay = relayBase
+        if (relayBase.isBlank()) {
+            // This build ships no default relay and Settings holds none: say so (the
+            // dialog offers "Change relay") rather than dialling an empty URL.
+            return@withContext EngineResult.Failed(
+                EngineFailure(
+                    "No pairing relay is set up. Add one in Settings → Pairing relay.",
+                    EngineFailure.Kind.REJECTED,
+                    retryable = false,
+                ),
+            )
+        }
         engineCatching(relayBase) {
             val authorization = memberAuthorization()
             when (val outcome = authorization.inviteCatching(relayBase)) {
@@ -723,30 +739,26 @@ class DeviceVoidbindEngine(
         const val INVITE_TTL_SECONDS = 600
 
         /**
-         * The default pairing relay when Settings holds no override — the heyarr node's
-         * `/pair` mount on the Bartley Ridge LAN. `https://relay.thesim.family` is the
-         * intended public relay once it is deployed; it is not reachable today, which is
-         * why it is no longer the default (see [RelayConfig.DEFAULT_RELAY]).
+         * The default pairing relay when Settings holds no override — a build-time value,
+         * `""` when the build carries none (see [RelayConfig.DEFAULT_RELAY]).
          */
-        const val DEFAULT_RELAY = RelayConfig.DEFAULT_RELAY
+        val DEFAULT_RELAY: String get() = RelayConfig.DEFAULT_RELAY
 
         /**
-         * The default push/wake plane when Settings holds no override — the
-         * `voidbind-notify` plane on the Bartley Ridge LAN host (:2587).
-         * `https://notify.thesim.family` is the intended public name once it is
-         * deployed; it does not resolve today, which is why it is no longer the
-         * default (see [NotifyConfig.DEFAULT_NOTIFY]).
+         * The default push/wake plane when Settings holds no override — a build-time
+         * value, `""` when the build carries none (see [NotifyConfig.DEFAULT_NOTIFY]).
          */
-        const val DEFAULT_NOTIFY = NotifyConfig.DEFAULT_NOTIFY
+        val DEFAULT_NOTIFY: String get() = NotifyConfig.DEFAULT_NOTIFY
 
         /**
-         * Relying parties that (will) serve `POST /membership/{usr}`: the heyarr node and
-         * All Thing on hyperion-1 (Bartley Ridge LAN). Best-effort targets for a pushed
-         * remove/add; a 404 from one that has not landed the route yet is tolerated.
+         * Relying parties that serve `POST /membership/{usr}` (heyarr-core, All Thing):
+         * best-effort targets for a pushed remove/add; a 404 from one that has not landed
+         * the route yet is tolerated. A build-time, comma-separated list
+         * (`BuildConfig.DEFAULT_MEMBERSHIP_RPS`, from `CRUCIFORM_MEMBERSHIP_RPS` /
+         * `cruciformMembershipRps`) — empty by default, in which case a remove simply
+         * travels with the next login assertion instead of being pushed.
          */
-        val DEFAULT_MEMBERSHIP_RPS: List<String> = listOf(
-            "http://192.168.16.224:7777",
-            "http://192.168.16.224:8080",
-        )
+        val DEFAULT_MEMBERSHIP_RPS: List<String> =
+            BuildConfig.DEFAULT_MEMBERSHIP_RPS.split(',').map { it.trim() }.filter { it.isNotEmpty() }
     }
 }

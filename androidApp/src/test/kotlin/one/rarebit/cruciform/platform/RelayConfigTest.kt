@@ -1,18 +1,31 @@
 package one.rarebit.cruciform.platform
 
+import one.rarebit.cruciform.BuildConfig
 import one.rarebit.cruciform.platform.RelayConfig.Validation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** Pure-JVM rules for the "Pairing relay" setting: the default and what the field accepts. */
 class RelayConfigTest {
 
     @Test
-    fun `default is the heyarr node's internal-TLS relay mount, and is itself valid`() {
-        assertEquals("https://heyarr.br.thesim.family:7777/pair", RelayConfig.DEFAULT_RELAY)
-        assertEquals(Validation.Valid(RelayConfig.DEFAULT_RELAY), RelayConfig.validate(RelayConfig.DEFAULT_RELAY))
+    fun `default is the build-time value, and is itself valid when the build sets one`() {
+        // Never a committed constant: it comes from CRUCIFORM_DEFAULT_RELAY / the
+        // cruciformDefaultRelay property, and is "" (not configured) when unset.
+        assertEquals(BuildConfig.DEFAULT_RELAY_URL.trim(), RelayConfig.DEFAULT_RELAY)
+        assertEquals(RelayConfig.DEFAULT_RELAY.isNotEmpty(), RelayConfig.hasDefault)
+        if (RelayConfig.hasDefault) {
+            assertEquals(Validation.Valid(RelayConfig.DEFAULT_RELAY), RelayConfig.validate(RelayConfig.DEFAULT_RELAY))
+        }
+    }
+
+    @Test
+    fun `validation messages use a placeholder example, not a real endpoint`() {
+        val invalid = assertIs<Validation.Invalid>(RelayConfig.validate("http:///pair"))
+        assertTrue(invalid.reason.contains(RelayConfig.EXAMPLE_RELAY), invalid.reason)
     }
 
     @Test

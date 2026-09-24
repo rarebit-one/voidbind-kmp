@@ -1,5 +1,6 @@
 package one.rarebit.cruciform.platform
 
+import one.rarebit.cruciform.BuildConfig
 import java.net.URI
 import java.net.URISyntaxException
 
@@ -8,22 +9,27 @@ import java.net.URISyntaxException
  * types) so the rules are unit-tested on the JVM; [RelaySettings] is the persisted
  * half. The library appends `/v1/sessions…` to whatever base it is handed
  * ([one.rarebit.voidbind.net.RelayClient]), so the base is the mount point of a
- * relay, e.g. `http://192.168.16.224:7777/pair` (the heyarr node's `RelayPrefix`).
+ * relay, e.g. `https://relay.example.com/pair` (a heyarr node's `RelayPrefix`).
  */
 object RelayConfig {
 
     /**
-     * The relay a fresh install pairs through. **`https://relay.thesim.family` is the
-     * intended PUBLIC relay once it is deployed**; today it does not resolve. Until
-     * then the default is the relay the heyarr node mounts on the Bartley Ridge LAN
-     * (`/pair` on :7777), which now speaks internal TLS — a valid Let's Encrypt cert
-     * at `https://heyarr.br.thesim.family:7777`, so the relay rides HTTPS by default.
-     * The plain-http node IP stays reachable as an in-app Settings override fallback
-     * (cleartext to that one IP is allowed by `res/xml/network_security_config.xml`).
+     * The relay a fresh install pairs through, or `""` when this build carries none.
+     * It is a BUILD-TIME value (`BuildConfig.DEFAULT_RELAY_URL`, from the
+     * `CRUCIFORM_DEFAULT_RELAY` / `cruciformDefaultRelay` setting — see
+     * `androidApp/build.gradle.kts`), never a committed constant: a private LAN
+     * endpoint must not ship baked into the APK. With no default the user sets one in
+     * Settings → "Pairing relay", and "Add a device" says so instead of dialling `""`.
      * The relay only ever carries the encrypted pairing transcript, so it leaks
      * nothing either way (the SAS compare is what authenticates the pairing).
      */
-    const val DEFAULT_RELAY = "https://heyarr.br.thesim.family:7777/pair"
+    val DEFAULT_RELAY: String = BuildConfig.DEFAULT_RELAY_URL.trim()
+
+    /** True when this build ships a default relay (see [DEFAULT_RELAY]). */
+    val hasDefault: Boolean get() = DEFAULT_RELAY.isNotEmpty()
+
+    /** What a good value looks like, for validation messages (never a real endpoint). */
+    const val EXAMPLE_RELAY = "https://relay.example.com/pair"
 
     /**
      * What [validate] decided about a typed URL. Shared by every endpoint field in
@@ -44,7 +50,7 @@ object RelayConfig {
      * with its own `/v1/...`, and a `base//v1` would 404). Blank input is invalid —
      * "use the default" is [RelaySettings.reset], not an empty string.
      */
-    fun validate(input: String): Validation = validateBase(input, noun = "relay", example = DEFAULT_RELAY)
+    fun validate(input: String): Validation = validateBase(input, noun = "relay", example = EXAMPLE_RELAY)
 
     /**
      * The shared endpoint-base rules, parameterised only by how the field names itself
