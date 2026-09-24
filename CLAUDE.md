@@ -64,8 +64,10 @@ deliberate and load-bearing.
   IS a v3 add signed by genesis with no `prev`. `Membership.evaluate` is a line-for-line
   port of voidbind-go `enrolment.Evaluate`; the golden vectors in
   `src/jvmTest/resources/vectors/membership/` (21 today, incl. the ADR-0008 cosig
-  cases) are copied from voidbind-go and must replay byte-for-byte — never edit
-  them here, re-copy from Go. `MembershipVectorTest` enumerates the directory, so a
+  cases) are copied from voidbind-go's `testvectors/vectors/` and must replay
+  byte-for-byte — never edit them here, re-copy from Go and bump
+  `src/jvmTest/resources/vectors/VOIDBIND_GO_REF`; the `vector-drift` CI job
+  (`scripts/check-vector-drift.sh`) fails on any difference. `MembershipVectorTest` enumerates the directory, so a
   newly copied vector is picked up automatically.
 - **Recovery secret** = 256-bit, **bech32m** (BIP-350, *not* bech32) with HRP
   `heyarr`.
