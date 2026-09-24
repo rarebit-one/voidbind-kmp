@@ -113,11 +113,6 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
-        val androidMain by getting {
-            dependencies {
-                implementation("androidx.biometric:biometric:1.1.0")
-            }
-        }
     }
 }
 
