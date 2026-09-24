@@ -184,6 +184,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // SavedStateHandle for the per-flow ViewModels (in-progress flow state survives process death).
+    implementation(libs.androidx.lifecycle.viewmodel.savedstate)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.biometric)
     // A modern fragment so FragmentActivity (needed by BiometricPrompt) extends the

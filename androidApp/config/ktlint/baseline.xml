@@ -147,9 +147,12 @@
         <error line="70" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/nav/CruciformNavHost.kt">
-        <error line="93" column="41" source="standard:function-signature" />
-        <error line="121" column="5" source="standard:function-naming" />
-        <error line="924" column="13" source="standard:function-naming" />
+        <error line="89" column="5" source="standard:function-naming" />
+    </file>
+    <file name="src/main/kotlin/one/rarebit/cruciform/ui/nav/FlowDialogs.kt">
+        <error line="24" column="14" source="standard:function-naming" />
+        <error line="41" column="14" source="standard:function-naming" />
+        <error line="105" column="14" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/scan/QrScanner.kt">
         <error line="40" column="5" source="standard:function-naming" />
@@ -232,19 +235,9 @@
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/SettingsScreen.kt">
         <error line="3" column="1" source="standard:import-ordering" />
         <error line="92" column="5" source="standard:function-naming" />
-        <error line="315" column="13" source="standard:function-naming" />
-        <error line="371" column="31" source="standard:statement-wrapping" />
-        <error line="371" column="42" source="standard:statement-wrapping" />
-        <error line="371" column="60" source="standard:statement-wrapping" />
-        <error line="402" column="62" source="standard:statement-wrapping" />
-        <error line="402" column="79" source="standard:statement-wrapping" />
-        <error line="402" column="99" source="standard:statement-wrapping" />
-        <error line="411" column="29" source="standard:statement-wrapping" />
-        <error line="411" column="46" source="standard:statement-wrapping" />
-        <error line="411" column="57" source="standard:statement-wrapping" />
-        <error line="411" column="77" source="standard:statement-wrapping" />
-        <error line="422" column="13" source="standard:function-naming" />
-        <error line="436" column="13" source="standard:function-naming" />
+        <error line="325" column="13" source="standard:function-naming" />
+        <error line="444" column="13" source="standard:function-naming" />
+        <error line="458" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/theme/Color.kt">
         <error line="1" column="1" source="standard:filename" />

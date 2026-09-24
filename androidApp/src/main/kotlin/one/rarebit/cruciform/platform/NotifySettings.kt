@@ -12,28 +12,30 @@ import android.content.Context
  * on the next app open — the moment the app re-registers its wake endpoint —
  * without recreating the engine or restarting the app.
  */
-class NotifySettings(context: Context) {
+class NotifySettings(context: Context) : EndpointSetting {
 
     private val prefs = context.getSharedPreferences("voidbind.notify", Context.MODE_PRIVATE)
 
     /** The configured plane base, or [NotifyConfig.DEFAULT_NOTIFY] when none is set. */
-    fun current(): String = prefs.getString(KEY_NOTIFY, null)?.takeIf { it.isNotBlank() } ?: NotifyConfig.DEFAULT_NOTIFY
+    override fun current(): String = stored() ?: NotifyConfig.DEFAULT_NOTIFY
+
+    private fun stored(): String? = prefs.getString(KEY_NOTIFY, null)?.takeIf { it.isNotBlank() }
 
     /** True when no override is stored (the default is in effect). */
-    fun isDefault(): Boolean = !prefs.contains(KEY_NOTIFY)
+    override fun isDefault(): Boolean = !prefs.contains(KEY_NOTIFY)
 
     /**
      * Validate and persist. Returns the [RelayConfig.Validation] so the caller can show
      * the reason inline; nothing is written on `Invalid`.
      */
-    fun set(input: String): RelayConfig.Validation {
+    override fun set(input: String): RelayConfig.Validation {
         val v = NotifyConfig.validate(input)
         if (v is RelayConfig.Validation.Valid) prefs.edit().putString(KEY_NOTIFY, v.url).apply()
         return v
     }
 
     /** Drop the override: [current] returns the default again. */
-    fun reset() {
+    override fun reset() {
         prefs.edit().remove(KEY_NOTIFY).apply()
     }
 

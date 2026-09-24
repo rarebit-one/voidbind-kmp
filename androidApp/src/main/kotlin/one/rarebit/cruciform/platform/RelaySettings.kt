@@ -11,28 +11,30 @@ import android.content.Context
  * Only the initiator side consults this: a device JOINING an invite pairs through
  * the relay named in the scanned invite, never through this setting.
  */
-class RelaySettings(context: Context) {
+class RelaySettings(context: Context) : EndpointSetting {
 
     private val prefs = context.getSharedPreferences("voidbind.relay", Context.MODE_PRIVATE)
 
     /** The configured relay base, or [RelayConfig.DEFAULT_RELAY] when none is set. */
-    fun current(): String = prefs.getString(KEY_RELAY, null)?.takeIf { it.isNotBlank() } ?: RelayConfig.DEFAULT_RELAY
+    override fun current(): String = stored() ?: RelayConfig.DEFAULT_RELAY
+
+    private fun stored(): String? = prefs.getString(KEY_RELAY, null)?.takeIf { it.isNotBlank() }
 
     /** True when no override is stored (the default is in effect). */
-    fun isDefault(): Boolean = !prefs.contains(KEY_RELAY)
+    override fun isDefault(): Boolean = !prefs.contains(KEY_RELAY)
 
     /**
      * Validate and persist. Returns the [RelayConfig.Validation] so the caller can show
      * the reason inline; nothing is written on `Invalid`.
      */
-    fun set(input: String): RelayConfig.Validation {
+    override fun set(input: String): RelayConfig.Validation {
         val v = RelayConfig.validate(input)
         if (v is RelayConfig.Validation.Valid) prefs.edit().putString(KEY_RELAY, v.url).apply()
         return v
     }
 
     /** Drop the override: [current] returns the default again. */
-    fun reset() {
+    override fun reset() {
         prefs.edit().remove(KEY_RELAY).apply()
     }
 
