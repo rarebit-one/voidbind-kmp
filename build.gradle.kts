@@ -18,6 +18,46 @@ plugins {
     // wire instead of re-implementing the login seam. See "Consuming as a
     // dependency" in README.md.
     id("maven-publish")
+    // Lint (applied to every project below). Existing findings are frozen in
+    // baselines, so only NEW violations fail CI.
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
+}
+
+// ── Lint: ktlint + detekt, for the root library and :androidApp ─────────────────
+// `./gradlew ktlintCheck detekt` is what CI runs. Findings that predate the linters
+// live in each project's config/ktlint/baseline.xml and config/detekt/baseline.xml;
+// fix code rather than growing them. Regenerate only to deliberately accept debt:
+// `./gradlew ktlintGenerateBaseline detektBaseline`. Style is in .editorconfig.
+allprojects {
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+    apply(plugin = "io.gitlab.arturbosch.detekt")
+
+    configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        version.set(rootProject.libs.versions.ktlint)
+        baseline.set(file("config/ktlint/baseline.xml"))
+        filter {
+            exclude { it.file.path.contains("/build/") }
+        }
+    }
+
+    configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
+        buildUponDefaultConfig = true
+        // The KMP layout (src/commonMain, src/iosMain, …) is not in detekt's
+        // default source set, so scan all of src/.
+        source.setFrom("src")
+        baseline = file("config/detekt/baseline.xml")
+    }
+
+    // detekt 1.23.8 embeds the Kotlin 2.0.21 compiler and refuses to run against a
+    // newer one; keep its (isolated) tool classpath on the version it was built with.
+    configurations.matching { it.name == "detekt" }.configureEach {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "org.jetbrains.kotlin") {
+                useVersion(rootProject.libs.versions.detektKotlin.get())
+            }
+        }
+    }
 }
 
 group = "one.rarebit.voidbind"

@@ -1,0 +1,467 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:RpPairHandoff.kt$RpPairHandoff$ch in 'A'..'Z' || ch in 'a'..'z' || ch in '0'..'9' || ch == '-' || ch == '_' || ch == '.' || ch == '~'</ID>
+    <ID>CyclomaticComplexMethod:CruciformNavHost.kt$@Composable fun CruciformNavHost( viewModel: AppViewModel, handoff: Handoff? = null, onHandoffFinished: (Handoff, approved: Boolean) -&gt; Unit = { _, _ -&gt; }, /** * A `cruciform://pair-joined` report from a relying-party app on this phone * (ADR-0008). Handed to the invite coordinator, which checks it against the relay * before anything is shown. */ samePhoneJoin: SamePhoneJoin? = null, /** * The one-tap add is signed and delivered: send the human back to the RP's * `&lt;scheme&gt;://pair-done?session=` landing and finish. `(rpScheme, session)`. */ onSamePhoneDone: (String?, String) -&gt; Unit = { _, _ -&gt; }, /** * The one-tap report was refused (a key or code that disagreed with the relay): * tell the RP through its `pair-done?outcome=refused` leg so it stops waiting. * `(rpScheme, session, reason)`. Cruciform's own failure dialog stays up. */ onSamePhoneRefused: (String?, String, String) -&gt; Unit = { _, _, _ -&gt; }, )</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable private fun EndpointField( title: String, description: String, fieldLabel: String, url: String, defaultUrl: String, isDefault: Boolean, validate: (String) -&gt; RelayConfig.Validation, onSave: (String) -&gt; RelayConfig.Validation, onReset: () -&gt; Unit, focus: Boolean, onFocused: () -&gt; Unit, )</ID>
+    <ID>EmptyFunctionBlock:InviteCoordinatorTest.kt$InviteCoordinatorTest.FakeEngine${}</ID>
+    <ID>FunctionNaming:ApprovalActivityScreen.kt$@Composable fun ApprovalActivityScreen( activity: List&lt;ApprovalActivity&gt;, onBack: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:ApprovalActivityScreen.kt$@Composable private fun ActivityRow(entry: ApprovalActivity)</ID>
+    <ID>FunctionNaming:ApprovalActivityScreen.kt$@Composable private fun EmptyState()</ID>
+    <ID>FunctionNaming:BottomBar.kt$@Composable fun CruciformBottomBar( currentRoute: String?, onHome: () -&gt; Unit, onScan: () -&gt; Unit, onSettings: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:BottomBar.kt$@Composable private fun BarItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:BottomBar.kt$@Composable private fun ScanButton(onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:Buttons.kt$@Composable fun DangerButton( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, enabled: Boolean = true, leadingIcon: ImageVector? = null, )</ID>
+    <ID>FunctionNaming:Buttons.kt$@Composable fun OutlineButton( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, enabled: Boolean = true, accent: Color = VbColors.Mint, leadingIcon: ImageVector? = null, )</ID>
+    <ID>FunctionNaming:Buttons.kt$@Composable fun PrimaryButton( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, enabled: Boolean = true, fill: Color = VbColors.Mint, onFill: Color = VbColors.OnMint, leadingIcon: ImageVector? = null, )</ID>
+    <ID>FunctionNaming:Buttons.kt$@Composable private fun ButtonContent(text: String, leadingIcon: ImageVector?)</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun HSpace(dp: Int)</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun IconCircle( icon: ImageVector, modifier: Modifier = Modifier, tint: Color = VbColors.Mint, background: Color = VbColors.SurfaceElevated, diameter: Int = 44, iconSize: Int = 22, )</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun SectionLabel( text: String, modifier: Modifier = Modifier, color: Color = VbColors.TextMuted, trailing: (@Composable () -&gt; Unit)? = null, )</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun StatusPill( text: String, modifier: Modifier = Modifier, accent: Color = VbColors.Mint, leadingIcon: ImageVector? = null, )</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun VSpace(dp: Int)</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun VbCard( modifier: Modifier = Modifier, color: Color = VbColors.Surface, border: BorderStroke? = BorderStroke(1.dp, VbColors.OutlineSoft), shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(20.dp), content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun VbHairline(modifier: Modifier = Modifier)</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun WashCard( accent: Color, wash: Color, modifier: Modifier = Modifier, content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:CruciformMark.kt$@Composable fun CruciformMark(size: Dp = 32.dp, modifier: Modifier = Modifier)</ID>
+    <ID>FunctionNaming:CruciformNavHost.kt$@Composable fun CruciformNavHost( viewModel: AppViewModel, handoff: Handoff? = null, onHandoffFinished: (Handoff, approved: Boolean) -&gt; Unit = { _, _ -&gt; }, /** * A `cruciform://pair-joined` report from a relying-party app on this phone * (ADR-0008). Handed to the invite coordinator, which checks it against the relay * before anything is shown. */ samePhoneJoin: SamePhoneJoin? = null, /** * The one-tap add is signed and delivered: send the human back to the RP's * `&lt;scheme&gt;://pair-done?session=` landing and finish. `(rpScheme, session)`. */ onSamePhoneDone: (String?, String) -&gt; Unit = { _, _ -&gt; }, /** * The one-tap report was refused (a key or code that disagreed with the relay): * tell the RP through its `pair-done?outcome=refused` leg so it stops waiting. * `(rpScheme, session, reason)`. Cruciform's own failure dialog stays up. */ onSamePhoneRefused: (String?, String, String) -&gt; Unit = { _, _, _ -&gt; }, )</ID>
+    <ID>FunctionNaming:CruciformNavHost.kt$@Composable private fun Loading()</ID>
+    <ID>FunctionNaming:DevicesScreen.kt$@Composable fun DevicesScreen( devices: List&lt;MemberDevice&gt;, onBack: () -&gt; Unit, onAddDevice: () -&gt; Unit, onRemove: (MemberDevice) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:DevicesScreen.kt$@Composable private fun DeviceRow(d: MemberDevice, onRemove: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:DevicesScreen.kt$@Composable private fun EmptyDevices()</ID>
+    <ID>FunctionNaming:HomeScreen.kt$@Composable fun HomeScreen( identity: Identity, device: DeviceInfo, trustedSites: List&lt;TrustedSite&gt;, onSettings: () -&gt; Unit, onCopyIdentity: () -&gt; Unit, onDevice: () -&gt; Unit, onDevices: () -&gt; Unit, onSite: (TrustedSite) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:HomeScreen.kt$@Composable private fun Dot(color: Color, size: Int = 8)</ID>
+    <ID>FunctionNaming:HomeScreen.kt$@Composable private fun StrongBoxCard(device: DeviceInfo)</ID>
+    <ID>FunctionNaming:LoginApprovalScreen.kt$@Composable fun LoginApprovalScreen( request: LoginRequest, onDeny: () -&gt; Unit, onApprove: () -&gt; Unit, modifier: Modifier = Modifier, policy: SitePolicyView? = null, onSetAlwaysAsk: (Boolean) -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:LoginApprovalScreen.kt$@Composable private fun ApprovalRow(icon: ImageVector, label: String, value: String, last: Boolean = false)</ID>
+    <ID>FunctionNaming:LoginApprovalScreen.kt$@Composable private fun PolicyControl(policy: SitePolicyView, onSetAlwaysAsk: (Boolean) -&gt; Unit)</ID>
+    <ID>FunctionNaming:NumberMatchApprovalScreen.kt$@Composable fun NumberMatchApprovalScreen( request: LoginRequest, onDeny: () -&gt; Unit, onApprove: (chosen: Int) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:NumberMatchApprovalScreen.kt$@Composable private fun MatchRow(icon: ImageVector, label: String, value: String, last: Boolean = false)</ID>
+    <ID>FunctionNaming:NumberMatchApprovalScreen.kt$@Composable private fun NumberTile( number: Int, selected: Boolean, enabled: Boolean, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:NumberMatchApprovalScreen.kt$@Preview(showBackground = true, backgroundColor = 0xFF0B0F14) @Composable private fun NumberMatchApprovalPreview()</ID>
+    <ID>FunctionNaming:OnboardingScreen.kt$@Composable fun OnboardingScreen( onCreate: () -&gt; Unit, onRestore: () -&gt; Unit, onAddDevice: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:OnboardingScreen.kt$@Composable private fun OnboardingAction( icon: ImageVector, accent: androidx.compose.ui.graphics.Color, title: String, subtitle: String, onClick: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:PairAllowScreen.kt$@Composable fun PairAllowScreen( /** The RP's human name, e.g. "heyarr". */ appName: String, onAllow: () -&gt; Unit, onCancel: () -&gt; Unit, modifier: Modifier = Modifier, /** The RP's launcher icon, when the system could give us one. */ appIcon: Drawable? = null, /** True while the add is being signed and delivered — the buttons go away. */ busy: Boolean = false, )</ID>
+    <ID>FunctionNaming:PairAllowScreen.kt$@Composable private fun AppGlyph(icon: Drawable?)</ID>
+    <ID>FunctionNaming:PairConnectScreen.kt$@Composable fun PairConnectScreen( invite: PairInviteDisplay, onBack: () -&gt; Unit, onScanInstead: () -&gt; Unit, modifier: Modifier = Modifier, sameDeviceTargets: List&lt;RpPairTarget&gt; = emptyList(), onSendTo: (RpPairTarget) -&gt; Unit = {}, onShare: () -&gt; Unit = {}, /** * Seconds left on the invite's relay session, supplied by the owner of the invite * (the app-scoped coordinator, ADR-0007) so it is the SAME clock whether this screen * is entered fresh, recomposed, or returned to from the relying-party app. Null → * count down locally from [PairInviteDisplay.expiresInSeconds] (previews). */ remainingSeconds: Int? = null, /** A one-line status under the timer, e.g. "Waiting for the new device to join…". */ status: String? = null, )</ID>
+    <ID>FunctionNaming:PairConnectScreen.kt$@Composable private fun NextStep(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String)</ID>
+    <ID>FunctionNaming:PairVerifyScreen.kt$@Composable fun PairVerifyScreen( session: PairSession, onCancel: () -&gt; Unit, onConfirm: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:PairVerifyScreen.kt$@Composable private fun DeviceGlyph(icon: ImageVector, name: String)</ID>
+    <ID>FunctionNaming:PairVerifyScreen.kt$@Composable private fun Dots()</ID>
+    <ID>FunctionNaming:QrImage.kt$@Composable fun QrImage( content: String, modifier: Modifier = Modifier, sizePx: Int = 512, )</ID>
+    <ID>FunctionNaming:QrScanner.kt$@Composable fun QrScanner( onQr: (String) -&gt; Unit, modifier: Modifier = Modifier, noPermission: @Composable () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:RecoveryBackupScreen.kt$@Composable fun RecoveryBackupScreen( backup: RecoveryBackup, onBack: () -&gt; Unit, onSaved: () -&gt; Unit, stepLabel: String = "1 of 3 · BACKUP REQUIRED", modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:RecoveryBackupScreen.kt$@Composable private fun AckRow(text: String, checked: Boolean, onChange: (Boolean) -&gt; Unit)</ID>
+    <ID>FunctionNaming:RestoreScreen.kt$@Composable fun RestoreScreen( onBack: () -&gt; Unit, onRestore: suspend (String) -&gt; Unit, onDone: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:Rows.kt$@Composable fun IdentityFingerprint( label: String, fingerprint: String, modifier: Modifier = Modifier, onCopy: (() -&gt; Unit)? = null, )</ID>
+    <ID>FunctionNaming:Rows.kt$@Composable fun RowItem( title: String, modifier: Modifier = Modifier, subtitle: String? = null, leading: (@Composable () -&gt; Unit)? = null, trailing: (@Composable () -&gt; Unit)? = null, titleColor: Color = VbColors.TextPrimary, onClick: (() -&gt; Unit)? = null, )</ID>
+    <ID>FunctionNaming:Rows.kt$@Composable fun SiteAvatar(accent: SiteAccent, modifier: Modifier = Modifier, diameter: Int = 44)</ID>
+    <ID>FunctionNaming:ScanScreen.kt$@Composable fun ScanScreen( onClose: () -&gt; Unit, onCode: (String) -&gt; Unit, onEnterManually: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:ScanScreen.kt$@Composable private fun ModeHint(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier = Modifier)</ID>
+    <ID>FunctionNaming:SecureScreen.kt$@Composable fun SecureScreen()</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@Composable fun SettingsScreen( state: IdentityState.Active, onRename: () -&gt; Unit, onToggleBiometric: (Boolean) -&gt; Unit, onRevoke: (TrustedSite) -&gt; Unit, onManageSites: () -&gt; Unit, onRecoveryBackup: () -&gt; Unit, onApprovalActivity: () -&gt; Unit, onDevices: () -&gt; Unit, onAbout: () -&gt; Unit, onSecurity: () -&gt; Unit, onLicenses: () -&gt; Unit, modifier: Modifier = Modifier, relayUrl: String = RelayConfig.DEFAULT_RELAY, relayIsDefault: Boolean = true, onSaveRelay: (String) -&gt; RelayConfig.Validation = { RelayConfig.validate(it) }, onResetRelay: () -&gt; Unit = {}, focusRelay: Boolean = false, onRelayFocused: () -&gt; Unit = {}, notifyUrl: String = NotifyConfig.DEFAULT_NOTIFY, notifyIsDefault: Boolean = true, onSaveNotify: (String) -&gt; RelayConfig.Validation = { NotifyConfig.validate(it) }, onResetNotify: () -&gt; Unit = {}, )</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun AboutRow(icon: ImageVector, title: String, subtitle: String?, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun EndpointField( title: String, description: String, fieldLabel: String, url: String, defaultUrl: String, isDefault: Boolean, validate: (String) -&gt; RelayConfig.Validation, onSave: (String) -&gt; RelayConfig.Validation, onReset: () -&gt; Unit, focus: Boolean, onFocused: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun PolicyPill(site: TrustedSite)</ID>
+    <ID>FunctionNaming:Theme.kt$@Composable fun CruciformTheme( // Kept for API symmetry; the app is dark-only today, so this is ignored. @Suppress("UNUSED_PARAMETER") darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:TopBars.kt$@Composable fun AppTopBar( title: String, onBack: () -&gt; Unit, modifier: Modifier = Modifier, actions: (@Composable () -&gt; Unit)? = null, )</ID>
+    <ID>InstanceOfCheckForException:InviteCoordinator.kt$InviteCoordinator$t is IllegalArgumentException</ID>
+    <ID>InstanceOfCheckForException:InviteCoordinator.kt$InviteCoordinator$t is IllegalStateException</ID>
+    <ID>LongMethod:CruciformNavHost.kt$@Composable fun CruciformNavHost( viewModel: AppViewModel, handoff: Handoff? = null, onHandoffFinished: (Handoff, approved: Boolean) -&gt; Unit = { _, _ -&gt; }, /** * A `cruciform://pair-joined` report from a relying-party app on this phone * (ADR-0008). Handed to the invite coordinator, which checks it against the relay * before anything is shown. */ samePhoneJoin: SamePhoneJoin? = null, /** * The one-tap add is signed and delivered: send the human back to the RP's * `&lt;scheme&gt;://pair-done?session=` landing and finish. `(rpScheme, session)`. */ onSamePhoneDone: (String?, String) -&gt; Unit = { _, _ -&gt; }, /** * The one-tap report was refused (a key or code that disagreed with the relay): * tell the RP through its `pair-done?outcome=refused` leg so it stops waiting. * `(rpScheme, session, reason)`. Cruciform's own failure dialog stays up. */ onSamePhoneRefused: (String?, String, String) -&gt; Unit = { _, _, _ -&gt; }, )</ID>
+    <ID>LongMethod:HomeScreen.kt$@Composable fun HomeScreen( identity: Identity, device: DeviceInfo, trustedSites: List&lt;TrustedSite&gt;, onSettings: () -&gt; Unit, onCopyIdentity: () -&gt; Unit, onDevice: () -&gt; Unit, onDevices: () -&gt; Unit, onSite: (TrustedSite) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:LoginApprovalScreen.kt$@Composable fun LoginApprovalScreen( request: LoginRequest, onDeny: () -&gt; Unit, onApprove: () -&gt; Unit, modifier: Modifier = Modifier, policy: SitePolicyView? = null, onSetAlwaysAsk: (Boolean) -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:MainActivity.kt$MainActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
+    <ID>LongMethod:NumberMatchApprovalScreen.kt$@Composable fun NumberMatchApprovalScreen( request: LoginRequest, onDeny: () -&gt; Unit, onApprove: (chosen: Int) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:OnboardingScreen.kt$@Composable fun OnboardingScreen( onCreate: () -&gt; Unit, onRestore: () -&gt; Unit, onAddDevice: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:PairConnectScreen.kt$@Composable fun PairConnectScreen( invite: PairInviteDisplay, onBack: () -&gt; Unit, onScanInstead: () -&gt; Unit, modifier: Modifier = Modifier, sameDeviceTargets: List&lt;RpPairTarget&gt; = emptyList(), onSendTo: (RpPairTarget) -&gt; Unit = {}, onShare: () -&gt; Unit = {}, /** * Seconds left on the invite's relay session, supplied by the owner of the invite * (the app-scoped coordinator, ADR-0007) so it is the SAME clock whether this screen * is entered fresh, recomposed, or returned to from the relying-party app. Null → * count down locally from [PairInviteDisplay.expiresInSeconds] (previews). */ remainingSeconds: Int? = null, /** A one-line status under the timer, e.g. "Waiting for the new device to join…". */ status: String? = null, )</ID>
+    <ID>LongMethod:PairVerifyScreen.kt$@Composable fun PairVerifyScreen( session: PairSession, onCancel: () -&gt; Unit, onConfirm: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:QrScanner.kt$@Composable fun QrScanner( onQr: (String) -&gt; Unit, modifier: Modifier = Modifier, noPermission: @Composable () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:RecoveryBackupScreen.kt$@Composable fun RecoveryBackupScreen( backup: RecoveryBackup, onBack: () -&gt; Unit, onSaved: () -&gt; Unit, stepLabel: String = "1 of 3 · BACKUP REQUIRED", modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:RestoreScreen.kt$@Composable fun RestoreScreen( onBack: () -&gt; Unit, onRestore: suspend (String) -&gt; Unit, onDone: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:ScanScreen.kt$@Composable fun ScanScreen( onClose: () -&gt; Unit, onCode: (String) -&gt; Unit, onEnterManually: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen( state: IdentityState.Active, onRename: () -&gt; Unit, onToggleBiometric: (Boolean) -&gt; Unit, onRevoke: (TrustedSite) -&gt; Unit, onManageSites: () -&gt; Unit, onRecoveryBackup: () -&gt; Unit, onApprovalActivity: () -&gt; Unit, onDevices: () -&gt; Unit, onAbout: () -&gt; Unit, onSecurity: () -&gt; Unit, onLicenses: () -&gt; Unit, modifier: Modifier = Modifier, relayUrl: String = RelayConfig.DEFAULT_RELAY, relayIsDefault: Boolean = true, onSaveRelay: (String) -&gt; RelayConfig.Validation = { RelayConfig.validate(it) }, onResetRelay: () -&gt; Unit = {}, focusRelay: Boolean = false, onRelayFocused: () -&gt; Unit = {}, notifyUrl: String = NotifyConfig.DEFAULT_NOTIFY, notifyIsDefault: Boolean = true, onSaveNotify: (String) -&gt; RelayConfig.Validation = { NotifyConfig.validate(it) }, onResetNotify: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@Composable private fun EndpointField( title: String, description: String, fieldLabel: String, url: String, defaultUrl: String, isDefault: Boolean, validate: (String) -&gt; RelayConfig.Validation, onSave: (String) -&gt; RelayConfig.Validation, onReset: () -&gt; Unit, focus: Boolean, onFocused: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:Buttons.kt$( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, enabled: Boolean = true, accent: Color = VbColors.Mint, leadingIcon: ImageVector? = null, )</ID>
+    <ID>LongParameterList:Buttons.kt$( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, enabled: Boolean = true, fill: Color = VbColors.Mint, onFill: Color = VbColors.OnMint, leadingIcon: ImageVector? = null, )</ID>
+    <ID>LongParameterList:Components.kt$( icon: ImageVector, modifier: Modifier = Modifier, tint: Color = VbColors.Mint, background: Color = VbColors.SurfaceElevated, diameter: Int = 44, iconSize: Int = 22, )</ID>
+    <ID>LongParameterList:CruciformNavHost.kt$( viewModel: AppViewModel, handoff: Handoff? = null, onHandoffFinished: (Handoff, approved: Boolean) -&gt; Unit = { _, _ -&gt; }, /** * A `cruciform://pair-joined` report from a relying-party app on this phone * (ADR-0008). Handed to the invite coordinator, which checks it against the relay * before anything is shown. */ samePhoneJoin: SamePhoneJoin? = null, /** * The one-tap add is signed and delivered: send the human back to the RP's * `&lt;scheme&gt;://pair-done?session=` landing and finish. `(rpScheme, session)`. */ onSamePhoneDone: (String?, String) -&gt; Unit = { _, _ -&gt; }, /** * The one-tap report was refused (a key or code that disagreed with the relay): * tell the RP through its `pair-done?outcome=refused` leg so it stops waiting. * `(rpScheme, session, reason)`. Cruciform's own failure dialog stays up. */ onSamePhoneRefused: (String?, String, String) -&gt; Unit = { _, _, _ -&gt; }, )</ID>
+    <ID>LongParameterList:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$( private val store: IdentityStore, private val policyStore: ApprovalPolicyStore, private val transport: HttpTransport, private val biometric: BiometricAuthenticator, /** * The pairing-relay base this device MINTS invites through, read on every call — * a provider, not a value, so Settings → "Pairing relay" takes effect on the next * "Add a device" without recreating the engine (`RelaySettings.current`). */ private val relay: () -&gt; String, /** * The push/wake plane base this device REGISTERS its wake endpoint with, read on * every call — a provider, not a value, so Settings → "Push plane" takes effect on * the next registration (the next app open) without recreating the engine * (`NotifySettings.current`). */ private val notify: () -&gt; String = { DEFAULT_NOTIFY }, private val clock: () -&gt; Long = { System.currentTimeMillis() / 1000 }, /** Relying parties that serve `POST /membership/{usr}`; a remove is pushed to each, best-effort. */ private val membershipRps: List&lt;String&gt; = DEFAULT_MEMBERSHIP_RPS, )</ID>
+    <ID>LongParameterList:HomeScreen.kt$( identity: Identity, device: DeviceInfo, trustedSites: List&lt;TrustedSite&gt;, onSettings: () -&gt; Unit, onCopyIdentity: () -&gt; Unit, onDevice: () -&gt; Unit, onDevices: () -&gt; Unit, onSite: (TrustedSite) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:IdentityStore.kt$IdentityStore$( enrolmentCert: String, ops: List&lt;String&gt;, userPublicKey: ByteArray, encPublicKey: ByteArray, encPrivateKey: ByteArray, deviceName: String, )</ID>
+    <ID>LongParameterList:IdentityStore.kt$IdentityStore$( enrolmentCert: String, userPublicKey: ByteArray, encPublicKey: ByteArray, encPrivateKey: ByteArray, recoverySecret: ByteArray, deviceName: String, )</ID>
+    <ID>LongParameterList:IdentityStore.kt$IdentityStore$( op: String, ops: List&lt;String&gt;, userPublicKey: ByteArray, encPublicKey: ByteArray, encPrivateKey: ByteArray, deviceName: String, )</ID>
+    <ID>LongParameterList:LoginApprovalScreen.kt$( request: LoginRequest, onDeny: () -&gt; Unit, onApprove: () -&gt; Unit, modifier: Modifier = Modifier, policy: SitePolicyView? = null, onSetAlwaysAsk: (Boolean) -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:PairAllowScreen.kt$( /** The RP's human name, e.g. "heyarr". */ appName: String, onAllow: () -&gt; Unit, onCancel: () -&gt; Unit, modifier: Modifier = Modifier, /** The RP's launcher icon, when the system could give us one. */ appIcon: Drawable? = null, /** True while the add is being signed and delivered — the buttons go away. */ busy: Boolean = false, )</ID>
+    <ID>LongParameterList:PairConnectScreen.kt$( invite: PairInviteDisplay, onBack: () -&gt; Unit, onScanInstead: () -&gt; Unit, modifier: Modifier = Modifier, sameDeviceTargets: List&lt;RpPairTarget&gt; = emptyList(), onSendTo: (RpPairTarget) -&gt; Unit = {}, onShare: () -&gt; Unit = {}, /** * Seconds left on the invite's relay session, supplied by the owner of the invite * (the app-scoped coordinator, ADR-0007) so it is the SAME clock whether this screen * is entered fresh, recomposed, or returned to from the relying-party app. Null → * count down locally from [PairInviteDisplay.expiresInSeconds] (previews). */ remainingSeconds: Int? = null, /** A one-line status under the timer, e.g. "Waiting for the new device to join…". */ status: String? = null, )</ID>
+    <ID>LongParameterList:Rows.kt$( title: String, modifier: Modifier = Modifier, subtitle: String? = null, leading: (@Composable () -&gt; Unit)? = null, trailing: (@Composable () -&gt; Unit)? = null, titleColor: Color = VbColors.TextPrimary, onClick: (() -&gt; Unit)? = null, )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( state: IdentityState.Active, onRename: () -&gt; Unit, onToggleBiometric: (Boolean) -&gt; Unit, onRevoke: (TrustedSite) -&gt; Unit, onManageSites: () -&gt; Unit, onRecoveryBackup: () -&gt; Unit, onApprovalActivity: () -&gt; Unit, onDevices: () -&gt; Unit, onAbout: () -&gt; Unit, onSecurity: () -&gt; Unit, onLicenses: () -&gt; Unit, modifier: Modifier = Modifier, relayUrl: String = RelayConfig.DEFAULT_RELAY, relayIsDefault: Boolean = true, onSaveRelay: (String) -&gt; RelayConfig.Validation = { RelayConfig.validate(it) }, onResetRelay: () -&gt; Unit = {}, focusRelay: Boolean = false, onRelayFocused: () -&gt; Unit = {}, notifyUrl: String = NotifyConfig.DEFAULT_NOTIFY, notifyIsDefault: Boolean = true, onSaveNotify: (String) -&gt; RelayConfig.Validation = { NotifyConfig.validate(it) }, onResetNotify: () -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( title: String, description: String, fieldLabel: String, url: String, defaultUrl: String, isDefault: Boolean, validate: (String) -&gt; RelayConfig.Validation, onSave: (String) -&gt; RelayConfig.Validation, onReset: () -&gt; Unit, focus: Boolean, onFocused: () -&gt; Unit, )</ID>
+    <ID>MagicNumber:ApprovalActivityScreen.kt$14</ID>
+    <ID>MagicNumber:ApprovalActivityScreen.kt$6</ID>
+    <ID>MagicNumber:ApprovalPolicyStore.kt$ApprovalPolicyStore$3</ID>
+    <ID>MagicNumber:ApprovalPolicyStore.kt$ApprovalPolicyStore$4</ID>
+    <ID>MagicNumber:ApprovalPolicyStore.kt$ApprovalPolicyStore$5</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0x143E9BFF</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0x145FE7C7</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0x14F5B301</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF03121F</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF041712</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF060809</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF0B0E11</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF101418</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF161B21</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF1A2026</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF232A31</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF241A00</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF2E5C51</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF3E9BFF</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF4A2222</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF4A3A0E</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF5FE7C7</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF747E87</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF8ED0F0</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFFAAB4BD</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFFF4F7FA</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFFF5B301</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFFFF6B6B</ID>
+    <ID>MagicNumber:Components.kt$50</ID>
+    <ID>MagicNumber:CruciformMark.kt$0.24f</ID>
+    <ID>MagicNumber:CruciformMark.kt$0.40f</ID>
+    <ID>MagicNumber:CruciformMark.kt$0.60f</ID>
+    <ID>MagicNumber:CruciformNavHost.kt$1000</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$0x7fffffff</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$1000</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$12</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$200</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$299</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$3</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$3_600</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$4</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$60</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$7</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$8</ID>
+    <ID>MagicNumber:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$86_400</ID>
+    <ID>MagicNumber:DevicesScreen.kt$10</ID>
+    <ID>MagicNumber:DevicesScreen.kt$12</ID>
+    <ID>MagicNumber:DevicesScreen.kt$14</ID>
+    <ID>MagicNumber:DevicesScreen.kt$16</ID>
+    <ID>MagicNumber:DevicesScreen.kt$20</ID>
+    <ID>MagicNumber:DevicesScreen.kt$6</ID>
+    <ID>MagicNumber:DevicesScreen.kt$8</ID>
+    <ID>MagicNumber:HomeScreen.kt$10</ID>
+    <ID>MagicNumber:HomeScreen.kt$14</ID>
+    <ID>MagicNumber:HomeScreen.kt$18</ID>
+    <ID>MagicNumber:HomeScreen.kt$26</ID>
+    <ID>MagicNumber:HomeScreen.kt$6</ID>
+    <ID>MagicNumber:HomeScreen.kt$8</ID>
+    <ID>MagicNumber:InviteCoordinator.kt$InviteCoordinator$1000L</ID>
+    <ID>MagicNumber:InviteCoordinator.kt$InviteCoordinator$16</ID>
+    <ID>MagicNumber:InviteCoordinator.kt$InviteCoordinator$60</ID>
+    <ID>MagicNumber:LoginApprovalScreen.kt$10</ID>
+    <ID>MagicNumber:LoginApprovalScreen.kt$1000</ID>
+    <ID>MagicNumber:LoginApprovalScreen.kt$12</ID>
+    <ID>MagicNumber:LoginApprovalScreen.kt$14</ID>
+    <ID>MagicNumber:LoginApprovalScreen.kt$18</ID>
+    <ID>MagicNumber:LoginApprovalScreen.kt$50</ID>
+    <ID>MagicNumber:LoginApprovalScreen.kt$6</ID>
+    <ID>MagicNumber:LoginApprovalScreen.kt$8</ID>
+    <ID>MagicNumber:NumberMatchApprovalScreen.kt$10</ID>
+    <ID>MagicNumber:NumberMatchApprovalScreen.kt$1000</ID>
+    <ID>MagicNumber:NumberMatchApprovalScreen.kt$12</ID>
+    <ID>MagicNumber:NumberMatchApprovalScreen.kt$14</ID>
+    <ID>MagicNumber:NumberMatchApprovalScreen.kt$18</ID>
+    <ID>MagicNumber:NumberMatchApprovalScreen.kt$50</ID>
+    <ID>MagicNumber:NumberMatchApprovalScreen.kt$6</ID>
+    <ID>MagicNumber:NumberMatchApprovalScreen.kt$8</ID>
+    <ID>MagicNumber:OkHttpTransport.kt$OkHttpTransport.Companion$15</ID>
+    <ID>MagicNumber:OkHttpTransport.kt$OkHttpTransport.Companion$30</ID>
+    <ID>MagicNumber:OnboardingScreen.kt$12</ID>
+    <ID>MagicNumber:OnboardingScreen.kt$14</ID>
+    <ID>MagicNumber:OnboardingScreen.kt$16</ID>
+    <ID>MagicNumber:OnboardingScreen.kt$28</ID>
+    <ID>MagicNumber:OnboardingScreen.kt$36</ID>
+    <ID>MagicNumber:OnboardingScreen.kt$4</ID>
+    <ID>MagicNumber:PairAllowScreen.kt$112</ID>
+    <ID>MagicNumber:PairAllowScreen.kt$12</ID>
+    <ID>MagicNumber:PairAllowScreen.kt$16</ID>
+    <ID>MagicNumber:PairAllowScreen.kt$20</ID>
+    <ID>MagicNumber:PairAllowScreen.kt$24</ID>
+    <ID>MagicNumber:PairAllowScreen.kt$28</ID>
+    <ID>MagicNumber:PairAllowScreen.kt$8</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$10</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$1000</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$12</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$14</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$16</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$18</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$20</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$6</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$60</ID>
+    <ID>MagicNumber:PairConnectScreen.kt$8</ID>
+    <ID>MagicNumber:PairVerifyScreen.kt$10</ID>
+    <ID>MagicNumber:PairVerifyScreen.kt$12</ID>
+    <ID>MagicNumber:PairVerifyScreen.kt$20</ID>
+    <ID>MagicNumber:PairVerifyScreen.kt$24</ID>
+    <ID>MagicNumber:PairVerifyScreen.kt$28</ID>
+    <ID>MagicNumber:PairVerifyScreen.kt$3</ID>
+    <ID>MagicNumber:PairVerifyScreen.kt$8</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$100</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$150</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$1500</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$1_724_000_000L</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$200</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$300</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$3_600</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$400</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$500</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$600</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$SampleData$27</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$SampleData$61</ID>
+    <ID>MagicNumber:PreviewVoidbindEngine.kt$SampleData$84</ID>
+    <ID>MagicNumber:RecoveryBackupScreen.kt$12</ID>
+    <ID>MagicNumber:RecoveryBackupScreen.kt$14</ID>
+    <ID>MagicNumber:RecoveryBackupScreen.kt$16</ID>
+    <ID>MagicNumber:RecoveryBackupScreen.kt$18</ID>
+    <ID>MagicNumber:RecoveryBackupScreen.kt$20</ID>
+    <ID>MagicNumber:RecoveryBackupScreen.kt$6</ID>
+    <ID>MagicNumber:RecoveryBackupScreen.kt$8</ID>
+    <ID>MagicNumber:RestoreScreen.kt$20</ID>
+    <ID>MagicNumber:RestoreScreen.kt$8</ID>
+    <ID>MagicNumber:Rows.kt$0xFF8B5CF6</ID>
+    <ID>MagicNumber:Rows.kt$0xFFB794F6</ID>
+    <ID>MagicNumber:RpPairHandoff.kt$RpPairHandoff$0xFF</ID>
+    <ID>MagicNumber:RpPairHandoff.kt$RpPairHandoff$3</ID>
+    <ID>MagicNumber:RpPairHandoff.kt$RpPairHandoff$4</ID>
+    <ID>MagicNumber:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$0x80</ID>
+    <ID>MagicNumber:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$10</ID>
+    <ID>MagicNumber:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$3</ID>
+    <ID>MagicNumber:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$4</ID>
+    <ID>MagicNumber:ScanScreen.kt$0.14f</ID>
+    <ID>MagicNumber:ScanScreen.kt$14</ID>
+    <ID>MagicNumber:ScanScreen.kt$16</ID>
+    <ID>MagicNumber:ScanScreen.kt$6</ID>
+    <ID>MagicNumber:ScanScreen.kt$8</ID>
+    <ID>MagicNumber:ScanScreen.kt$8f</ID>
+    <ID>MagicNumber:SealedSecretStore.kt$SealedSecretStore$0xFF</ID>
+    <ID>MagicNumber:SealedSecretStore.kt$SealedSecretStore$16</ID>
+    <ID>MagicNumber:SealedSecretStore.kt$SealedSecretStore$24</ID>
+    <ID>MagicNumber:SealedSecretStore.kt$SealedSecretStore$3</ID>
+    <ID>MagicNumber:SealedSecretStore.kt$SealedSecretStore$4</ID>
+    <ID>MagicNumber:SealedSecretStore.kt$SealedSecretStore$8</ID>
+    <ID>MagicNumber:SettingsScreen.kt$10</ID>
+    <ID>MagicNumber:SettingsScreen.kt$12</ID>
+    <ID>MagicNumber:SettingsScreen.kt$14</ID>
+    <ID>MagicNumber:SettingsScreen.kt$20</ID>
+    <ID>MagicNumber:SettingsScreen.kt$24</ID>
+    <ID>MagicNumber:SettingsScreen.kt$28</ID>
+    <ID>MagicNumber:SettingsScreen.kt$6</ID>
+    <ID>MagicNumber:SettingsScreen.kt$8</ID>
+    <ID>MagicNumber:Theme.kt$0xFF1A0505</ID>
+    <ID>MagicNumber:TrustedSiteCodec.kt$TrustedSiteCodec$4</ID>
+    <ID>MatchingDeclarationName:Color.kt$VbColors</ID>
+    <ID>MatchingDeclarationName:CruciformNavHost.kt$Routes</ID>
+    <ID>MatchingDeclarationName:Type.kt$VbType</ID>
+    <ID>MaxLineLength:ApprovalActivityScreen.kt$Icon(Icons.Rounded.History, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(40.dp))</ID>
+    <ID>MaxLineLength:ApprovalActivityScreen.kt$Text(entry.rp, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary, fontWeight = FontWeight.Medium)</ID>
+    <ID>MaxLineLength:ApprovalPolicyStore.kt$ApprovalPolicyStore$listOf(it.rp, it.policy.name, it.pinnedAlwaysAsk.toString(), it.firstTrustedAt?.toString() ?: "").joinToString(SEP)</ID>
+    <ID>MaxLineLength:BottomBar.kt$BarItem(Icons.Rounded.Settings, "Settings", selected = currentRoute == Routes.SETTINGS, onClick = onSettings)</ID>
+    <ID>MaxLineLength:BottomBar.kt$Icon(Icons.Rounded.QrCodeScanner, contentDescription = "Scan", tint = VbColors.Blue, modifier = Modifier.size(28.dp))</ID>
+    <ID>MaxLineLength:BottomBar.kt$Text(label, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = tint, textAlign = TextAlign.Center)</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$(st.failure.kind == EngineFailure.Kind.UNREACHABLE || st.failure.kind == EngineFailure.Kind.REJECTED)</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$.</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$LaunchedEffect(Unit) { nav.navigate(Routes.ONBOARDING) { popUpTo(nav.graph.id) { inclusive = true } } }</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$if (activeHandoff?.returnsToCaller != true &amp;&amp; !result.failure.retryable) decided(false)</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$is InviteCoordinator.State.Waiting -&gt; "Waiting for the new device to join… you can switch apps; this keeps waiting."</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$onSettings = { if (route != Routes.SETTINGS) nav.navigate(Routes.SETTINGS) { launchSingleTop = true } }</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$val result = suspendRunCatching { engine.confirmPairing() }.getOrElse { EngineResult.Failed(unexpected(it)) }</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$val result = suspendRunCatching { engine.joinPairInvite(code) }.getOrElse { EngineResult.Failed(unexpected(it)) }</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$val result = suspendRunCatching { engine.removeDevice(device.id) }.getOrElse { EngineResult.Failed(unexpected(it, "Couldn't remove the device.")) }</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$val target = if (samePhone is InviteCoordinator.SamePhone.Verified) Routes.PAIR_ALLOW else Routes.PAIR_VERIFY</ID>
+    <ID>MaxLineLength:CruciformNavHost.kt$var approvalActivity by remember { mutableStateOf&lt;List&lt;one.rarebit.cruciform.domain.ApprovalActivity&gt;&gt;(emptyList()) }</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$"This device is no longer a member of the identity, so it can't add devices. Re-admit it from another device, or restore from the recovery secret."</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$.</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$EngineResult.Failed(EngineFailure("The pairing was interrupted. Start again with a fresh invite.", EngineFailure.Kind.CANCELLED, retryable = true))</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$EngineResult.Failed(EngineFailure(e.message ?: "Couldn't start the pairing.", EngineFailure.Kind.INTERNAL, retryable = false))</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$if (!view.isMember(self)) return@engineCatching internalFailure("This device is no longer a member, so it can't remove others.")</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$if (deviceId == self) return@engineCatching internalFailure("This device can't remove itself. Remove it from another device.")</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$inviteId = "INV · ${invitation.relaySession.uppercase().take(8).chunked(4).joinToString(" ")}"</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$override suspend</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$return DeviceAuthorization(transport, device, persisted.enrolmentCert, persisted.ops, clock, maxWaitMillis = INVITE_TTL_SECONDS * 1000L)</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$return DeviceAuthorization(transport, requireUser(), clock, knownOps = persisted.ops, maxWaitMillis = INVITE_TTL_SECONDS * 1000L)</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$store.saveJoined(admission.op, admission.ops, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$store.saveOwner(cert, user.userPublicKey, enc.publicKey, enc.privateKey, user.recovery.bytes, defaultDeviceName())</ID>
+    <ID>MaxLineLength:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$val body = MiniJson.encodeObject(listOf("ops" to one.rarebit.voidbind.WebLogin.presentable(ops))).encodeToByteArray()</ID>
+    <ID>MaxLineLength:DevicesScreen.kt$"Every device here is a member of your identity. Any of them can add the next one, and any can remove another."</ID>
+    <ID>MaxLineLength:DevicesScreen.kt$"No members found — this device's ops don't evaluate to a membership. Restore from the recovery secret."</ID>
+    <ID>MaxLineLength:DevicesScreen.kt$Icon(Icons.Rounded.Devices, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(36.dp))</ID>
+    <ID>MaxLineLength:DevicesScreen.kt$Icon(Icons.Rounded.Lock, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))</ID>
+    <ID>MaxLineLength:DevicesScreen.kt$Text("admitted ${d.admittedLabel} by ${d.admittedByLabel}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:DevicesScreen.kt$TextButton(onClick = { pendingRemove = null; onRemove(target) }) { Text("Remove", color = VbColors.Coral) }</ID>
+    <ID>MaxLineLength:HandoffRouterTest.kt$HandoffRouterTest$val h = HandoffRouter.fromDeepLink(HandoffRouter.ACTION_VIEW, "$invite&amp;callback=myapp%3A%2F%2Fpaired", seq = 3)!!</ID>
+    <ID>MaxLineLength:HandoffRouterTest.kt$HandoffRouterTest$val invite = "voidbind:pair?relay=http%3A%2F%2Frelay&amp;salt=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff&amp;session=sess1&amp;usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4&amp;v=3"</ID>
+    <ID>MaxLineLength:HandoffRouterTest.kt$HandoffRouterTest$val uri = "voidbind:login?rp=http%3A%2F%2F192.168.16.224%3A7777&amp;id=d0865b8fd4dd6174b0c35e514a0a5e37&amp;callback=heyarr%3A%2F%2Fdone"</ID>
+    <ID>MaxLineLength:HomeScreen.kt$Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted)</ID>
+    <ID>MaxLineLength:HomeScreen.kt$Icon(Icons.Rounded.Fingerprint, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(16.dp))</ID>
+    <ID>MaxLineLength:HomeScreen.kt$Icon(Icons.Rounded.Smartphone, contentDescription = null, tint = VbColors.Blue, modifier = Modifier.size(26.dp))</ID>
+    <ID>MaxLineLength:HomeScreen.kt$Text(label, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:HomeScreen.kt$leading = { IconCircle(Icons.Rounded.Devices, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) }</ID>
+    <ID>MaxLineLength:HomeScreen.kt$trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) }</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator$Pending</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator$f.copy(message = "Stopped waiting early (${remainingText(deadlineMillis)} of the invite were left). Start again with a fresh invite.")</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator$f.copy(message = "The other device didn't join before the invite expired. Start again with a fresh invite.")</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator$message</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator$message = if (t is IllegalArgumentException || t is IllegalStateException) t.message ?: "Couldn't complete the pairing." else "Couldn't complete the pairing."</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator$val revealed = against ?: _state.value.let { (it as? State.Joined)?.session ?: (it as? State.Confirming)?.session }</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator.SamePhone.Refused$data</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator.SamePhone.Verified$data</ID>
+    <ID>MaxLineLength:InviteCoordinator.kt$InviteCoordinator.State.Waiting$data</ID>
+    <ID>MaxLineLength:InviteCoordinatorTest.kt$InviteCoordinatorTest$.</ID>
+    <ID>MaxLineLength:InviteCoordinatorTest.kt$InviteCoordinatorTest$assertTrue("Joined was observed with $verdictWhenJoined", verdictWhenJoined is InviteCoordinator.SamePhone.Verified)</ID>
+    <ID>MaxLineLength:InviteCoordinatorTest.kt$InviteCoordinatorTest$assertTrue("a stale callback must not tear down the live invite", c.state.value is InviteCoordinator.State.Joined)</ID>
+    <ID>MaxLineLength:InviteCoordinatorTest.kt$InviteCoordinatorTest$engine.confirmResult = EngineResult.Failed(EngineFailure("cancelled", EngineFailure.Kind.CANCELLED, retryable = false))</ID>
+    <ID>MaxLineLength:InviteCoordinatorTest.kt$InviteCoordinatorTest$engine.handshake.complete(EngineResult.Failed(EngineFailure("Can't reach the relay at relay.test. Check Wi-Fi or your VPN and try again.", EngineFailure.Kind.UNREACHABLE)))</ID>
+    <ID>MaxLineLength:InviteCoordinatorTest.kt$InviteCoordinatorTest$engine.mintResult = EngineResult.Ready(PairInviteDisplay("INV · CCCC DDDD", "voidbind:pair?v=3&amp;session=s2", 600))</ID>
+    <ID>MaxLineLength:LoginApprovalScreen.kt$ApprovalRow(Icons.Rounded.Schedule, "Requested", if (remaining &gt; 0) "Now · expires in ${remaining}s" else "Expired")</ID>
+    <ID>MaxLineLength:LoginApprovalScreen.kt$Icon(Icons.Rounded.Shield, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(20.dp))</ID>
+    <ID>MaxLineLength:LoginApprovalScreen.kt$Icon(Icons.Rounded.VisibilityOff, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(18.dp))</ID>
+    <ID>MaxLineLength:LoginApprovalScreen.kt$Text("Biometric confirmation is required to sign", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())</ID>
+    <ID>MaxLineLength:LoginApprovalScreen.kt$Text("No personal data is shared.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:LoginApprovalScreen.kt$Text("Signed by StrongBox key · this device", style = MaterialTheme.typography.labelMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:LoginApprovalScreen.kt$Text("You're approving", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary, modifier = Modifier.padding(16.dp))</ID>
+    <ID>MaxLineLength:LoginApprovalScreen.kt$Text(value, style = MaterialTheme.typography.bodyLarge, color = VbColors.TextPrimary, fontWeight = FontWeight.Medium)</ID>
+    <ID>MaxLineLength:NotifyConfigTest.kt$NotifyConfigTest$assertEquals(Validation.Valid("http://192.168.16.224:2587"), NotifyConfig.validate(" http://192.168.16.224:2587/ "))</ID>
+    <ID>MaxLineLength:NotifyConfigTest.kt$NotifyConfigTest$assertEquals(Validation.Valid("https://notify.thesim.family"), NotifyConfig.validate("https://notify.thesim.family"))</ID>
+    <ID>MaxLineLength:NotifyConfigTest.kt$NotifyConfigTest$assertEquals(Validation.Valid(NotifyConfig.DEFAULT_NOTIFY), NotifyConfig.validate(NotifyConfig.DEFAULT_NOTIFY))</ID>
+    <ID>MaxLineLength:NumberMatchApprovalScreen.kt$DangerButton("Not me · Deny", onClick = onDeny, leadingIcon = Icons.Rounded.Cancel, modifier = Modifier.fillMaxWidth())</ID>
+    <ID>MaxLineLength:NumberMatchApprovalScreen.kt$Icon(Icons.Rounded.Fingerprint, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))</ID>
+    <ID>MaxLineLength:NumberMatchApprovalScreen.kt$Icon(Icons.Rounded.PhonelinkLock, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(32.dp))</ID>
+    <ID>MaxLineLength:NumberMatchApprovalScreen.kt$Text("Signed by StrongBox key · this device", style = MaterialTheme.typography.labelMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:NumberMatchApprovalScreen.kt$Text(value, style = MaterialTheme.typography.bodyLarge, color = VbColors.TextPrimary, fontWeight = FontWeight.Medium)</ID>
+    <ID>MaxLineLength:OnboardingScreen.kt$IconCircle(icon = icon, tint = accent, background = accent.copy(alpha = 0.14f), diameter = 52, iconSize = 26)</ID>
+    <ID>MaxLineLength:PairAllowScreen.kt$"Both apps are on this phone, so they checked each other's keys directly — there is no code for you to compare."</ID>
+    <ID>MaxLineLength:PairAllowScreen.kt$"It becomes one of your devices: it can sign in as you and hold your data, until you remove it in Settings → Devices."</ID>
+    <ID>MaxLineLength:PairAllowScreen.kt$DangerButton("No, cancel", onClick = onCancel, leadingIcon = Icons.Rounded.Close, modifier = Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:PairAllowScreen.kt$Icon(Icons.Rounded.VerifiedUser, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(28.dp))</ID>
+    <ID>MaxLineLength:PairAllowScreen.kt$PrimaryButton("Allow", onClick = onAllow, leadingIcon = Icons.Rounded.Check, fill = VbColors.Mint, modifier = Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:PairAllowScreen.kt$Row</ID>
+    <ID>MaxLineLength:PairAllowScreen.kt$Text("Allow $appName to act as you?", style = MaterialTheme.typography.headlineMedium, color = VbColors.TextPrimary)</ID>
+    <ID>MaxLineLength:PairConnectScreen.kt$Icon(Icons.Rounded.Schedule, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))</ID>
+    <ID>MaxLineLength:PairConnectScreen.kt$Icon(Icons.Rounded.Shield, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(18.dp))</ID>
+    <ID>MaxLineLength:PairConnectScreen.kt$Text("Add another trusted device", style = MaterialTheme.typography.headlineMedium, color = VbColors.TextPrimary)</ID>
+    <ID>MaxLineLength:PairConnectScreen.kt$Text("Expires in ${format(remaining)}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:PairConnectScreen.kt$Text("The invite is encrypted and can be used once.", style = MaterialTheme.typography.bodyMedium, color = VbColors.Mint)</ID>
+    <ID>MaxLineLength:PairConnectScreen.kt$Text("What happens next?", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)</ID>
+    <ID>MaxLineLength:PairConnectScreen.kt$Text(status, style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center)</ID>
+    <ID>MaxLineLength:PairInviteService.kt$PairInviteService$Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$)</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$Column</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$DangerButton("No, cancel", onClick = onCancel, leadingIcon = Icons.Rounded.Close, modifier = Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = VbColors.Coral, modifier = Modifier.size(28.dp))</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$PrimaryButton("Yes, they match", onClick = onConfirm, leadingIcon = Icons.Rounded.Check, fill = VbColors.Mint, modifier = Modifier.weight(1f))</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$Row</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$Text("Compare security codes", style = MaterialTheme.typography.headlineMedium, color = VbColors.TextPrimary)</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$Text("Does this match the code on your other device?", style = MaterialTheme.typography.bodyLarge, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$Text("Read every digit aloud or compare side by side.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$Text(name, style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary, textAlign = TextAlign.Center)</ID>
+    <ID>MaxLineLength:PairVerifyScreen.kt$WashCard</ID>
+    <ID>MaxLineLength:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$"Can't reach the relay at ${code.relay.substringAfter("://").substringBefore("/")}. Check Wi-Fi or your VPN and try again."</ID>
+    <ID>MaxLineLength:PreviewVoidbindEngine.kt$PreviewVoidbindEngine$return EngineResult.Failed(EngineFailure("This device can't remove itself.", EngineFailure.Kind.INTERNAL, retryable = false))</ID>
+    <ID>MaxLineLength:PreviewVoidbindEngine.kt$SampleData$TrustedSite("bartley", "bartley.home", "Home Assistant", "6 days ago", SiteAccent.MINT, policy = ApprovalPolicy.TrustedTofu)</ID>
+    <ID>MaxLineLength:PreviewVoidbindEngine.kt$SampleData$TrustedSite("cove", "home.cove.lan", "Cove Control", "yesterday", SiteAccent.PURPLE, policy = ApprovalPolicy.AlwaysAsk, pinnedAlwaysAsk = true)</ID>
+    <ID>MaxLineLength:PreviewVoidbindEngine.kt$SampleData$TrustedSite("thesim", "thesim.family", "All Thing", "last used today", SiteAccent.BLUE, policy = ApprovalPolicy.TrustedTofu)</ID>
+    <ID>MaxLineLength:PreviewVoidbindEngine.kt$SampleData$admittedByLabel = "genesis (recovery key)"</ID>
+    <ID>MaxLineLength:RecoveryBackupScreen.kt$Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(18.dp))</ID>
+    <ID>MaxLineLength:RecoveryBackupScreen.kt$Icon(Icons.Rounded.VpnKey, contentDescription = null, tint = VbColors.Amber, modifier = Modifier.size(60.dp))</ID>
+    <ID>MaxLineLength:RecoveryBackupScreen.kt$Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = VbColors.Amber, modifier = Modifier.size(28.dp))</ID>
+    <ID>MaxLineLength:RecoveryBackupScreen.kt$Text("Cruciform cannot reset it. Anyone with this secret can take over your identity.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:RecoveryBackupScreen.kt$Text("Save your recovery secret", style = MaterialTheme.typography.headlineSmall, color = VbColors.TextPrimary, textAlign = TextAlign.Center)</ID>
+    <ID>MaxLineLength:RecoveryBackupScreen.kt$Text("Store offline. Do not save in screenshots, email, or cloud notes.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted)</ID>
+    <ID>MaxLineLength:RecoveryBackupScreen.kt$Text("Write this down — it is the only way to recover your identity.", style = MaterialTheme.typography.titleMedium, color = VbColors.Amber, fontWeight = FontWeight.SemiBold)</ID>
+    <ID>MaxLineLength:RelayConfigTest.kt$RelayConfigTest$assertEquals(Validation.Valid("http://192.168.16.224:7777/pair"), RelayConfig.validate(" http://192.168.16.224:7777/pair/ "))</ID>
+    <ID>MaxLineLength:RelayConfigTest.kt$RelayConfigTest$assertEquals(Validation.Valid("http://192.168.16.224:8080/pair"), RelayConfig.validate("http://192.168.16.224:8080/pair"))</ID>
+    <ID>MaxLineLength:RelayConfigTest.kt$RelayConfigTest$assertEquals(Validation.Valid("https://relay.thesim.family"), RelayConfig.validate("https://relay.thesim.family"))</ID>
+    <ID>MaxLineLength:RelayConfigTest.kt$RelayConfigTest$assertEquals(Validation.Valid("https://relay.thesim.family"), RelayConfig.validate("https://relay.thesim.family///"))</ID>
+    <ID>MaxLineLength:RestoreScreen.kt$"This rebuilds your identity on this device offline. No server is involved. A single wrong character is refused."</ID>
+    <ID>MaxLineLength:RpAppIdentity.kt$RpAppIdentity.Companion$context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))</ID>
+    <ID>MaxLineLength:RpAppIdentity.kt$RpAppIdentity.Companion$if (refusedFor == null) SamePhonePairCallback.doneUri(s, session) else SamePhonePairCallback.refusedUri(s, session, refusedFor)</ID>
+    <ID>MaxLineLength:RpAppIdentity.kt$RpAppIdentity.Companion$return RpAppIdentity(pm.appLabelOrNull(callerPackage) ?: "This app", scheme = null, packageName = callerPackage, icon = icon)</ID>
+    <ID>MaxLineLength:RpPairHandoff.kt$RpPairHandoff$if</ID>
+    <ID>MaxLineLength:RpPairHandoffTest.kt$RpPairHandoffTest$if (s[i] == '%') { out.add(s.substring(i + 1, i + 3).toInt(16).toByte()); i += 3 } else { out.add(s[i].code.toByte()); i++ }</ID>
+    <ID>MaxLineLength:RpPairManifestQueriesTest.kt$RpPairManifestQueriesTest$return (0 until els.length).mapNotNull { (els.item(it) as org.w3c.dom.Element).getAttributeNS(android, attr).ifEmpty { null } }</ID>
+    <ID>MaxLineLength:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$if (outcome != null) append('&amp;').append(PARAM_OUTCOME).append('=').append(RpPairHandoff.percentEncode(outcome))</ID>
+    <ID>MaxLineLength:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$if (reason != null) append('&amp;').append(PARAM_REASON).append('=').append(RpPairHandoff.percentEncode(reason))</ID>
+    <ID>MaxLineLength:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$return Decision.OtherSession("the callback names session ${report.session}, this device is running $liveSession")</ID>
+    <ID>MaxLineLength:SamePhonePairCallbackTest.kt$SamePhonePairCallbackTest$SamePhonePairCallback.route(SamePhonePairCallback.ACTION_VIEW, "cruciform://pair-joined?session=&amp;dev=$dev&amp;sas=$sas")</ID>
+    <ID>MaxLineLength:SamePhonePairCallbackTest.kt$SamePhonePairCallbackTest$assertEquals("heyarr-mobile://pair-done?session=abc123", SamePhonePairCallback.doneUri("heyarr-mobile", "abc123"))</ID>
+    <ID>MaxLineLength:SamePhonePairCallbackTest.kt$SamePhonePairCallbackTest$assertEquals(Decision.Match, SamePhonePairCallback.decide(Joined("s1", " ${dev.uppercase()} ", sas), "s1", dev, sas))</ID>
+    <ID>MaxLineLength:SamePhonePairCallbackTest.kt$SamePhonePairCallbackTest$assertNull(SamePhonePairCallback.route("android.intent.action.SEND", "cruciform://pair-joined?session=a&amp;dev=$dev&amp;sas=$sas"))</ID>
+    <ID>MaxLineLength:SamePhonePairCallbackTest.kt$SamePhonePairCallbackTest$assertNull(SamePhonePairCallback.route(SamePhonePairCallback.ACTION_VIEW, "cruciform://pair-joined-x?session=a"))</ID>
+    <ID>MaxLineLength:SamePhonePairCallbackTest.kt$SamePhonePairCallbackTest$assertTrue(SamePhonePairCallback.decide(Joined("s1", dev, "no digits"), "s1", dev, "also none") is Decision.Mismatch)</ID>
+    <ID>MaxLineLength:ScanScreen.kt$OutlineButton("Enter code instead", onClick = onEnterManually, accent = VbColors.Mint, leadingIcon = Icons.Rounded.Keyboard)</ID>
+    <ID>MaxLineLength:ScanScreen.kt$drawLine(VbColors.Mint, Offset(0f, size.height / 2f), Offset(size.width, size.height / 2f), strokeWidth = 4f)</ID>
+    <ID>MaxLineLength:ScanScreen.kt$l(size.width, size.height, size.width - corner, size.height)</ID>
+    <ID>MaxLineLength:ScanScreen.kt$private</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$AboutRow(Icons.Rounded.Security, "Security &amp; protocol", "Voidbind protocol · hardware-bound device keys", onSecurity)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Amber)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Icon(Icons.Rounded.Lock, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(18.dp))</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Icon(Icons.Rounded.Shield, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$IconButton(onClick = onRename) { Icon(Icons.Rounded.Edit, contentDescription = "Rename", tint = VbColors.TextSecondary) }</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$IconCircle(Icons.Rounded.Fingerprint, tint = VbColors.Mint, background = VbColors.Mint.copy(alpha = 0.12f))</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text("${site.appName} · ${site.lastUsed}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text("${state.identity.label} · ${state.identity.fingerprint}", style = VbType.Mono, color = VbColors.TextPrimary)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text("Biometric approval", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text("Required for every signature", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text("Your keys never leave your devices.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(site.domain, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$description = "Where this phone mints Add-a-device invites. A device joining an invite uses the relay in the invite."</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$description = "Where this phone registers to be woken for a login. It carries only the same opaque tuple a QR does — never a key or a challenge."</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$error ?: if (defaultUrl.isBlank()) "No default in this build — enter a URL to use one." else "Default: $defaultUrl"</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$leading = { IconCircle(Icons.Rounded.Devices, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) }</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$leading = { IconCircle(Icons.Rounded.Fingerprint, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) }</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$leading = { IconCircle(Icons.Rounded.History, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) }</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$leading = { IconCircle(Icons.Rounded.VpnKey, tint = VbColors.Amber, background = VbColors.Amber.copy(alpha = 0.12f)) }</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Mint) }</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) }</ID>
+    <ID>MaxLineLength:TrustedSiteCodecTest.kt$TrustedSiteCodecTest$"${TrustedSiteCodec.HEADER}\nheyarr.br.thesim.family${fs}heyarr.br.thesim.family${fs}${fs}just now${fs}BLUE"</ID>
+    <ID>MaxLineLength:TrustedSiteCodecTest.kt$TrustedSiteCodecTest$assertEquals(listOf(TrustedSite("id", "host.example", "App", "now", SiteAccent.BLUE)), TrustedSiteCodec.decode(raw))</ID>
+    <ID>MaxLineLength:TrustedSiteCodecTest.kt$TrustedSiteCodecTest$private val heyarr = TrustedSite("heyarr.br.thesim.family", "heyarr.br.thesim.family", "", "just now", SiteAccent.BLUE)</ID>
+    <ID>ReturnCount:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$private fun existingEncKey(): DeviceIdentity.EncryptionKey?</ID>
+    <ID>ReturnCount:Handoff.kt$HandoffRouter$fun fromDeepLink(action: String?, dataString: String?, seq: Int): Handoff?</ID>
+    <ID>ReturnCount:IdentityStore.kt$IdentityStore$fun load(): Persisted?</ID>
+    <ID>ReturnCount:RelayConfig.kt$RelayConfig$fun validateBase(input: String, noun: String, example: String): Validation</ID>
+    <ID>ReturnCount:RpAppIdentity.kt$RpAppIdentity.Companion$fun openDone(context: Context, scheme: String?, session: String, refusedFor: String? = null): Boolean</ID>
+    <ID>ReturnCount:RpAppIdentity.kt$RpAppIdentity.Companion$fun resolve(context: Context, callerPackage: String?): RpAppIdentity</ID>
+    <ID>ReturnCount:RpPairHandoff.kt$RpPairHandoff$fun targetFrom(advert: RpHandoffAdvert): RpPairTarget?</ID>
+    <ID>ReturnCount:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$fun decide( report: Joined, liveSession: String?, revealedDev: String?, revealedSas: String?, ): Decision</ID>
+    <ID>ReturnCount:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$fun route(action: String?, dataString: String?): SamePhonePairCallback?</ID>
+    <ID>ReturnCount:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$private fun param(query: String, key: String): String?</ID>
+    <ID>ReturnCount:SealedSecretStore.kt$SealedSecretStore$fun unseal(name: String): ByteArray?</ID>
+    <ID>ReturnCount:TrustedSiteCodec.kt$TrustedSiteCodec$fun decode(raw: String?): List&lt;TrustedSite&gt;</ID>
+    <ID>SwallowedException:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$e: AuthenticationRequiredException</ID>
+    <ID>SwallowedException:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$e: InterruptedIOException</ID>
+    <ID>SwallowedException:MainActivity.kt$MainActivity$e: ActivityNotFoundException</ID>
+    <ID>SwallowedException:MainActivity.kt$MainActivity$e: SecurityException</ID>
+    <ID>SwallowedException:RelayConfig.kt$RelayConfig$e: URISyntaxException</ID>
+    <ID>SwallowedException:RpPairLauncher.kt$RpPairLauncher$e: ActivityNotFoundException</ID>
+    <ID>SwallowedException:RpPairLauncher.kt$RpPairLauncher$e: SecurityException</ID>
+    <ID>SwallowedException:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$e: IllegalArgumentException</ID>
+    <ID>TooGenericExceptionCaught:DeviceVoidbindEngine.kt$DeviceVoidbindEngine$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:InviteCoordinator.kt$InviteCoordinator$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:PairInviteService.kt$PairInviteService.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RestoreScreen.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RpAppIdentity.kt$RpAppIdentity.Companion$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RpPairLauncher.kt$RpPairLauncher$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SuspendRunCatching.kt$e: Throwable</ID>
+    <ID>TooManyFunctions:ApprovalPolicyStore.kt$ApprovalPolicyStore : SitePolicyStoreApprovalAuditLog</ID>
+    <ID>TooManyFunctions:DeviceVoidbindEngine.kt$DeviceVoidbindEngine : VoidbindEngine</ID>
+    <ID>TooManyFunctions:IdentityStore.kt$IdentityStore</ID>
+    <ID>TooManyFunctions:InviteCoordinator.kt$InviteCoordinator</ID>
+    <ID>TooManyFunctions:PreviewVoidbindEngine.kt$PreviewVoidbindEngine : VoidbindEngine</ID>
+    <ID>TooManyFunctions:VoidbindEngine.kt$VoidbindEngine</ID>
+    <ID>TopLevelPropertyNaming:Buttons.kt$private const val ButtonMinHeight = 54</ID>
+    <ID>UnusedParameter:InviteCoordinator.kt$InviteCoordinator$relay: String</ID>
+    <ID>UnusedPrivateMember:NumberMatchApprovalScreen.kt$@Preview(showBackground = true, backgroundColor = 0xFF0B0F14) @Composable private fun NumberMatchApprovalPreview()</ID>
+    <ID>UnusedPrivateProperty:ScanScreen.kt$val stroke = Stroke(width = sw)</ID>
+  </CurrentIssues>
+</SmellBaseline>
