@@ -46,7 +46,7 @@ import one.rarebit.voidbind.MembershipOp.Kind
  *     else 1. Checked BEFORE seniority; genesis removes bypass it. A remove short of
  *     quorum is INEFFECTIVE (`under_threshold`).
  *
- * The golden vectors in voidbind-go's `testdata/vectors/membership/` are replayed
+ * The golden vectors in voidbind-go's `testvectors/vectors/membership/` are replayed
  * verbatim by `MembershipVectorTest`; a divergence there is a bug in this port,
  * never a "flaky key".
  */

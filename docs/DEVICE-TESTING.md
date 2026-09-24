@@ -79,12 +79,41 @@ Drives `UserIdentity` + `Enrolment` through the app engine (`OnboardingView` on
 iOS; the Android onboarding screens).
 1. **Create**: tap "Create a new identity". The app calls `UserIdentity.create()`,
    provisions the device key (biometric fires on first `DeviceKeyStore.getOrCreate`),
-   and `Enrolment.selfEnrol`s. Assert the recovery secret is shown **once**
-   (`heyarr1…`), and that force-quitting before saving it does not silently persist it.
+   and `Enrolment.selfEnrol`s. A second, **strong-biometric-only** prompt ("Keep a
+   recovery copy on this phone") then decides whether the phone keeps a sealed copy.
+   Assert the recovery secret is shown (`heyarr1…`) with **no copy button**, and that
+   the backup screen says whether the phone kept a copy. The identity is provisioned
+   before the backup screen appears (confirming the backup is Phase 1 of
+   voidbind-go#52).
 2. **Restore**: reinstall the app (or use a second device), tap "Restore", type the
-   secret. Assert the reconstructed `userId` **equals** the original (recovery
-   restores the SAME pinned identity, offline), and that a single mistyped character
-   is rejected loudly (the bech32m checksum) rather than yielding a different identity.
+   secret **exactly as grouped on screen, spaces included**. Assert the reconstructed
+   `userId` **equals** the original (recovery restores the SAME pinned identity,
+   offline), and that a single mistyped character is rejected loudly (the bech32m
+   checksum) rather than yielding a different identity.
+3. **The kept copy is behind a strong biometric, not the PIN.** Settings → Recovery
+   backup must prompt for a fingerprint/face with **no "Use PIN" option**. On a phone
+   with no fingerprint enrolled, it must refuse with the "PIN can't authorise it"
+   message. Then enrol a **new** fingerprint in system settings and open Recovery
+   backup again: the keystore has destroyed the copy, so the app says it is gone and
+   points at the written secret, and the Recovery row disappears on the next launch.
+4. **An older install migrates.** Install the previous release, create an identity,
+   upgrade to this build, and open Recovery backup once (fingerprint): the copy moves
+   under the strong key. The migration is only observable with `adb shell dumpsys
+   keystore` / a keystore listing: `voidbind.secret.wrap.recovery` is gone and
+   `voidbind.secret.wrap-strong.recovery` exists.
+
+## Test 2b — membership renewal (a device renews itself before its add lapses)
+
+An add lasts 90 days. Inside the last 30 the device renews itself: silently right
+after it signs (a login, authorising a device), or via Home → "Renew now".
+Use a build with a shortened `Enrolment.DEFAULT_LIFETIME_SECONDS`, or set the phone's
+clock forward (auto-time off) past day 60.
+1. Home shows the amber "Renew this device" card; tap **Renew now**. Assert the card
+   goes away, and Settings → Devices shows a later "renews by" date for this device.
+2. Sign in to an RP after the ORIGINAL add's expiry: the login succeeds, because the
+   device now presents its renewal as its credential.
+3. Set the clock past day 90 **without** renewing: Home shows "This device has lapsed"
+   with no renew button, and a login is refused. Re-admit it from another device.
 
 ## Test 3 — web QR-login with the hardware key (via `LoginApproval`)
 

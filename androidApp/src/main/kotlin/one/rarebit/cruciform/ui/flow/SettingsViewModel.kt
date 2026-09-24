@@ -182,6 +182,14 @@ class SettingsViewModel(
         }
     }
 
+    /** Renew this device's membership now; the identity state republishes on success. */
+    fun renewMembership() {
+        viewModelScope.launch {
+            val result = engine.renewMembership()
+            if (result is EngineResult.Failed) fail(result.failure)
+        }
+    }
+
     private fun fail(failure: EngineFailure) {
         _error.value = EngineErrorState(failure, onDismiss = { _error.value = null })
     }

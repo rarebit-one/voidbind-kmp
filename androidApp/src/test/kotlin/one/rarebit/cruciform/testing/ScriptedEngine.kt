@@ -33,6 +33,7 @@ class ScriptedEngine : VoidbindEngine {
     var confirmResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var devicesResult: EngineResult<List<MemberDevice>> = EngineResult.Ready(emptyList())
     var removeResult: EngineResult<Unit> = EngineResult.Ready(Unit)
+    var renewResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var settingsResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var activityResult: EngineResult<List<ApprovalActivity>> = EngineResult.Ready(emptyList())
     var policyResult: EngineResult<SitePolicyView> =
@@ -69,6 +70,7 @@ class ScriptedEngine : VoidbindEngine {
     override suspend fun confirmPairing() = r("confirmPairing", confirmResult)
     override suspend fun devices() = r("devices", devicesResult)
     override suspend fun removeDevice(deviceId: String) = r("removeDevice:$deviceId", removeResult)
+    override suspend fun renewMembership() = r("renewMembership", renewResult)
     override suspend fun renameDevice(name: String) = r("renameDevice", settingsResult)
     override suspend fun setBiometricApproval(enabled: Boolean) = r("setBiometricApproval:$enabled", settingsResult)
     override suspend fun revokeSite(siteId: String) = r("revokeSite:$siteId", settingsResult)

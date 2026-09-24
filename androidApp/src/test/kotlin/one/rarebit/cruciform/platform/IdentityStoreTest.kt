@@ -37,14 +37,16 @@ class IdentityStoreTest {
         return Enrolment.selfEnrol(user, device, issuedAt)
     }
 
-    private fun saveOwner(token: String = cert()) = store.saveOwner(
-        enrolmentCert = token,
-        userPublicKey = user.userPublicKey,
-        encPublicKey = enc.publicKey,
-        encPrivateKey = enc.privateKey,
-        recoverySecret = user.recovery.bytes,
-        deviceName = "Pixel 9",
-    )
+    private fun saveOwner(token: String = cert()) {
+        store.saveOwner(
+            enrolmentCert = token,
+            userPublicKey = user.userPublicKey,
+            encPublicKey = enc.publicKey,
+            encPrivateKey = enc.privateKey,
+            deviceName = "Pixel 9",
+        )
+        store.keepRecoverySecret(user.recovery.bytes)
+    }
 
     @Test
     fun `an empty store is unprovisioned and loads nothing`() {
@@ -79,6 +81,30 @@ class IdentityStoreTest {
         assertFalse(plain.contains(one.rarebit.voidbind.crypto.Hex.encode(enc.privateKey)))
         assertFalse(plain.contains(one.rarebit.voidbind.crypto.Hex.encode(user.recovery.bytes)))
         assertEquals(setOf("device-enc", "recovery"), sealer.secrets.keys)
+        // Only the recovery secret — the genesis authority — is behind the strong key.
+        assertEquals(setOf("recovery"), sealer.strong)
+    }
+
+    @Test
+    fun `an older install's plain-sealed recovery secret moves under the strong key on first read`() {
+        saveOwner()
+        sealer.strong.clear() // as sealed by a build before strong sealing
+
+        assertArrayEquals(user.recovery.bytes, store.recoverySecret())
+
+        assertEquals(setOf("recovery"), sealer.strong)
+    }
+
+    @Test
+    fun `forgetRecoverySecret leaves the identity but no recovery secret`() {
+        saveOwner()
+
+        store.forgetRecoverySecret()
+
+        assertTrue(store.isProvisioned())
+        assertFalse(store.hasUserKey())
+        assertNull(store.recoverySecret())
+        assertArrayEquals(enc.privateKey, store.encPrivateKey())
     }
 
     @Test

@@ -268,23 +268,26 @@ fun SettingsScreen(
             }
         }
 
-        VSpace(24)
-        SectionLabel("Recovery", color = VbColors.Amber)
-        VSpace(10)
-        VbCard(modifier = Modifier.fillMaxWidth()) {
-            RowItem(
-                title = "Recovery backup",
-                subtitle = "Re-show your recovery secret",
-                onClick = onRecoveryBackup,
-                leading = { IconCircle(Icons.Rounded.VpnKey, tint = VbColors.Amber, background = VbColors.Amber.copy(alpha = 0.12f)) },
-                trailing = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StatusPill("Biometric required", accent = VbColors.Amber, leadingIcon = Icons.Rounded.Lock)
-                        HSpace(8)
-                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Amber)
-                    }
-                },
-            )
+        // Only a device that keeps a copy can re-show it; a paired device never held one.
+        if (state.holdsRecoverySecret) {
+            VSpace(24)
+            SectionLabel("Recovery", color = VbColors.Amber)
+            VSpace(10)
+            VbCard(modifier = Modifier.fillMaxWidth()) {
+                RowItem(
+                    title = "Recovery backup",
+                    subtitle = "Re-show your recovery secret",
+                    onClick = onRecoveryBackup,
+                    leading = { IconCircle(Icons.Rounded.VpnKey, tint = VbColors.Amber, background = VbColors.Amber.copy(alpha = 0.12f)) },
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            StatusPill("Fingerprint or face", accent = VbColors.Amber, leadingIcon = Icons.Rounded.Lock)
+                            HSpace(8)
+                            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Amber)
+                        }
+                    },
+                )
+            }
         }
 
         VSpace(24)

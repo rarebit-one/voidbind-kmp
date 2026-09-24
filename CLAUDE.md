@@ -63,7 +63,7 @@ deliberate and load-bearing.
   that order, signed by `by` (a member device key, or `usr` for genesis). A v1/v2 cert
   IS a v3 add signed by genesis with no `prev`. `Membership.evaluate` is a line-for-line
   port of voidbind-go `enrolment.Evaluate`; the golden vectors in
-  `src/jvmTest/resources/vectors/membership/` (21 today, incl. the ADR-0008 cosig
+  `src/jvmTest/resources/vectors/membership/` (25 today, incl. the ADR-0008 cosig
   cases) are copied from voidbind-go's `testvectors/vectors/` and must replay
   byte-for-byte — never edit them here, re-copy from Go and bump
   `src/jvmTest/resources/vectors/VOIDBIND_GO_REF`; the `vector-drift` CI job

@@ -122,6 +122,11 @@ class PreviewVoidbindEngine(
         return EngineResult.Ready(previewDevices.toList())
     }
 
+    override suspend fun renewMembership(): EngineResult<Unit> {
+        delay(400)
+        return EngineResult.Ready(Unit)
+    }
+
     override suspend fun removeDevice(deviceId: String): EngineResult<Unit> {
         delay(400)
         if (previewDevices.firstOrNull { it.id == deviceId }?.isThisDevice == true) {

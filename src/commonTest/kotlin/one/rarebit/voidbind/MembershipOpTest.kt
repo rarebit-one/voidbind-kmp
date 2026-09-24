@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  */
 class MembershipOpTest {
 
-    // From testdata/vectors/membership/genesis-a-b.json (voidbind-go, test-only keys).
+    // From testvectors/vectors/membership/genesis-a-b.json (voidbind-go, test-only keys).
     private val usr = "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4"
     private val genesisSeed = Hex.decode("c24bb87672097fd3292251030126197ba061ffb69b9b67b0786318f627fb132c")
     private val aSeed = Hex.decode("5a855e9adc99a1ed10fbe04f44132d9d04885edf1a92e2e16828f825ea167d06")

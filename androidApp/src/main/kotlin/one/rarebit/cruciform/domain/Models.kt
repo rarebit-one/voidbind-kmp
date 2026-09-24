@@ -119,6 +119,9 @@ sealed interface IdentityState {
         val device: DeviceInfo,
         val trustedSites: List<TrustedSite>,
         val biometricApproval: Boolean = true,
+        /** This device keeps a (strong-biometric-sealed) copy of the recovery secret. */
+        val holdsRecoverySecret: Boolean = false,
+        val membership: MembershipHealth = MembershipHealth(),
     ) : IdentityState
 
     /** Still loading from the keystore. */
@@ -131,6 +134,21 @@ data class RecoveryBackup(
     val groupedSecret: String,
     /** The raw single-line secret, for copy. */
     val rawSecret: String,
+    /** Whether this phone also keeps a copy; false means the written copy is the only one. */
+    val keptOnDevice: Boolean = false,
+)
+
+/**
+ * This device's standing in the identity's membership. An add lasts 90 days, and a
+ * member renews itself before it lapses; a lapsed device can only be re-admitted.
+ */
+data class MembershipHealth(
+    /** e.g. "renews by 1 Dec 2026"; null when this device is not a member. */
+    val renewsByLabel: String? = null,
+    /** Inside the renewal window — "Renew now" is offered. */
+    val renewalDue: Boolean = false,
+    /** No longer a member (its add lapsed, or it was removed). */
+    val lapsed: Boolean = false,
 )
 
 /**

@@ -9,9 +9,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.security.InvalidKeyException
 import javax.crypto.AEADBadTagException
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.SecretKeySpec
 import kotlin.test.assertFailsWith
 
 /**
@@ -29,11 +31,23 @@ class SealedSecretStoreTest {
         val keys = HashMap<String, SecretKey>()
         val created = mutableListOf<String>()
 
+        /** When set, a strong key is minted but refuses use — the keystore outside its biometric window. */
+        var refuseStrong = false
+
         override fun load(alias: String): SecretKey? = keys[alias]
 
-        override fun create(alias: String): SecretKey {
+        override fun create(alias: String, strong: Boolean): SecretKey {
             created += alias
-            return KeyGenerator.getInstance("AES").apply { init(256) }.generateKey().also { keys[alias] = it }
+            val key = if (strong && refuseStrong) {
+                SecretKeySpec(ByteArray(32), "HmacSHA256") // AES/GCM rejects it at init
+            } else {
+                KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+            }
+            return key.also { keys[alias] = it }
+        }
+
+        override fun delete(alias: String) {
+            keys.remove(alias)
         }
     }
 
@@ -77,6 +91,41 @@ class SealedSecretStoreTest {
 
         assertEquals(1, keys.created.size)
         assertArrayEquals(replacement, store.unseal("device-enc"))
+    }
+
+    @Test
+    fun `sealStrong uses its own key and retires the plain one`() {
+        store.seal("recovery", secret) // an install from before strong sealing
+        assertFalse(store.isStrong("recovery"))
+
+        store.sealStrong("recovery", secret)
+
+        assertTrue(store.isStrong("recovery"))
+        assertNull(keys.load("voidbind.secret.wrap.recovery"))
+        assertArrayEquals(secret, store.unseal("recovery"))
+    }
+
+    @Test
+    fun `a strong seal the keystore refuses leaves the plain copy readable`() {
+        store.seal("recovery", secret)
+        keys.refuseStrong = true
+
+        assertFailsWith<InvalidKeyException> { store.sealStrong("recovery", secret) }
+
+        assertFalse(store.isStrong("recovery"))
+        assertArrayEquals(secret, store.unseal("recovery"))
+    }
+
+    @Test
+    fun `delete forgets the blob and every wrapping key`() {
+        store.seal("recovery", secret)
+        store.sealStrong("recovery", secret)
+
+        store.delete("recovery")
+
+        assertFalse(store.exists("recovery"))
+        assertNull(store.unseal("recovery"))
+        assertTrue(keys.keys.isEmpty())
     }
 
     @Test
