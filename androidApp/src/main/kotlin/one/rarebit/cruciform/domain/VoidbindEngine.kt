@@ -156,6 +156,14 @@ interface VoidbindEngine {
      */
     suspend fun removeDevice(deviceId: String): EngineResult<Unit>
 
+    /**
+     * Renew THIS device's membership now: a self re-add signed by its own key, which
+     * must happen while its current add is still valid (a lapsed device can only be
+     * re-admitted). The engine also renews on its own, without prompting, whenever the
+     * device signs inside the renewal window; this is the explicit "Renew now".
+     */
+    suspend fun renewMembership(): EngineResult<Unit>
+
     // --- Settings actions -----------------------------------------------------
 
     suspend fun renameDevice(name: String): EngineResult<Unit>

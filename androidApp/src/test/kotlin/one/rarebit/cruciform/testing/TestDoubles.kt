@@ -83,15 +83,28 @@ class InMemoryPrefs : SharedPreferences {
     }
 }
 
-/** An in-memory [SecretSealer]: "sealed" means held in a map (copies in and out). */
+/**
+ * An in-memory [SecretSealer]: "sealed" means held in a map (copies in and out).
+ * [strong] records which names were sealed under the strong-biometric key.
+ */
 class InMemorySealer : SecretSealer {
     val secrets = HashMap<String, ByteArray>()
+    val strong = HashSet<String>()
 
     override fun exists(name: String): Boolean = secrets.containsKey(name)
     override fun seal(name: String, secret: ByteArray) {
         secrets[name] = secret.copyOf()
     }
+    override fun sealStrong(name: String, secret: ByteArray) {
+        secrets[name] = secret.copyOf()
+        strong += name
+    }
+    override fun isStrong(name: String): Boolean = name in strong
     override fun unseal(name: String): ByteArray? = secrets[name]?.copyOf()
+    override fun delete(name: String) {
+        secrets.remove(name)
+        strong.remove(name)
+    }
 }
 
 /**

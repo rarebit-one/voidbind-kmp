@@ -15,10 +15,13 @@ import one.rarebit.voidbind.crypto.Hex
  *
  *  - `device-enc` — the X25519 device encryption private key (no secure element
  *    holds an agreement key; sealed at rest per ADR-0001).
- *  - `recovery` — the 32-byte recovery secret, on an install that created or
- *    restored the identity. Sealed so the app can re-show it biometric-gated from
- *    Settings and act as GENESIS for recovery re-adds. It is NOT needed to add a
- *    device any more (ADR-0005): any member admits the next with its device key.
+ *  - `recovery` — the 32-byte recovery secret, optionally kept on an install that
+ *    created or restored the identity, so the app can re-show it from Settings and
+ *    act as GENESIS for recovery re-adds. Genesis bypasses the co-signed remove
+ *    quorum, so this copy is sealed under a **strong-biometric-only** key
+ *    ([SecretSealer.sealStrong]) — a screen-lock PIN cannot reach it — and the user
+ *    can remove it. It is NOT needed to add a device (ADR-0005): any member admits
+ *    the next with its device key.
  *
  * **Membership (ADR-0005).** `cert` holds this device's ADMITTING op — the
  * credential it presents — and `ops` the replica of the identity's membership ops
@@ -73,21 +76,26 @@ class IdentityStore(
     }
 
     /**
-     * Persist the OWNER device — the one that created or restored the identity, so it
-     * holds the recovery secret (sealed) and can re-show it + act as genesis. Its
-     * self-enrolment cert is the replica's first op.
+     * Persist the OWNER device — the one that created or restored the identity. Its
+     * self-enrolment cert is the replica's first op. Whether it also keeps the
+     * recovery secret is a separate, biometric-gated step: [keepRecoverySecret].
      */
     fun saveOwner(
         enrolmentCert: String,
         userPublicKey: ByteArray,
         encPublicKey: ByteArray,
         encPrivateKey: ByteArray,
-        recoverySecret: ByteArray,
         deviceName: String,
-    ) {
-        sealed.seal(SEAL_RECOVERY, recoverySecret)
-        writeCommon(enrolmentCert, listOf(enrolmentCert), userPublicKey, encPublicKey, encPrivateKey, deviceName)
-    }
+    ) = writeCommon(enrolmentCert, listOf(enrolmentCert), userPublicKey, encPublicKey, encPrivateKey, deviceName)
+
+    /**
+     * Keep [recoverySecret] on this device under the strong-biometric key. The caller
+     * must have just passed a strong-biometric prompt (the keystore refuses otherwise).
+     */
+    fun keepRecoverySecret(recoverySecret: ByteArray) = sealed.sealStrong(SEAL_RECOVERY, recoverySecret)
+
+    /** Remove this device's copy of the recovery secret. The written copy is then the only one. */
+    fun forgetRecoverySecret() = sealed.delete(SEAL_RECOVERY)
 
     /**
      * Persist a JOINED device — one admitted by pairing against an existing member.
@@ -141,6 +149,17 @@ class IdentityStore(
         writeOps(Membership.merge(knownOps(), ops))
     }
 
+    /**
+     * Record [renewal] — this device's self re-add — and make it the credential the
+     * device presents. A relying party refuses a credential whose add has expired
+     * (voidbind-go `rp.Verify` step 4), so the device must present its newest add, not
+     * the one that first admitted it. The old add stays in the replica as history.
+     */
+    fun renewCredential(renewal: String) {
+        writeOps(Membership.merge(knownOps(), listOf(renewal)))
+        prefs.edit().putString(KEY_CERT, renewal).apply()
+    }
+
     private fun readOps(): List<String> =
         (prefs.getString(KEY_OPS, "") ?: "").split("\n").map { it.trim() }.filter { it.isNotEmpty() }
 
@@ -154,8 +173,17 @@ class IdentityStore(
     /** The sealed X25519 device encryption private key, or null if not provisioned. */
     fun encPrivateKey(): ByteArray? = sealed.unseal(SEAL_ENC)
 
-    /** The sealed 32-byte recovery secret, or null. Caller should biometric-gate the reveal. */
-    fun recoverySecret(): ByteArray? = sealed.unseal(SEAL_RECOVERY)
+    /**
+     * The kept 32-byte recovery secret, or null (never kept, removed, or destroyed by
+     * the keystore when a new biometric was enrolled). The caller must have just
+     * passed a strong-biometric prompt.
+     */
+    fun recoverySecret(): ByteArray? = sealed.unseal(SEAL_RECOVERY)?.also { secret ->
+        // An older install sealed it under the plain key: move it under the strong one
+        // now, while the caller's strong-biometric window is open. Best effort — if
+        // the keystore refuses, the plain copy stays and this runs again next time.
+        if (!sealed.isStrong(SEAL_RECOVERY)) runCatching { sealed.sealStrong(SEAL_RECOVERY, secret) }
+    }
 
     fun deviceName(): String = prefs.getString(KEY_DEVICE_NAME, DEFAULT_DEVICE_NAME) ?: DEFAULT_DEVICE_NAME
 

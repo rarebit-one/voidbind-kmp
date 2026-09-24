@@ -453,6 +453,8 @@ fun CruciformNavHost(
                         identity = active.identity,
                         device = active.device,
                         trustedSites = active.trustedSites,
+                        membership = active.membership,
+                        onRenew = { settingsVm.renewMembership() },
                         onSettings = { nav.navigate(Routes.SETTINGS) },
                         onCopyIdentity = { clipboard.setText(AnnotatedString(active.identity.fullKey)) },
                         onDevice = { startInvite() },
