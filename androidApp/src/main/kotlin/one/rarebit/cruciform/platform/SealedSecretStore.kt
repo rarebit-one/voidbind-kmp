@@ -23,58 +23,38 @@ import javax.crypto.spec.GCMParameterSpec
  * biometric signature. An attacker with the flash but not the secure element cannot
  * recover the sealed secret.
  */
-class SealedSecretStore(private val context: Context) {
+class SealedSecretStore internal constructor(
+    /** The directory the sealed blobs live in; resolved (and created) on each access. */
+    private val dir: () -> File,
+    /** Where the per-secret wrapping keys live — the AndroidKeyStore in production. */
+    private val wrapKeys: WrapKeys,
+) : SecretSealer {
 
-    fun exists(name: String): Boolean = file(name).exists()
+    constructor(context: Context) : this({ File(context.filesDir, "voidbind") }, AndroidKeyStoreWrapKeys)
 
-    fun seal(name: String, secret: ByteArray) {
-        val key = getOrCreateWrapKey(name)
+    override fun exists(name: String): Boolean = file(name).exists()
+
+    override fun seal(name: String, secret: ByteArray) {
+        val key = wrapKeys.load(wrapAlias(name)) ?: wrapKeys.create(wrapAlias(name))
         val cipher = Cipher.getInstance(TRANSFORMATION).apply { init(Cipher.ENCRYPT_MODE, key) }
         val ct = cipher.doFinal(secret)
         writeFramed(file(name), cipher.iv, ct)
     }
 
-    fun unseal(name: String): ByteArray? {
+    override fun unseal(name: String): ByteArray? {
         val f = file(name)
         if (!f.exists()) return null
         val (iv, ct) = readFramed(f) ?: return null
-        val key = loadWrapKey(name) ?: return null
+        val key = wrapKeys.load(wrapAlias(name)) ?: return null
         return Cipher.getInstance(TRANSFORMATION).run {
             init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_BITS, iv))
             doFinal(ct)
         }
     }
 
-    private fun getOrCreateWrapKey(name: String): SecretKey =
-        loadWrapKey(name) ?: createWrapKey(name)
-
-    private fun createWrapKey(name: String): SecretKey {
-        fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(
-            wrapAlias(name),
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(WRAP_KEY_BITS)
-            .setIsStrongBoxBacked(strongBox)
-            .build()
-
-        val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
-        return try {
-            gen.init(spec(strongBox = true)); gen.generateKey()
-        } catch (_: StrongBoxUnavailableException) {
-            gen.init(spec(strongBox = false)); gen.generateKey()
-        }
-    }
-
-    private fun loadWrapKey(name: String): SecretKey? {
-        val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-        return ks.getKey(wrapAlias(name), null) as? SecretKey
-    }
-
     private fun file(name: String): File {
-        val dir = File(context.filesDir, "voidbind").apply { mkdirs() }
-        return File(dir, "secret.$name")
+        val root = dir().apply { mkdirs() }
+        return File(root, "secret.$name")
     }
 
     private fun writeFramed(f: File, iv: ByteArray, ct: ByteArray) {
@@ -106,10 +86,60 @@ class SealedSecretStore(private val context: Context) {
     }
 
     private companion object {
-        const val KEYSTORE = "AndroidKeyStore"
         const val TRANSFORMATION = "AES/GCM/NoPadding"
         const val GCM_TAG_BITS = 128
-        const val WRAP_KEY_BITS = 256
         fun wrapAlias(name: String) = "voidbind.secret.wrap.$name"
+    }
+}
+
+/**
+ * Named secrets sealed at rest. [SealedSecretStore] is the hardware-backed
+ * implementation; the seam lets [IdentityStore] be unit-tested without a keystore.
+ */
+interface SecretSealer {
+    fun exists(name: String): Boolean
+
+    fun seal(name: String, secret: ByteArray)
+
+    /** The secret, or null when it was never sealed or its wrapping key is gone. */
+    fun unseal(name: String): ByteArray?
+}
+
+/** Holds the non-extractable AES wrapping key for each sealed secret, by alias. */
+internal interface WrapKeys {
+    fun load(alias: String): SecretKey?
+
+    fun create(alias: String): SecretKey
+}
+
+/** The AndroidKeyStore: StrongBox where the device has one, TEE otherwise. */
+internal object AndroidKeyStoreWrapKeys : WrapKeys {
+    private const val KEYSTORE = "AndroidKeyStore"
+    private const val WRAP_KEY_BITS = 256
+
+    override fun load(alias: String): SecretKey? {
+        val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
+        return ks.getKey(alias, null) as? SecretKey
+    }
+
+    override fun create(alias: String): SecretKey {
+        fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(
+            alias,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(WRAP_KEY_BITS)
+            .setIsStrongBoxBacked(strongBox)
+            .build()
+
+        val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
+        return try {
+            gen.init(spec(strongBox = true))
+            gen.generateKey()
+        } catch (_: StrongBoxUnavailableException) {
+            gen.init(spec(strongBox = false))
+            gen.generateKey()
+        }
     }
 }

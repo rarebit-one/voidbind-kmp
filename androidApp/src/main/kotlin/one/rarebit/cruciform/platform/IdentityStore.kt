@@ -1,6 +1,7 @@
 package one.rarebit.cruciform.platform
 
 import android.content.Context
+import android.content.SharedPreferences
 import one.rarebit.cruciform.domain.TrustedSite
 import one.rarebit.voidbind.Membership
 import one.rarebit.voidbind.crypto.Hex
@@ -27,10 +28,15 @@ import one.rarebit.voidbind.crypto.Hex
  *
  * The library never persists anything — this is entirely the app's plumbing.
  */
-class IdentityStore(context: Context) {
+class IdentityStore(
+    private val prefs: SharedPreferences,
+    private val sealed: SecretSealer,
+) {
 
-    private val prefs = context.getSharedPreferences("voidbind.identity", Context.MODE_PRIVATE)
-    private val sealed = SealedSecretStore(context)
+    constructor(context: Context) : this(
+        context.getSharedPreferences("voidbind.identity", Context.MODE_PRIVATE),
+        SealedSecretStore(context),
+    )
 
     data class Persisted(
         /** This device's admitting op (a v3 add, or a v1/v2 cert — which is one). */

@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import one.rarebit.voidbind.AuthenticationRequiredException
 import one.rarebit.voidbind.DeviceIdentity
-import one.rarebit.voidbind.DeviceKeyStore
 import one.rarebit.voidbind.Enrolment
 import one.rarebit.voidbind.KeyRef
 import one.rarebit.voidbind.LoginQr
@@ -44,7 +43,7 @@ import java.util.Locale
 /**
  * The real [VoidbindEngine]: wires the app UI to the library's commonMain device
  * brain (UserIdentity, DeviceIdentity, Enrolment, the flow coordinators) over the
- * hardware [DeviceKeyStore] + a sealed X25519 enc-key store ([IdentityStore]) and an
+ * hardware device key ([DeviceKeys]) + a sealed X25519 enc-key store ([IdentityStore]) and an
  * OkHttp [HttpTransport], gating every signature behind [BiometricAuthenticator].
  *
  * All calls that touch hardware or the network run on [Dispatchers.IO]. A hardware
@@ -87,9 +86,11 @@ class DeviceVoidbindEngine(
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
     /** Relying parties that serve `POST /membership/{usr}`; a remove is pushed to each, best-effort. */
     private val membershipRps: List<String> = DEFAULT_MEMBERSHIP_RPS,
+    /** The hardware device signing key; a seam so the engine is unit-testable on the JVM. */
+    private val deviceKeys: DeviceKeys = HardwareDeviceKeys(),
+    /** The name a freshly provisioned/joined device takes (the handset model by default). */
+    private val defaultDeviceName: () -> String = ::handsetName,
 ) : VoidbindEngine {
-
-    private val deviceAlias = "device"
 
     /** The configured relay, resolved now (Settings may have changed it since the last call). */
     private val relayBase: String get() = relay()
@@ -140,8 +141,8 @@ class DeviceVoidbindEngine(
     /** Provision THIS device as the owner for [user]: hardware key, enc key, self-cert. */
     private suspend fun provision(user: UserIdentity): RecoveryBackup {
         val enc = DeviceIdentity.generateEncryptionKey()
-        val ks = withDeviceAuth { DeviceKeyStore.getOrCreate(deviceAlias) }
-        val device = DeviceIdentity(ks.publicKey().bytes, enc.publicKey, enc.privateKey) { ks.sign(it) }
+        val ks = withDeviceAuth { deviceKeys.getOrCreate() }
+        val device = DeviceIdentity(ks.publicKey, enc.publicKey, enc.privateKey) { ks.sign(it) }
         val cert = Enrolment.selfEnrol(user, device, clock())
         store.saveOwner(cert, user.userPublicKey, enc.publicKey, enc.privateKey, user.recovery.bytes, defaultDeviceName())
         sessionUser = user
@@ -339,9 +340,9 @@ class DeviceVoidbindEngine(
 
     override suspend fun joinPairInvite(code: ScannedCode.PairInvite): EngineResult<PairSession> = withContext(Dispatchers.IO) {
         engineCatching(code.relay) {
-            val ks = withDeviceAuth { DeviceKeyStore.getOrCreate(deviceAlias) }
+            val ks = withDeviceAuth { deviceKeys.getOrCreate() }
             val enc = existingEncKey() ?: DeviceIdentity.generateEncryptionKey()
-            val device = DeviceIdentity(ks.publicKey().bytes, enc.publicKey, enc.privateKey) { ks.sign(it) }
+            val device = DeviceIdentity(ks.publicKey, enc.publicKey, enc.privateKey) { ks.sign(it) }
             val pairing = DevicePairing(transport, device, clock)
             // beginCatching turns the blocking relay handshake's every failure (no route,
             // refused, TLS, timeout, relay non-2xx, a commitment that does not open) into a
@@ -481,7 +482,7 @@ class DeviceVoidbindEngine(
     override suspend fun devices(): List<MemberDevice> = withContext(Dispatchers.IO) {
         val persisted = store.load() ?: return@withContext emptyList()
         val usr = KeyRef.ed25519(persisted.userPublicKey).render()
-        val self = KeyRef.ed25519(DeviceKeyStore.getOrCreate(deviceAlias).publicKey().bytes).render()
+        val self = KeyRef.ed25519(deviceKeys.getOrCreate().publicKey).render()
         val view = Membership.evaluate(usr, persisted.ops, clock())
         view.members.values
             .sortedWith(compareBy<Membership.Member> { it.device != self }.thenBy { it.admittedAt })
@@ -506,8 +507,8 @@ class DeviceVoidbindEngine(
     override suspend fun removeDevice(deviceId: String): EngineResult<Unit> = withContext(Dispatchers.IO) {
         engineCatching(relayBase) {
             val persisted = store.load() ?: return@engineCatching internalFailure("No identity on this device.")
-            val ks = DeviceKeyStore.getOrCreate(deviceAlias)
-            val selfPub = ks.publicKey().bytes
+            val ks = deviceKeys.getOrCreate()
+            val selfPub = ks.publicKey
             val self = KeyRef.ed25519(selfPub).render()
             if (deviceId == self) return@engineCatching internalFailure("This device can't remove itself. Remove it from another device.")
             val usr = KeyRef.ed25519(persisted.userPublicKey).render()
@@ -608,13 +609,9 @@ class DeviceVoidbindEngine(
 
     private fun loadState(): IdentityState {
         val persisted = store.load() ?: return IdentityState.None
-        val ks = DeviceKeyStore.getOrCreate(deviceAlias)
-        val devicePub = ks.publicKey().bytes
-        val backing = when (ks.securityLevel()) {
-            DeviceKeyStore.SecurityLevel.STRONGBOX -> HardwareBacking.STRONGBOX
-            DeviceKeyStore.SecurityLevel.TEE -> HardwareBacking.TEE
-            DeviceKeyStore.SecurityLevel.SOFTWARE -> HardwareBacking.SOFTWARE
-        }
+        val ks = deviceKeys.getOrCreate()
+        val devicePub = ks.publicKey
+        val backing = ks.backing()
         return IdentityState.Active(
             identity = Identity(
                 label = persisted.deviceName, // the enrolled/chosen device name — never a leftover tag
@@ -652,10 +649,10 @@ class DeviceVoidbindEngine(
     }
 
     private fun buildDevice(): DeviceIdentity {
-        val ks = DeviceKeyStore.getOrCreate(deviceAlias)
+        val ks = deviceKeys.getOrCreate()
         val persisted = store.load() ?: error("no identity on this device")
         val encPriv = store.encPrivateKey() ?: error("device encryption key missing")
-        return DeviceIdentity(ks.publicKey().bytes, persisted.encPublicKey, encPriv) { ks.sign(it) }
+        return DeviceIdentity(ks.publicKey, persisted.encPublicKey, encPriv) { ks.sign(it) }
     }
 
     private fun existingEncKey(): DeviceIdentity.EncryptionKey? {
@@ -722,11 +719,6 @@ class DeviceVoidbindEngine(
     private fun accentFor(key: String): SiteAccent =
         SiteAccent.entries[(key.hashCode() and 0x7fffffff) % SiteAccent.entries.size]
 
-    private fun defaultDeviceName(): String {
-        val name = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
-        return name.ifBlank { "This device" }
-    }
-
     companion object {
         /**
          * How long a minted invite waits for the new device, and the initiator's relay
@@ -761,4 +753,10 @@ class DeviceVoidbindEngine(
         val DEFAULT_MEMBERSHIP_RPS: List<String> =
             BuildConfig.DEFAULT_MEMBERSHIP_RPS.split(',').map { it.trim() }.filter { it.isNotEmpty() }
     }
+}
+
+/** "<manufacturer> <model>", or "This device" when the handset reports neither. */
+private fun handsetName(): String {
+    val name = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+    return name.ifBlank { "This device" }
 }
