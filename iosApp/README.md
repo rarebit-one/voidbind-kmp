@@ -17,8 +17,9 @@ The Xcode project is generated from [`project.yml`](project.yml) with
 ```sh
 cd iosApp
 xcodegen generate            # writes Cruciform.xcodeproj from project.yml
-# The scheme's pre-build phase runs `assembleVoidbindDebugXCFramework` if the
-# framework is missing; you can also build it up front from the repo root:
+# The scheme's pre-build phase always runs `assembleVoidbindDebugXCFramework`
+# (Gradle's up-to-date checks make it cheap when nothing changed, and a Kotlin edit
+# is never linked stale); you can also build it up front from the repo root:
 #   ./gradlew assembleVoidbindDebugXCFramework
 xcodebuild -scheme Cruciform -project Cruciform.xcodeproj -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' ARCHS=arm64 EXCLUDED_ARCHS=x86_64 build
@@ -66,7 +67,7 @@ not the app target itself.
 | File | Role |
 |---|---|
 | `Voidbind/SecureEnclaveSealer.swift` | `EnclaveSealer` — implements the KMP `SecureEnclaveSealer` protocol (SE P-256 key + ECIES seal/unseal of the Ed25519 seed, biometric-gated; Keychain persistence). Named `EnclaveSealer` so it doesn't clash with the protocol. |
-| `Voidbind/URLSessionHttpTransport.swift` | The KMP `HttpTransport` actual over `URLSession` (blocking, per the contract). |
+| `Voidbind/URLSessionHttpTransport.swift` | The KMP `HttpTransport` actual over `URLSession` (GET/POST/PUT/DELETE; blocking, per the contract). |
 | `Voidbind/VoidbindEngine.swift` | Wiring — the iOS mirror of Android's `DeviceVoidbindEngine`: `UserIdentity` create/restore, `DeviceIdentity` provisioning, `Enrolment`, the three coordinators (+ `make*` convenience builders). |
 | `Voidbind/VoidbindApp.swift` | `@main` app; builds the `AppModel` (which builds the engine + injects the sealer) once, shows `RootView`. |
 | `Voidbind/AppModel.swift` | Root app state: enrolled identity (persisted), trusted sites, sign-out. |

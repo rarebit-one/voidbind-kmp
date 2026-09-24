@@ -3,7 +3,7 @@ import Voidbind
 
 /// The iOS `HttpTransport` actual: a `URLSession`-backed implementation of the
 /// Kotlin transport seam the network clients + coordinators drive. The Kotlin
-/// contract is **blocking** (get/post/put return synchronously, and the relay
+/// contract is **blocking** (get/post/put/delete return synchronously, and the relay
 /// poll loop calls `sleep`), so each call waits on a semaphore. The completion
 /// handler runs on a background `URLSession` queue, so the wait must NOT happen on
 /// the main thread — always call the coordinators off-main (a `Task.detached` /
@@ -35,6 +35,14 @@ public final class URLSessionHttpTransport: NSObject, HttpTransport {
 
     public func put(url: String, body: KotlinByteArray, contentType: String?) -> HttpResponse {
         perform(url: url, method: "PUT", body: body.toData(), contentType: contentType)
+    }
+
+    /// DELETE with an optional body — `NotifyClient.unsubscribe` sends the device
+    /// cert as JSON on DELETE (voidbind-go reads it). The Kotlin interface's default
+    /// throws `UnsupportedOperationException`, so this override is what makes
+    /// unsubscribe work on iOS.
+    public func delete(url: String, body: KotlinByteArray?, contentType: String?) -> HttpResponse {
+        perform(url: url, method: "DELETE", body: body?.toData(), contentType: contentType)
     }
 
     public func sleep(millis: Int64) {
