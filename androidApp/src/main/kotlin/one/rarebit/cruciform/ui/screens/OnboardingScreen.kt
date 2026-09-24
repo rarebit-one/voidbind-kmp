@@ -26,12 +26,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import one.rarebit.cruciform.ui.components.CruciformMark
 import one.rarebit.cruciform.ui.components.IconCircle
 import one.rarebit.cruciform.ui.components.ScreenPadding
 import one.rarebit.cruciform.ui.components.StatusPill
 import one.rarebit.cruciform.ui.components.VSpace
 import one.rarebit.cruciform.ui.components.VbCard
-import one.rarebit.cruciform.ui.components.CruciformMark
 import one.rarebit.cruciform.ui.theme.VbColors
 
 /**

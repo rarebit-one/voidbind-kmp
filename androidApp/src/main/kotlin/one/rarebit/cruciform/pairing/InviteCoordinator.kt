@@ -42,8 +42,10 @@ class InviteCoordinator(
     enum class Phase {
         /** Minting (opening the relay session): Retry mints again. */
         MINT,
+
         /** Waiting for / handshaking with the new device: the session is spent, Retry mints a fresh invite. */
         WAIT,
+
         /** Confirming (authorise + deliver the sealed admission): Retry re-confirms the SAME session. */
         CONFIRM,
     }
@@ -102,6 +104,7 @@ class InviteCoordinator(
          * intent, when Android told us; [rpScheme] is where to send the human back.
          */
         data class Verified(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val callerPackage: String?) : SamePhone
+
         /**
          * The report disagreed with the relay reveal: the invite failed and nothing was
          * signed. Published so the RP can be told (its `<scheme>://pair-done?outcome=refused`
@@ -148,6 +151,7 @@ class InviteCoordinator(
         val s = _state.value as? State.Failed ?: return
         when (s.phase) {
             Phase.MINT, Phase.WAIT -> mint()
+
             Phase.CONFIRM -> {
                 val resume = s.resume
                 if (resume != null) {
@@ -219,11 +223,14 @@ class InviteCoordinator(
                 earlyReport = null
                 _samePhone.value = SamePhone.Verified(report, rpScheme, callerPackage)
             }
+
             is SamePhonePairCallback.Decision.TooEarly -> {
                 log("same-phone: ${report.session} reported before the relay reveal; holding it")
                 earlyReport = Pending(report, rpScheme, callerPackage)
             }
+
             is SamePhonePairCallback.Decision.OtherSession -> log("same-phone: ignored — ${d.reason}")
+
             is SamePhonePairCallback.Decision.Mismatch -> {
                 log("same-phone: REFUSED — ${d.reason}")
                 earlyReport = null
@@ -260,6 +267,7 @@ class InviteCoordinator(
             val result = engineStep { engine.confirmPairing() }
             when (result) {
                 is EngineResult.Ready -> _state.value = State.Admitted(joined.invite)
+
                 is EngineResult.Failed -> _state.value = State.Failed(
                     result.failure,
                     Phase.CONFIRM,
@@ -283,6 +291,7 @@ class InviteCoordinator(
                     _state.value = State.Failed(minted.failure, Phase.MINT, relay, invite = null)
                     return@launch
                 }
+
                 is EngineResult.Ready -> minted.value
             }
             val deadline = clock() + invite.expiresInSeconds * 1000L
@@ -303,6 +312,7 @@ class InviteCoordinator(
                         // A mismatch above has already failed the invite; leave that standing.
                         if (_state.value !is State.Failed) _state.value = State.Joined(invite, hs.value)
                     }
+
                     is EngineResult.Failed -> {
                         val f = classifyWait(hs.failure, relay, deadline)
                         log("${invite.inviteId}: ${f.kind} — ${f.message}")
@@ -326,6 +336,7 @@ class InviteCoordinator(
             message = "The relay answered when the invite was minted, but stopped answering while waiting for the new device " +
                 "(${remainingText(deadlineMillis)}). Check Wi-Fi or your VPN, then start again with a fresh invite.",
         )
+
         EngineFailure.Kind.TIMEOUT -> {
             if (clock() < deadlineMillis - EARLY_TIMEOUT_SLACK_MILLIS) {
                 // The transport gave up before the session did: report it as what it is.
@@ -334,6 +345,7 @@ class InviteCoordinator(
                 f.copy(message = "The other device didn't join before the invite expired. Start again with a fresh invite.")
             }
         }
+
         else -> f
     }
 

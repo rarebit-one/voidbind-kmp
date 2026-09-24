@@ -61,11 +61,14 @@ class SealedSecretStore internal constructor(
         val out = ArrayList<Byte>()
         fun put(b: ByteArray) {
             val n = b.size
-            out.add((n ushr 24).toByte()); out.add((n ushr 16).toByte())
-            out.add((n ushr 8).toByte()); out.add(n.toByte())
+            out.add((n ushr 24).toByte())
+            out.add((n ushr 16).toByte())
+            out.add((n ushr 8).toByte())
+            out.add(n.toByte())
             b.forEach { out.add(it) }
         }
-        put(iv); put(ct)
+        put(iv)
+        put(ct)
         f.writeBytes(out.toByteArray())
     }
 

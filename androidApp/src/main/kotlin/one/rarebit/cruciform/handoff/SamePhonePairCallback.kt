@@ -78,6 +78,7 @@ sealed interface SamePhonePairCallback {
 
         /** The RP's own "you're enrolled, come back" landing: `<rp scheme>://pair-done?session=…`. */
         const val DONE_HOST = "pair-done"
+
         /** Query keys on the return leg beyond the session: only set when the pairing was refused. */
         const val PARAM_OUTCOME = "outcome"
         const val PARAM_REASON = "reason"

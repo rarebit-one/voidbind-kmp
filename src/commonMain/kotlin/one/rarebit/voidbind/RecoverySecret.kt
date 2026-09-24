@@ -26,8 +26,7 @@ class RecoverySecret private constructor(val bytes: ByteArray) {
 
     override fun toString(): String = format()
 
-    override fun equals(other: Any?): Boolean =
-        other is RecoverySecret && bytes.contentEquals(other.bytes)
+    override fun equals(other: Any?): Boolean = other is RecoverySecret && bytes.contentEquals(other.bytes)
 
     override fun hashCode(): Int = bytes.contentHashCode()
 

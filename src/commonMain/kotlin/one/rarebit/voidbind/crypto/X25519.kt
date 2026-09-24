@@ -35,7 +35,9 @@ internal object X25519 {
     private fun pack25519(o: ByteArray, n: LongArray) {
         val m = LongArray(16)
         val t = n.copyOf()
-        car25519(t); car25519(t); car25519(t)
+        car25519(t)
+        car25519(t)
+        car25519(t)
         for (j in 0 until 2) {
             m[0] = t[0] - 0xffedL
             for (i in 1 until 15) {
@@ -58,15 +60,20 @@ internal object X25519 {
         o[15] = o[15] and 0x7fffL
     }
 
-    private fun add(o: LongArray, a: LongArray, b: LongArray) { for (i in 0 until 16) o[i] = a[i] + b[i] }
-    private fun sub(o: LongArray, a: LongArray, b: LongArray) { for (i in 0 until 16) o[i] = a[i] - b[i] }
+    private fun add(o: LongArray, a: LongArray, b: LongArray) {
+        for (i in 0 until 16) o[i] = a[i] + b[i]
+    }
+    private fun sub(o: LongArray, a: LongArray, b: LongArray) {
+        for (i in 0 until 16) o[i] = a[i] - b[i]
+    }
 
     private fun mul(o: LongArray, a: LongArray, b: LongArray) {
         val t = LongArray(31)
         for (i in 0 until 16) for (j in 0 until 16) t[i + j] += a[i] * b[j]
         for (i in 0 until 15) t[i] += 38 * t[i + 16]
         for (i in 0 until 16) o[i] = t[i]
-        car25519(o); car25519(o)
+        car25519(o)
+        car25519(o)
     }
 
     private fun sqr(o: LongArray, a: LongArray) = mul(o, a, a)
@@ -88,23 +95,47 @@ internal object X25519 {
         z[31] = ((scalar[31].toInt() and 127) or 64).toByte()
         z[0] = (z[0].toInt() and 248).toByte()
 
-        val x = LongArray(16); unpack25519(x, point)
-        val a = LongArray(16); val b = LongArray(16); val c = LongArray(16); val d = LongArray(16)
-        val e = LongArray(16); val f = LongArray(16)
+        val x = LongArray(16)
+        unpack25519(x, point)
+        val a = LongArray(16)
+        val b = LongArray(16)
+        val c = LongArray(16)
+        val d = LongArray(16)
+        val e = LongArray(16)
+        val f = LongArray(16)
         for (i in 0 until 16) b[i] = x[i]
-        a[0] = 1; d[0] = 1
+        a[0] = 1
+        d[0] = 1
 
         for (i in 254 downTo 0) {
             val r = (z[i shr 3].toInt() ushr (i and 7)) and 1
-            sel25519(a, b, r); sel25519(c, d, r)
-            add(e, a, c); sub(a, a, c); add(c, b, d); sub(b, b, d)
-            sqr(d, e); sqr(f, a); mul(a, c, a); mul(c, b, e); add(e, a, c); sub(a, a, c)
-            sqr(b, a); sub(c, d, f); mul(a, c, _121665); add(a, a, d); mul(c, c, a)
-            mul(a, d, f); mul(d, b, x); sqr(b, e); sel25519(a, b, r); sel25519(c, d, r)
+            sel25519(a, b, r)
+            sel25519(c, d, r)
+            add(e, a, c)
+            sub(a, a, c)
+            add(c, b, d)
+            sub(b, b, d)
+            sqr(d, e)
+            sqr(f, a)
+            mul(a, c, a)
+            mul(c, b, e)
+            add(e, a, c)
+            sub(a, a, c)
+            sqr(b, a)
+            sub(c, d, f)
+            mul(a, c, _121665)
+            add(a, a, d)
+            mul(c, c, a)
+            mul(a, d, f)
+            mul(d, b, x)
+            sqr(b, e)
+            sel25519(a, b, r)
+            sel25519(c, d, r)
         }
         inv25519(c, c)
         mul(a, a, c)
-        val q = ByteArray(32); pack25519(q, a)
+        val q = ByteArray(32)
+        pack25519(q, a)
         return q
     }
 

@@ -70,6 +70,7 @@ object PairingFailures {
                 "The other device didn't join in time. Start the pairing again with a fresh invite.",
                 host,
             )
+
             is RelayHttpException -> PairingOutcome.Failed(
                 PairingFailureKind.REJECTED,
                 if (e.status == 404 || e.status == 409 || e.status == 410) {
@@ -79,6 +80,7 @@ object PairingFailures {
                 },
                 host,
             )
+
             // The pairflow / cert layers signal a protocol violation with require()/check()
             // (IllegalArgument/IllegalState) and a malformed envelope with a parse error
             // (NumberFormat, ClassCast, IndexOutOfBounds…). None of these is a network
@@ -91,6 +93,7 @@ object PairingFailures {
                 "The pairing didn't verify — the other device may not be the one you expect. Start again.",
                 host,
             )
+
             // Everything else reached this seam from the transport: no route, refused, TLS,
             // timeout, cleartext-blocked. From the human's point of view the relay is down or
             // unreachable from this network. Deliberately does not leak the exception text.

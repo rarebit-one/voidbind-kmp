@@ -1,18 +1,18 @@
 package one.rarebit.voidbind.net
 
-import java.io.File
-import java.net.ServerSocket
-import org.junit.jupiter.api.Assumptions.assumeTrue
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 import one.rarebit.voidbind.Cert
 import one.rarebit.voidbind.Ed25519Engine
 import one.rarebit.voidbind.KeyRef
 import one.rarebit.voidbind.Labels
 import one.rarebit.voidbind.Pairing
 import one.rarebit.voidbind.WebLogin
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import java.io.File
+import java.net.ServerSocket
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /**
  * The CROSS-LANGUAGE proof: drive a LIVE voidbind-go over HTTP from the Kotlin
@@ -27,9 +27,8 @@ import one.rarebit.voidbind.WebLogin
  */
 class GoInteropTest {
     private val goDir = File(System.getProperty("user.home"), "Workspace/rarebit-one/voidbind-go")
-    private fun goAvailable(): Boolean =
-        goDir.isDirectory && System.getenv("PATH").orEmpty().split(File.pathSeparator)
-            .any { File(it, "go").canExecute() }
+    private fun goAvailable(): Boolean = goDir.isDirectory && System.getenv("PATH").orEmpty().split(File.pathSeparator)
+        .any { File(it, "go").canExecute() }
 
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
@@ -46,7 +45,9 @@ class GoInteropTest {
         val http = JdkHttpTransport()
         val deadline = System.currentTimeMillis() + within
         while (System.currentTimeMillis() < deadline) {
-            try { if (check()) return } catch (_: Exception) {}
+            try {
+                if (check()) return
+            } catch (_: Exception) {}
             http.sleep(100)
         }
         throw IllegalStateException("server not ready within ${within}ms")
@@ -72,16 +73,25 @@ class GoInteropTest {
             val init = PairflowInitiator(
                 RelayClient(http, base, session, RelayClient.ROLE_INITIATOR, pollIntervalMillis = 20),
                 PairflowAuthority.Genesis({ Ed25519Engine.sign(user.privateSeed, it) }, user.publicKey, emptyList(), 7_776_000L),
-                salt, 1_724_700_000L,
+                salt,
+                1_724_700_000L,
             )
             val resp = PairflowResponder(
                 RelayClient(http, base, session, RelayClient.ROLE_RESPONDER, pollIntervalMillis = 20),
-                KeyRef.ed25519(user.publicKey).render(), dev.publicKey, devEnc, salt, 1_724_700_000L,
+                KeyRef.ed25519(user.publicKey).render(),
+                dev.publicKey,
+                devEnc,
+                salt,
+                1_724_700_000L,
             )
-            var a = ""; var b = ""
+            var a = ""
+            var b = ""
             val ti = Thread { a = init.handshake() }
             val tr = Thread { b = resp.handshake() }
-            ti.start(); tr.start(); ti.join(15_000); tr.join(15_000)
+            ti.start()
+            tr.start()
+            ti.join(15_000)
+            tr.join(15_000)
             assertEquals(a, b, "SAS must match through the live Go relay")
             assertEquals(Pairing.DIGITS, a.length)
         } finally {

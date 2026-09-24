@@ -39,7 +39,10 @@ class WebLoginV2Test {
     private fun be64(v: Long): ByteArray {
         val out = ByteArray(8)
         var e = v
-        for (i in 7 downTo 0) { out[i] = (e and 0xFF).toByte(); e = e ushr 8 }
+        for (i in 7 downTo 0) {
+            out[i] = (e and 0xFF).toByte()
+            e = e ushr 8
+        }
         return out
     }
 

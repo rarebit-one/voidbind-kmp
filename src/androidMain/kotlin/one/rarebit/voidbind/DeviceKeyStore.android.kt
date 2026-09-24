@@ -132,22 +132,21 @@ actual class DeviceKeyStore private constructor(
          * lets one biometric cover an hour of short possession-proof signing. See [getOrCreate].
          */
         private fun createWrapKey(alias: String, userAuthValiditySeconds: Int): SecretKey {
-            fun spec(strongBox: Boolean) =
-                KeyGenParameterSpec.Builder(
-                    wrapKeyAlias(alias),
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            fun spec(strongBox: Boolean) = KeyGenParameterSpec.Builder(
+                wrapKeyAlias(alias),
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(WRAP_KEY_BITS)
+                .setUnlockedDeviceRequired(true)
+                .setUserAuthenticationRequired(true)
+                .setUserAuthenticationParameters(
+                    userAuthValiditySeconds,
+                    KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL,
                 )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(WRAP_KEY_BITS)
-                    .setUnlockedDeviceRequired(true)
-                    .setUserAuthenticationRequired(true)
-                    .setUserAuthenticationParameters(
-                        userAuthValiditySeconds,
-                        KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL,
-                    )
-                    .setIsStrongBoxBacked(strongBox)
-                    .build()
+                .setIsStrongBoxBacked(strongBox)
+                .build()
 
             val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
             return try {
@@ -180,11 +179,15 @@ actual class DeviceKeyStore private constructor(
             val out = ArrayList<Byte>()
             fun put(b: ByteArray) {
                 val n = b.size
-                out.add((n ushr 24).toByte()); out.add((n ushr 16).toByte())
-                out.add((n ushr 8).toByte()); out.add(n.toByte())
+                out.add((n ushr 24).toByte())
+                out.add((n ushr 16).toByte())
+                out.add((n ushr 8).toByte())
+                out.add(n.toByte())
                 b.forEach { out.add(it) }
             }
-            put(sealed.publicKey); put(sealed.iv); put(sealed.ciphertext)
+            put(sealed.publicKey)
+            put(sealed.iv)
+            put(sealed.ciphertext)
             keyFile(alias).writeBytes(out.toByteArray())
         }
 

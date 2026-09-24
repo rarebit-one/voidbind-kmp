@@ -1,8 +1,5 @@
 package one.rarebit.voidbind.offload
 
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 import one.rarebit.voidbind.Ed25519Engine
 import one.rarebit.voidbind.Ed25519Signer
 import one.rarebit.voidbind.KeyRef
@@ -10,6 +7,9 @@ import one.rarebit.voidbind.Pairing
 import one.rarebit.voidbind.crypto.MiniJson
 import one.rarebit.voidbind.crypto.VoidbindEncryption
 import one.rarebit.voidbind.crypto.X25519
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /**
  * The phone RESPONDER driven against a scripted desktop initiator over an in-memory
@@ -28,8 +28,7 @@ class OffloadResponderTest {
             override fun post(type: String, payload: ByteArray) {
                 require(slots.put("$me:$type", payload) == null) { "double post $me:$type" }
             }
-            override fun fetch(type: String): ByteArray =
-                slots["$peer:$type"] ?: error("no $peer:$type staged")
+            override fun fetch(type: String): ByteArray = slots["$peer:$type"] ?: error("no $peer:$type staged")
         }
     }
 
@@ -115,7 +114,10 @@ class OffloadResponderTest {
 
         // The desktop verifies the phone's reply and opens it with the ephemeral key.
         val resp = OffloadProtocol.verifyResponse(
-            Ed25519Engine.verifier(), phone.publicKey, nonce, relay.slots["responder:unwrap-resp"]!!,
+            Ed25519Engine.verifier(),
+            phone.publicKey,
+            nonce,
+            relay.slots["responder:unwrap-resp"]!!,
         )
         val recovered = VoidbindEncryption.unwrap(resp.sealed, ephSeed)
         assertTrue(recovered.contentEquals(spaceKey), "the desktop recovers the offloaded space key")

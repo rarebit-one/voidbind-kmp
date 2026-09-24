@@ -1,8 +1,7 @@
 package one.rarebit.voidbind
 
 /** Base type for [DeviceKeyStore] failures across platforms. */
-open class DeviceKeyStoreException(message: String, cause: Throwable? = null) :
-    Exception(message, cause)
+open class DeviceKeyStoreException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
  * A signing operation needs a fresh user-presence authentication (biometric /

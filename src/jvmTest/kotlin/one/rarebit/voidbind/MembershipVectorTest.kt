@@ -1,11 +1,11 @@
 package one.rarebit.voidbind
 
+import one.rarebit.voidbind.crypto.MiniJson
 import java.io.File
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import one.rarebit.voidbind.crypto.MiniJson
 
 /**
  * The cross-implementation PARITY suite for the membership op-set (ADR-0007):

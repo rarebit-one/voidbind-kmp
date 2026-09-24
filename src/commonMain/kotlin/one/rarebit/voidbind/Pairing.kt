@@ -103,8 +103,10 @@ object Pairing {
             frame(
                 listOf(
                     SAS_DOMAIN.encodeToByteArray(),
-                    initiator.sign, initiator.enc,
-                    responder.sign, responder.enc,
+                    initiator.sign,
+                    initiator.enc,
+                    responder.sign,
+                    responder.enc,
                     salt,
                 ),
             ),

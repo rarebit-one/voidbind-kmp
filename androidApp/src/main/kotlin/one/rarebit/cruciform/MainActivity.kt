@@ -5,12 +5,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import android.os.Bundle
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -20,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import one.rarebit.cruciform.domain.DeviceVoidbindEngine
@@ -34,8 +34,8 @@ import one.rarebit.cruciform.pairing.ServiceKeepAlive
 import one.rarebit.cruciform.platform.AndroidBiometricAuthenticator
 import one.rarebit.cruciform.platform.ApprovalPolicyStore
 import one.rarebit.cruciform.platform.IdentityStore
-import one.rarebit.cruciform.platform.OkHttpTransport
 import one.rarebit.cruciform.platform.NotifySettings
+import one.rarebit.cruciform.platform.OkHttpTransport
 import one.rarebit.cruciform.platform.RelaySettings
 import one.rarebit.cruciform.platform.push.PushEndpointStore
 import one.rarebit.cruciform.platform.push.UnifiedPushReceiver
@@ -183,10 +183,12 @@ class MainActivity : FragmentActivity() {
                 val caller = referrer?.takeIf { it.scheme == "android-app" }?.host
                 SamePhoneJoin(r, RpAppIdentity.resolve(this, caller), ++samePhoneSeq)
             }
+
             is SamePhonePairCallback.Malformed -> {
                 Log.w(TAG, "same-phone callback ignored: ${r.message}")
                 null
             }
+
             null -> null
         }
     }

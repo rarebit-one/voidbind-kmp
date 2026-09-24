@@ -33,11 +33,10 @@ object UnifiedPushRegistrar {
     private const val KEY_TOKEN = "token"
 
     /** Installed distributors: packages that declare a receiver for [ACTION_REGISTER]. */
-    fun distributors(context: Context): List<String> =
-        context.packageManager
-            .queryBroadcastReceivers(Intent(ACTION_REGISTER), 0)
-            .mapNotNull { it.activityInfo?.packageName }
-            .distinct()
+    fun distributors(context: Context): List<String> = context.packageManager
+        .queryBroadcastReceivers(Intent(ACTION_REGISTER), 0)
+        .mapNotNull { it.activityInfo?.packageName }
+        .distinct()
 
     /**
      * Ask a distributor for a wake endpoint. Returns the chosen distributor package, or

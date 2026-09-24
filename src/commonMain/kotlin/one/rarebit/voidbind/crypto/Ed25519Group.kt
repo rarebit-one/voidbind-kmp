@@ -82,7 +82,9 @@ internal object Ed25519Group {
     private fun pack25519(o: ByteArray, n: LongArray) {
         val m = LongArray(16)
         val t = n.copyOf()
-        car25519(t); car25519(t); car25519(t)
+        car25519(t)
+        car25519(t)
+        car25519(t)
         for (j in 0 until 2) {
             m[0] = t[0] - 0xffedL
             for (i in 1 until 15) {
@@ -100,15 +102,20 @@ internal object Ed25519Group {
         }
     }
 
-    private fun add(o: LongArray, a: LongArray, b: LongArray) { for (i in 0 until 16) o[i] = a[i] + b[i] }
-    private fun sub(o: LongArray, a: LongArray, b: LongArray) { for (i in 0 until 16) o[i] = a[i] - b[i] }
+    private fun add(o: LongArray, a: LongArray, b: LongArray) {
+        for (i in 0 until 16) o[i] = a[i] + b[i]
+    }
+    private fun sub(o: LongArray, a: LongArray, b: LongArray) {
+        for (i in 0 until 16) o[i] = a[i] - b[i]
+    }
 
     private fun mul(o: LongArray, a: LongArray, b: LongArray) {
         val t = LongArray(31)
         for (i in 0 until 16) for (j in 0 until 16) t[i + j] += a[i] * b[j]
         for (i in 0 until 15) t[i] += 38 * t[i + 16]
         for (i in 0 until 16) o[i] = t[i]
-        car25519(o); car25519(o)
+        car25519(o)
+        car25519(o)
     }
 
     private fun inv25519(o: LongArray, i: LongArray) {
@@ -132,14 +139,33 @@ internal object Ed25519Group {
 
     /** p += q (TweetNaCl `add`). Safe when q === p: all reads of p precede writes. */
     private fun edAdd(p: Array<LongArray>, q: Array<LongArray>) {
-        val a = LongArray(16); val b = LongArray(16); val c = LongArray(16); val d = LongArray(16)
-        val t = LongArray(16); val e = LongArray(16); val f = LongArray(16); val g = LongArray(16); val h = LongArray(16)
-        sub(a, p[1], p[0]); sub(t, q[1], q[0]); mul(a, a, t)
-        add(b, p[0], p[1]); add(t, q[0], q[1]); mul(b, b, t)
-        mul(c, p[3], q[3]); mul(c, c, D2)
-        mul(d, p[2], q[2]); add(d, d, d)
-        sub(e, b, a); sub(f, d, c); add(g, d, c); add(h, b, a)
-        mul(p[0], e, f); mul(p[1], h, g); mul(p[2], g, f); mul(p[3], e, h)
+        val a = LongArray(16)
+        val b = LongArray(16)
+        val c = LongArray(16)
+        val d = LongArray(16)
+        val t = LongArray(16)
+        val e = LongArray(16)
+        val f = LongArray(16)
+        val g = LongArray(16)
+        val h = LongArray(16)
+        sub(a, p[1], p[0])
+        sub(t, q[1], q[0])
+        mul(a, a, t)
+        add(b, p[0], p[1])
+        add(t, q[0], q[1])
+        mul(b, b, t)
+        mul(c, p[3], q[3])
+        mul(c, c, D2)
+        mul(d, p[2], q[2])
+        add(d, d, d)
+        sub(e, b, a)
+        sub(f, d, c)
+        add(g, d, c)
+        add(h, b, a)
+        mul(p[0], e, f)
+        mul(p[1], h, g)
+        mul(p[2], g, f)
+        mul(p[3], e, h)
     }
 
     private fun cswap(p: Array<LongArray>, q: Array<LongArray>, b: Int) {
@@ -148,7 +174,12 @@ internal object Ed25519Group {
 
     private fun scalarMult(p: Array<LongArray>, q: Array<LongArray>, s: ByteArray) {
         // p := identity (0, 1, 1, 0)
-        for (i in 0 until 16) { p[0][i] = 0; p[1][i] = gf1[i]; p[2][i] = gf1[i]; p[3][i] = 0 }
+        for (i in 0 until 16) {
+            p[0][i] = 0
+            p[1][i] = gf1[i]
+            p[2][i] = gf1[i]
+            p[3][i] = 0
+        }
         for (i in 255 downTo 0) {
             val bit = ((s[i ushr 3].toInt() ushr (i and 7)) and 1)
             cswap(p, q, bit)
@@ -160,14 +191,20 @@ internal object Ed25519Group {
 
     private fun scalarBase(p: Array<LongArray>, s: ByteArray) {
         val q = Array(4) { LongArray(16) }
-        for (i in 0 until 16) { q[0][i] = X[i]; q[1][i] = Y[i]; q[2][i] = gf1[i] }
+        for (i in 0 until 16) {
+            q[0][i] = X[i]
+            q[1][i] = Y[i]
+            q[2][i] = gf1[i]
+        }
         mul(q[3], X, Y)
         scalarMult(p, q, s)
     }
 
     private fun pack(r: ByteArray, p: Array<LongArray>) {
-        val zi = LongArray(16); inv25519(zi, p[2])
-        val tx = LongArray(16); val ty = LongArray(16)
+        val zi = LongArray(16)
+        inv25519(zi, p[2])
+        val tx = LongArray(16)
+        val ty = LongArray(16)
         mul(tx, p[0], zi)
         mul(ty, p[1], zi)
         pack25519(r, ty)

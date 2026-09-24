@@ -33,6 +33,7 @@ object Base64Url {
                 sb.append(ALPHABET[(n ushr 18) and 0x3F])
                 sb.append(ALPHABET[(n ushr 12) and 0x3F])
             }
+
             2 -> {
                 val n = ((bytes[i].toInt() and 0xFF) shl 16) or
                     ((bytes[i + 1].toInt() and 0xFF) shl 8)
@@ -71,6 +72,7 @@ object Base64Url {
                 val n = (sym(s[si]) shl 18) or (sym(s[si + 1]) shl 12)
                 out[oi] = (n ushr 16).toByte()
             }
+
             3 -> {
                 val n = (sym(s[si]) shl 18) or (sym(s[si + 1]) shl 12) or (sym(s[si + 2]) shl 6)
                 out[oi] = (n ushr 16).toByte()

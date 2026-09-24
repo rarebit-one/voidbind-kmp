@@ -65,7 +65,8 @@ data class MembershipOp(
     /** What an op does to the membership set. */
     enum class Kind(val wire: String) {
         ADD("add"),
-        REMOVE("remove");
+        REMOVE("remove"),
+        ;
 
         companion object {
             fun fromWire(s: String): Kind? = entries.firstOrNull { it.wire == s }
@@ -103,8 +104,7 @@ data class MembershipOp(
         private val sha256 = CryptographyProvider.Default.get(SHA256).hasher()
 
         /** The id of a token: [HASH_PREFIX] + hex(sha256(token)). */
-        fun hash(token: String): String =
-            HASH_PREFIX + Hex.encode(sha256.hashBlocking(token.encodeToByteArray()))
+        fun hash(token: String): String = HASH_PREFIX + Hex.encode(sha256.hashBlocking(token.encodeToByteArray()))
 
         /**
          * Mint a v3 op signed by [signer] (whose public key is [byPublicKey]) for
@@ -131,7 +131,9 @@ data class MembershipOp(
             issuedAt: Long,
             lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS,
         ): String {
-            val usrRef = try { KeyRef.parse(usr) } catch (e: IllegalArgumentException) {
+            val usrRef = try {
+                KeyRef.parse(usr)
+            } catch (e: IllegalArgumentException) {
                 throw OpException(Failure.MALFORMED, "usr: ${e.message}")
             }
             require(usrRef.alg == Labels.ALG_ED25519 && usrRef.bytes.size == 32) { "usr must be a 32-byte ed25519 key" }
@@ -155,6 +157,7 @@ data class MembershipOp(
                     if (deviceEnc.isNotEmpty()) fields += "denc" to deviceEnc
                     exp = issuedAt + life
                 }
+
                 Kind.REMOVE -> { /* a remove binds no encryption key and never expires */ }
             }
             fields += "by" to by
@@ -202,6 +205,7 @@ data class MembershipOp(
                         expiresAt = obj["exp"] as? Long ?: 0L,
                     )
                 }
+
                 v == VERSION -> {
                     val kindWire = obj["op"] as? String ?: ""
                     val prevRaw = obj["prev"]
@@ -213,10 +217,12 @@ data class MembershipOp(
                     val cosigRaw = obj["cosig"]
                     val cosig = when (cosigRaw) {
                         null, is MiniJson.Null -> emptyList()
+
                         is List<*> -> cosigRaw.map { e ->
                             val m = e as? Map<*, *> ?: throw OpException(Failure.MALFORMED, "cosig entry is not an object")
                             Cosig(m["by"] as? String ?: "", m["sig"] as? String ?: "")
                         }
+
                         else -> throw OpException(Failure.MALFORMED, "cosig is not a list")
                     }
                     MembershipOp(
@@ -231,17 +237,26 @@ data class MembershipOp(
                         expiresAt = obj["exp"] as? Long ?: 0L,
                     )
                 }
+
                 else -> throw OpException(Failure.MALFORMED, "unknown op version $v")
             }
             op.validate()
             // The signature is checked under `by` — the claimed signer. That `by` is a
             // member (or genesis) is Evaluate's job; here we only establish that the
             // holder of `by` signed these bytes.
-            val byPub = try { KeyRef.parse(op.by) } catch (_: IllegalArgumentException) { null }
+            val byPub = try {
+                KeyRef.parse(op.by)
+            } catch (_: IllegalArgumentException) {
+                null
+            }
             if (byPub == null || byPub.alg != Labels.ALG_ED25519 || byPub.bytes.size != 32) {
                 throw OpException(Failure.MALFORMED, "by: unreadable key")
             }
-            val ok = try { verifier.verify(byPub.bytes, body, sig) } catch (_: Throwable) { false }
+            val ok = try {
+                verifier.verify(byPub.bytes, body, sig)
+            } catch (_: Throwable) {
+                false
+            }
             if (!ok) throw OpException(Failure.BAD_SIGNATURE, "membership op signature does not verify")
             return op
         }
@@ -256,7 +271,9 @@ data class MembershipOp(
             val dot = token.indexOf('.')
             if (dot < 0) throw OpException(Failure.MALFORMED, "malformed membership op")
             val body = decodeOrNull(token.substring(0, dot)) ?: throw OpException(Failure.MALFORMED, "payload is not base64url")
-            val obj = try { MiniJson.parseObject(body.decodeToString()) } catch (_: Throwable) {
+            val obj = try {
+                MiniJson.parseObject(body.decodeToString())
+            } catch (_: Throwable) {
                 throw OpException(Failure.MALFORMED, "payload is not JSON")
             }
             val v = (obj["v"] as? Long)?.toInt() ?: 0
@@ -302,8 +319,7 @@ data class MembershipOp(
         }
 
         /** The preimage a cosigner signs: [cosigDomain] followed by the op's [core] bytes. */
-        fun cosigMessage(core: ByteArray): ByteArray =
-            cosigDomain.encodeToByteArray() + core
+        fun cosigMessage(core: ByteArray): ByteArray = cosigDomain.encodeToByteArray() + core
 
         /** Decode a cosig `sig` (base64url, no padding); null if malformed. */
         internal fun decodeSigOrNull(s: String): ByteArray? = decodeOrNull(s)
@@ -322,7 +338,9 @@ data class MembershipOp(
      */
     private fun validate() {
         if (user.isEmpty() || device.isEmpty() || by.isEmpty()) throw OpException(Failure.MALFORMED, "a binding is empty")
-        val usrRef = try { KeyRef.parse(user) } catch (e: IllegalArgumentException) {
+        val usrRef = try {
+            KeyRef.parse(user)
+        } catch (e: IllegalArgumentException) {
             throw OpException(Failure.MALFORMED, "usr: ${e.message}")
         }
         if (usrRef.alg != Labels.ALG_ED25519 || usrRef.bytes.size != 32) throw OpException(Failure.MALFORMED, "usr: not an ed25519 key")
@@ -338,6 +356,7 @@ data class MembershipOp(
             Kind.ADD -> if (expiresAt == 0L || expiresAt <= issuedAt) {
                 throw OpException(Failure.MALFORMED, "an add needs an expiry after its issued-at")
             }
+
             Kind.REMOVE -> {
                 if (expiresAt != 0L) throw OpException(Failure.MALFORMED, "a remove does not expire")
                 if (deviceEnc.isNotEmpty()) throw OpException(Failure.MALFORMED, "a remove binds no encryption key")

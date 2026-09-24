@@ -93,7 +93,9 @@ object Invite {
     }
 
     private fun requireUser(usr: String) {
-        val ref = try { KeyRef.parse(usr) } catch (e: IllegalArgumentException) {
+        val ref = try {
+            KeyRef.parse(usr)
+        } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException("invite user: ${e.message}")
         }
         require(ref.alg == Labels.ALG_ED25519 && ref.bytes.size == 32) { "invite user: not an ed25519 key" }
@@ -113,7 +115,9 @@ object Invite {
                 c.toChar() in 'A'..'Z' || c.toChar() in 'a'..'z' || c.toChar() in '0'..'9' ||
                     c.toChar() == '-' || c.toChar() == '_' || c.toChar() == '.' || c.toChar() == '~' ->
                     out.append(c.toChar())
+
                 c == ' '.code -> out.append('+')
+
                 else -> {
                     out.append('%')
                     out.append(HEX[c ushr 4])
@@ -130,13 +134,23 @@ object Invite {
         var i = 0
         while (i < s.length) {
             when (val c = s[i]) {
-                '+' -> { out.add(' '.code.toByte()); i++ }
+                '+' -> {
+                    out.add(' '.code.toByte())
+                    i++
+                }
+
                 '%' -> {
                     require(i + 2 < s.length) { "truncated percent-escape in invite" }
-                    val hi = hexVal(s[i + 1]); val lo = hexVal(s[i + 2])
-                    out.add(((hi shl 4) or lo).toByte()); i += 3
+                    val hi = hexVal(s[i + 1])
+                    val lo = hexVal(s[i + 2])
+                    out.add(((hi shl 4) or lo).toByte())
+                    i += 3
                 }
-                else -> { out.add(c.code.toByte()); i++ }
+
+                else -> {
+                    out.add(c.code.toByte())
+                    i++
+                }
             }
         }
         return out.toByteArray().decodeToString()

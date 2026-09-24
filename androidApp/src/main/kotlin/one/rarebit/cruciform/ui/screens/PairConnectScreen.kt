@@ -22,11 +22,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -77,7 +77,12 @@ fun PairConnectScreen(
     SecureScreen()
     var localRemaining by remember { mutableIntStateOf(invite.expiresInSeconds) }
     LaunchedEffect(remainingSeconds == null) {
-        if (remainingSeconds == null) while (localRemaining > 0) { delay(1000); localRemaining -= 1 }
+        if (remainingSeconds == null) {
+            while (localRemaining > 0) {
+                delay(1000)
+                localRemaining -= 1
+            }
+        }
     }
     val remaining = remainingSeconds ?: localRemaining
 

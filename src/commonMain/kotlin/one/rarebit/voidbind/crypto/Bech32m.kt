@@ -86,8 +86,7 @@ object Bech32m {
         return IntArray(6) { (mod ushr (5 * (5 - it))) and 31 }
     }
 
-    private fun verifyChecksum(hrp: String, data: IntArray): Boolean =
-        polymod(hrpExpand(hrp) + data) == CONST
+    private fun verifyChecksum(hrp: String, data: IntArray): Boolean = polymod(hrpExpand(hrp) + data) == CONST
 
     /**
      * General power-of-two base conversion (RFC-style `convertbits`).

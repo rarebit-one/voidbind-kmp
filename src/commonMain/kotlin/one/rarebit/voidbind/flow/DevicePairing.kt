@@ -82,10 +82,19 @@ class DevicePairing(
     @Throws(Exception::class)
     fun begin(invite: Invite.Parsed): Handshake {
         val relay = RelayClient(
-            http, invite.relay, invite.session, RelayClient.ROLE_RESPONDER, pollIntervalMillis,
+            http,
+            invite.relay,
+            invite.session,
+            RelayClient.ROLE_RESPONDER,
+            pollIntervalMillis,
         )
         val responder = PairflowResponder(
-            relay, invite.user, device.signPublicKey, device.encPublicKey, invite.salt, clock(),
+            relay,
+            invite.user,
+            device.signPublicKey,
+            device.encPublicKey,
+            invite.salt,
+            clock(),
         )
         return Handshake(responder.handshake(), responder, invite.relay, invite.user)
     }
@@ -98,6 +107,5 @@ class DevicePairing(
      * this device a member. `@Throws` so a delivery/verify failure is catchable in Swift.
      */
     @Throws(Exception::class)
-    fun confirm(handshake: Handshake): Admission =
-        handshake.responder.receive(device.encPrivateKey)
+    fun confirm(handshake: Handshake): Admission = handshake.responder.receive(device.encPrivateKey)
 }

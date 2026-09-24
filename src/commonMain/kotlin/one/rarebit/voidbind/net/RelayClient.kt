@@ -51,8 +51,7 @@ class RelayClient(
 
     private fun peer(): String = if (role == ROLE_INITIATOR) ROLE_RESPONDER else ROLE_INITIATOR
 
-    private fun slotUrl(role: String, type: String) =
-        "${trimr(base)}/v1/sessions/$session/$role/$type"
+    private fun slotUrl(role: String, type: String) = "${trimr(base)}/v1/sessions/$session/$role/$type"
 
     /** Write this role's [type] slot (write-once at the relay). */
     fun post(type: String, payload: ByteArray) {
@@ -68,11 +67,13 @@ class RelayClient(
             val resp = http.get(slotUrl(p, type))
             when (resp.status) {
                 200 -> return resp.body
+
                 404 -> {
                     if (waited >= maxWaitMillis) throw RelayTimeout("relay: timed out waiting for $p/$type")
                     http.sleep(pollIntervalMillis)
                     waited += pollIntervalMillis
                 }
+
                 else -> throw RelayHttpException(resp.status, "fetch $p/$type")
             }
         }
@@ -88,5 +89,4 @@ class RelayTimeout(message: String) : RuntimeException(message)
  * like [WebLoginHttpException], so a flow can classify "reached but refused" apart
  * from "unreachable" (which arrives as whatever the transport throws).
  */
-class RelayHttpException(val status: Int, val op: String) :
-    RuntimeException("relay: $op: HTTP $status")
+class RelayHttpException(val status: Int, val op: String) : RuntimeException("relay: $op: HTTP $status")

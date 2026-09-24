@@ -26,7 +26,10 @@ class DeviceCredentialTest {
     private val devicePub = Cert.parse(cert).cert.device.bytes
 
     private var signCount = 0
-    private val signer = Ed25519Signer { signCount++; Ed25519Engine.sign(seed, it) }
+    private val signer = Ed25519Signer {
+        signCount++
+        Ed25519Engine.sign(seed, it)
+    }
 
     @Test
     fun headerValueMatchesTheGoVector() {

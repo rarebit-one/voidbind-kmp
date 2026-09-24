@@ -93,7 +93,9 @@ class CertTest {
         val denc = json.indexOf("\"denc\"")
         val iat = json.indexOf("\"iat\"")
         val exp = json.indexOf("\"exp\"")
-        assertTrue(vi in 0 until usr && usr < dev && dev < denc && denc < iat && iat < exp,
-            "unexpected field order in $json")
+        assertTrue(
+            vi in 0 until usr && usr < dev && dev < denc && denc < iat && iat < exp,
+            "unexpected field order in $json",
+        )
     }
 }

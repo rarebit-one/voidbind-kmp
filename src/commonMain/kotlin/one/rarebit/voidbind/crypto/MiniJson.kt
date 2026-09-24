@@ -42,9 +42,13 @@ object MiniJson {
     private fun encodeValue(sb: StringBuilder, v: Any) {
         when (v) {
             is String -> encodeString(sb, v)
+
             is Int -> sb.append(v.toString())
+
             is Long -> sb.append(v.toString())
+
             is Boolean -> sb.append(if (v) "true" else "false")
+
             is List<*> -> {
                 // A list of pairs is a nested OBJECT (ordered fields); anything else is an array.
                 if (v.isNotEmpty() && v.all { it is Pair<*, *> && (it as Pair<*, *>).first is String }) {
@@ -58,6 +62,7 @@ object MiniJson {
                     sb.append(']')
                 }
             }
+
             else -> throw IllegalArgumentException("unsupported JSON value type: ${v::class}")
         }
     }
@@ -67,10 +72,15 @@ object MiniJson {
         for (c in s) {
             when (c) {
                 '"' -> sb.append("\\\"")
+
                 '\\' -> sb.append("\\\\")
+
                 '\n' -> sb.append("\\n")
+
                 '\r' -> sb.append("\\r")
+
                 '\t' -> sb.append("\\t")
+
                 else -> if (c.code < 0x20) {
                     sb.append("\\u")
                     val hex = c.code.toString(16)
@@ -108,7 +118,10 @@ object MiniJson {
         fun atEnd(): Boolean = i >= s.length
         fun peek(): Char = if (i < s.length) s[i] else throw IllegalArgumentException("unexpected end of JSON")
         fun next(): Char = peek().also { i++ }
-        fun expect(c: Char) { val n = next(); require(n == c) { "expected '$c', got '$n'" } }
+        fun expect(c: Char) {
+            val n = next()
+            require(n == c) { "expected '$c', got '$n'" }
+        }
 
         fun skipWs() {
             while (i < s.length && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r')) i++
@@ -118,7 +131,10 @@ object MiniJson {
             expect('{')
             val out = LinkedHashMap<String, Any>()
             skipWs()
-            if (peek() == '}') { next(); return out }
+            if (peek() == '}') {
+                next()
+                return out
+            }
             while (true) {
                 skipWs()
                 val key = parseString()
@@ -138,13 +154,31 @@ object MiniJson {
 
         fun parseValue(): Any = when (val c = peek()) {
             '"' -> parseString()
+
             '[' -> parseArray()
+
             '{' -> parseObject()
-            't' -> { literal("true"); true }
-            'f' -> { literal("false"); false }
-            'n' -> { literal("null"); Null }
-            else -> if (c == '-' || c in '0'..'9') parseNumber()
-            else throw IllegalArgumentException("unsupported JSON value starting with '$c'")
+
+            't' -> {
+                literal("true")
+                true
+            }
+
+            'f' -> {
+                literal("false")
+                false
+            }
+
+            'n' -> {
+                literal("null")
+                Null
+            }
+
+            else -> if (c == '-' || c in '0'..'9') {
+                parseNumber()
+            } else {
+                throw IllegalArgumentException("unsupported JSON value starting with '$c'")
+            }
         }
 
         private fun literal(word: String) {
@@ -157,7 +191,10 @@ object MiniJson {
             expect('[')
             val out = ArrayList<Any>()
             skipWs()
-            if (peek() == ']') { next(); return out }
+            if (peek() == ']') {
+                next()
+                return out
+            }
             while (true) {
                 skipWs()
                 out.add(parseValue())
@@ -177,23 +214,34 @@ object MiniJson {
             while (true) {
                 when (val c = next()) {
                     '"' -> return sb.toString()
+
                     '\\' -> when (val e = next()) {
                         '"' -> sb.append('"')
+
                         '\\' -> sb.append('\\')
+
                         '/' -> sb.append('/')
+
                         'n' -> sb.append('\n')
+
                         'r' -> sb.append('\r')
+
                         't' -> sb.append('\t')
+
                         'b' -> sb.append('\b')
+
                         'f' -> sb.append('\u000C')
+
                         'u' -> {
                             require(i + 4 <= s.length) { "truncated \\u escape" }
                             val hex = s.substring(i, i + 4)
                             i += 4
                             sb.append(hex.toInt(16).toChar())
                         }
+
                         else -> throw IllegalArgumentException("bad escape '\\$e'")
                     }
+
                     else -> sb.append(c)
                 }
             }
