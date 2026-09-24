@@ -361,9 +361,10 @@ APK with `apksigner verify --print-certs`, and publishes the Release with
 (`major*10000 + minor*100 + patch`), so neither is ever hand-edited.
 
 The release job first checks the **endpoint defaults** it bakes into `BuildConfig`, read from
-repository variables (none are committed): `CRUCIFORM_DEFAULT_RELAY` and `CRUCIFORM_DEFAULT_NOTIFY`
-are required and must be `https://`, and the job fails before building if either is unset;
-`CRUCIFORM_MEMBERSHIP_RPS` (comma-separated) is optional and only warns. Set them with
+repository variables (none are committed). `CRUCIFORM_DEFAULT_RELAY` and `CRUCIFORM_MEMBERSHIP_RPS`
+(comma-separated) are required, and the job fails before building if either is unset.
+`CRUCIFORM_DEFAULT_NOTIFY` is optional: when it is unset the job only warns, and the build skips
+push registration. Every value must be `https://`. Set them with
 `gh variable set CRUCIFORM_DEFAULT_RELAY -R rarebit-one/voidbind-kmp --body 'https://…'`.
 
 A release build also **forces the hardware-backed device engine** (`USE_DEVICE_ENGINE = true` in the `release` build type, plus `-PdeviceEngine=true` in CI) — the `PreviewVoidbindEngine` is a debug/CI affordance and must never ship in a signed release.
