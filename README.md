@@ -16,14 +16,19 @@ element** (Secure Enclave / StrongBox).
 
 ## Status
 
-Scaffold. The pure-Kotlin domain + JVM target build and test; iOS targets compile;
-the iOS Secure Enclave binding and an Android target are stubbed/pending (see
-[`CLAUDE.md`](CLAUDE.md)).
+In use. `voidbind-client` is published (0.8.0) and consumed by heyarr-kmp. All
+three targets are real. **Android** seals the Ed25519 seed with a StrongBox/TEE
+AndroidKeyStore key. **iOS** seals it with a Secure-Enclave P-256 key through the
+app-provided Swift `SecureEnclaveSealer`. **JVM** is software-only, for dev/test.
+The Cruciform Android app ships as signed release APKs (see "Releases" below). The
+iOS app is a SwiftUI scaffold (see [`iosApp/`](iosApp/README.md)).
 
 ## What's here
 
-Pure-Kotlin (`commonMain`) re-implementations of the voidbind-go wire types — no
-platform APIs, no third-party deps:
+Pure-Kotlin (`commonMain`) re-implementations of the voidbind-go wire types. They
+use no platform APIs. The only third-party dependency is
+[cryptography-kotlin](https://github.com/whyoleg/cryptography-kotlin), for SHA-256,
+HKDF, Ed25519 and X25519. The encodings themselves are hand-written:
 
 - **`RecoverySecret`** — 256-bit account secret as **bech32m** (HRP `heyarr`).
 - **`Cert`** — enrolment cert token `base64url(json).base64url(sig)`, payload
@@ -51,9 +56,10 @@ platform APIs, no third-party deps:
 
 ### Network clients (`net/`)
 
-The wire types above plus an `HttpTransport` seam (a platform supplies the engine;
-`JdkHttpTransport` backs JVM/Android and the tests) drive the live voidbind-go
-services:
+The wire types above plus an `HttpTransport` seam drive the live voidbind-go
+services. A platform supplies the engine: `JdkHttpTransport` (in `jvmMain`) backs
+the JVM and the tests, and the apps bring their own (OkHttp on Android,
+`URLSessionHttpTransport` on iOS):
 
 - **`RelayClient`** — the dumb pairing relay (`POST /v1/sessions`, `PUT`/`GET`
   `/v1/sessions/{id}/{role}/{type}`); `fetch` polls the peer slot.
@@ -140,12 +146,14 @@ coordinators, `LoginQr`/`WebLogin` + the challenge-v2 number-match), **plus** th
 relying-party apps depend on it over the wire instead of re-implementing the login
 seam.
 
-- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.6.0` (Gradle resolves
+- **Coordinates:** `one.rarebit.voidbind:voidbind-client:0.8.0` (Gradle resolves
   the right variant per target: `-jvm`, `-android`, `-iosarm64`,
   `-iossimulatorarm64`).
 - **Registry:** GitHub Packages — `https://maven.pkg.github.com/rarebit-one/voidbind-kmp`
   (private; a read requires a token with `read:packages`).
 - **Published by CI** on a `v*` tag / GitHub Release (`.github/workflows/publish.yml`).
+  The tag must equal `version` in `build.gradle.kts` (`v0.8.0` ↔ `0.8.0`), and the
+  JVM tests run before anything is published.
 
 ### What the artifact does NOT carry (stays per-app)
 
@@ -156,7 +164,8 @@ the library cannot hold:
 - **Android** — call `VoidbindAndroid.init(applicationContext)` once (e.g. in
   `Application.onCreate`) and drive the biometric gate (`BiometricPrompt`) around
   `DeviceKeyStore`/the flow coordinators. The StrongBox/TEE seal itself is in the
-  artifact (`androidMain`); the `Context` + prompt are yours.
+  artifact (`androidMain`); the `Context` + prompt are yours, and so is the
+  `androidx.biometric` dependency (the library does not pull it in).
 - **iOS** — implement the `SecureEnclaveSealer` protocol in Swift (CryptoKit /
   Security) and inject it once via `VoidbindIos.shared.doInit(sealer:)`. (iOS apps
   typically link the `Voidbind.xcframework` — see below — rather than the Maven
@@ -184,7 +193,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 // app/build.gradle.kts — the single dependency line that replaces the login seam
-implementation("one.rarebit.voidbind:voidbind-client:0.2.0")
+implementation("one.rarebit.voidbind:voidbind-client:0.8.0")
 ```
 
 Adding this lets `allthing-android` / `heyarr-mobile` **delete their thin
@@ -300,7 +309,7 @@ val response = DeviceAuthPolicy.execute(credential, statusOf = { it.status }) { 
 
 Requires **JDK 21**. Uses the Gradle wrapper (self-downloads Gradle 8.9 +
 Kotlin 2.3.20). The Android target needs an Android SDK (`ANDROID_HOME` /
-`local.properties`); the iOS targets need the Kotlin/Native toolchain (auto-downloaded on macOS).
+`local.properties`); the iOS targets need the Kotlin/Native toolchain (auto-downloaded on macOS; Apple targets are skipped on Linux).
 
 ```sh
 ./gradlew jvmTest                          # compile + run common + JVM tests
