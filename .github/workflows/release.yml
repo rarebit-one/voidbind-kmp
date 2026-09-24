@@ -41,8 +41,10 @@ jobs:
 
       - name: Resolve the version from the tag
         id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          tag="${{ inputs.tag || github.ref_name }}"
+          tag="${RELEASE_TAG}"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#app-v}" >> "$GITHUB_OUTPUT"
 
