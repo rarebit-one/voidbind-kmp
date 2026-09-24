@@ -122,6 +122,7 @@ sealed interface IdentityState {
         /** This device keeps a (strong-biometric-sealed) copy of the recovery secret. */
         val holdsRecoverySecret: Boolean = false,
         val membership: MembershipHealth = MembershipHealth(),
+        val backup: BackupStatus = BackupStatus(),
     ) : IdentityState
 
     /** Still loading from the keystore. */
@@ -136,6 +137,26 @@ data class RecoveryBackup(
     val rawSecret: String,
     /** Whether this phone also keeps a copy; false means the written copy is the only one. */
     val keptOnDevice: Boolean = false,
+)
+
+/**
+ * Whether the identity's written recovery secret has been checked on this device.
+ * Checking signs nothing: the secret is parsed, its identity derived and compared
+ * (voidbind-go ADR-0010).
+ */
+data class BackupStatus(
+    /** Created on this device and the written secret not yet confirmed: Home asks for it. */
+    val confirmPending: Boolean = false,
+    /** e.g. "Checked 25 Sep 2026"; null when never checked on this device. */
+    val lastCheckedLabel: String? = null,
+    /** The last check was more than a year ago: time for another drill. */
+    val drillDue: Boolean = false,
+)
+
+/** A written recovery secret that matched this identity. */
+data class RecoveryCheck(
+    /** The identity's printable fingerprint (`XXXX XXXX XXXX XXXX`), to compare with paper. */
+    val fingerprint: String,
 )
 
 /**

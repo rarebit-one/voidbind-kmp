@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.VpnKey
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +33,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -96,6 +98,8 @@ fun SettingsScreen(
     onRevoke: (TrustedSite) -> Unit,
     onManageSites: () -> Unit,
     onRecoveryBackup: () -> Unit,
+    onTestRecovery: () -> Unit,
+    onForgetRecovery: () -> Unit,
     onApprovalActivity: () -> Unit,
     onDevices: () -> Unit,
     onAbout: () -> Unit,
@@ -119,6 +123,27 @@ fun SettingsScreen(
     notifyDraft: String = notifyUrl,
     onNotifyDraftChange: (String) -> Unit = {},
 ) {
+    var confirmForget by remember { mutableStateOf(false) }
+    if (confirmForget) {
+        AlertDialog(
+            onDismissRequest = { confirmForget = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmForget = false
+                    onForgetRecovery()
+                }) { Text("Remove", color = VbColors.Coral) }
+            },
+            dismissButton = { TextButton(onClick = { confirmForget = false }) { Text("Cancel") } },
+            title = { Text("Remove the copy on this phone?") },
+            text = {
+                Text(
+                    "Your written recovery secret becomes the only copy. This phone keeps signing in and " +
+                        "renewing itself, but re-admitting a device will need the paper.",
+                )
+            },
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -268,25 +293,57 @@ fun SettingsScreen(
             }
         }
 
-        // Only a device that keeps a copy can re-show it; a paired device never held one.
-        if (state.holdsRecoverySecret) {
-            VSpace(24)
-            SectionLabel("Recovery", color = VbColors.Amber)
-            VSpace(10)
-            VbCard(modifier = Modifier.fillMaxWidth()) {
+        VSpace(24)
+        SectionLabel("Recovery", color = VbColors.Amber)
+        VSpace(10)
+        VbCard(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                // Any device can check the written secret: it only compares identities.
                 RowItem(
-                    title = "Recovery backup",
-                    subtitle = "Re-show your recovery secret",
-                    onClick = onRecoveryBackup,
-                    leading = { IconCircle(Icons.Rounded.VpnKey, tint = VbColors.Amber, background = VbColors.Amber.copy(alpha = 0.12f)) },
-                    trailing = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            StatusPill("Fingerprint or face", accent = VbColors.Amber, leadingIcon = Icons.Rounded.Lock)
-                            HSpace(8)
-                            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Amber)
-                        }
+                    title = "Test recovery secret",
+                    subtitle = when {
+                        state.backup.drillDue -> "${state.backup.lastCheckedLabel} · check it again"
+                        else -> state.backup.lastCheckedLabel ?: "Never checked on this device"
                     },
+                    onClick = onTestRecovery,
+                    leading = { IconCircle(Icons.Rounded.VpnKey, tint = VbColors.Amber, background = VbColors.Amber.copy(alpha = 0.12f)) },
+                    trailing = { Chevron(VbColors.Amber) },
                 )
+                // Only a device that keeps a copy can re-show or remove it.
+                if (state.holdsRecoverySecret) {
+                    VbHairline(Modifier.padding(horizontal = 16.dp))
+                    RowItem(
+                        title = "Recovery backup",
+                        subtitle = "Re-show your recovery secret",
+                        onClick = onRecoveryBackup,
+                        leading = { IconCircle(Icons.Rounded.VpnKey, tint = VbColors.Amber, background = VbColors.Amber.copy(alpha = 0.12f)) },
+                        trailing = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                StatusPill(
+                                    "Fingerprint or face",
+                                    accent = VbColors.Amber,
+                                    leadingIcon = Icons.Rounded.Lock,
+                                )
+                                HSpace(8)
+                                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Amber)
+                            }
+                        },
+                    )
+                    VbHairline(Modifier.padding(horizontal = 16.dp))
+                    RowItem(
+                        title = "Remove the copy on this phone",
+                        subtitle = "Keep only what you wrote down",
+                        onClick = { confirmForget = true },
+                        leading = {
+                            IconCircle(
+                                Icons.Rounded.Lock,
+                                tint = VbColors.Coral,
+                                background = VbColors.Coral.copy(alpha = 0.12f),
+                            )
+                        },
+                        trailing = { Chevron(VbColors.Coral) },
+                    )
+                }
             }
         }
 
@@ -466,4 +523,9 @@ private fun AboutRow(icon: ImageVector, title: String, subtitle: String?, onClic
         leading = { IconCircle(icon, tint = VbColors.Mint, background = VbColors.SurfaceElevated) },
         trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
     )
+}
+
+@Composable
+private fun Chevron(tint: Color) {
+    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = tint)
 }

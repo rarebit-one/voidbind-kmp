@@ -122,6 +122,18 @@ class PreviewVoidbindEngine(
         return EngineResult.Ready(previewDevices.toList())
     }
 
+    override suspend fun verifyRecoverySecret(secret: String): EngineResult<RecoveryCheck> {
+        delay(400)
+        return EngineResult.Ready(RecoveryCheck("PYJI XGNZ K7ZH XHEJ"))
+    }
+
+    override suspend fun confirmBackup(): EngineResult<Unit> = EngineResult.Ready(Unit)
+
+    override suspend fun forgetRecoverySecret(): EngineResult<Unit> {
+        delay(400)
+        return EngineResult.Ready(Unit)
+    }
+
     override suspend fun renewMembership(): EngineResult<Unit> {
         delay(400)
         return EngineResult.Ready(Unit)

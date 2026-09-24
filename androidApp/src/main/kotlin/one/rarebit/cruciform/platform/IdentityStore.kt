@@ -97,6 +97,19 @@ class IdentityStore(
     /** Remove this device's copy of the recovery secret. The written copy is then the only one. */
     fun forgetRecoverySecret() = sealed.delete(SEAL_RECOVERY)
 
+    // --- the written backup (recovery drill, voidbind-go ADR-0010) -----------------
+
+    /** The identity was created here and its written secret is not yet confirmed. */
+    fun markBackupPending() = prefs.edit().putBoolean(KEY_BACKUP_PENDING, true).apply()
+
+    /** The written secret was just checked against this identity, at [at] (unix seconds). */
+    fun markBackupChecked(at: Long) = prefs.edit().remove(KEY_BACKUP_PENDING).putLong(KEY_BACKUP_CHECKED_AT, at).apply()
+
+    fun backupPending(): Boolean = prefs.getBoolean(KEY_BACKUP_PENDING, false)
+
+    /** When the written secret was last checked on this device, or null if never. */
+    fun backupCheckedAt(): Long? = prefs.getLong(KEY_BACKUP_CHECKED_AT, 0L).takeIf { it > 0 }
+
     /**
      * Persist a JOINED device — one admitted by pairing against an existing member.
      * It holds its admitting [op] and the [ops] that authorise it (the replica it
@@ -219,6 +232,8 @@ class IdentityStore(
         const val KEY_DEVICE_NAME = "deviceName"
         const val KEY_BIOMETRIC = "biometric"
         const val KEY_SITES = "sites"
+        const val KEY_BACKUP_PENDING = "backupPending"
+        const val KEY_BACKUP_CHECKED_AT = "backupCheckedAt"
         const val SEAL_ENC = "device-enc"
         const val SEAL_RECOVERY = "recovery"
         const val DEFAULT_DEVICE_NAME = "This device"

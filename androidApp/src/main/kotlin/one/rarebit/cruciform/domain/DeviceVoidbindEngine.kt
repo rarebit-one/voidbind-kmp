@@ -21,6 +21,7 @@ import one.rarebit.voidbind.LoginQr
 import one.rarebit.voidbind.Membership
 import one.rarebit.voidbind.MembershipOp
 import one.rarebit.voidbind.RecoverySecret
+import one.rarebit.voidbind.UserFingerprint
 import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.crypto.Hex
 import one.rarebit.voidbind.crypto.MiniJson
@@ -112,6 +113,7 @@ class DeviceVoidbindEngine(
     // supplies persistence. It records consent AROUND the unchanged hardware signature.
     private val policy = ApprovalPolicyManager(policyStore, policyStore, clock)
     private val renewal = MembershipRenewal(deviceKeys, clock, ::dateLabel)
+    private val recovery = RecoveryCopy(store, biometric, clock, ::dateLabel)
     private val _identity = MutableStateFlow<IdentityState>(IdentityState.Loading)
     override val identity: StateFlow<IdentityState> = _identity.asStateFlow()
 
@@ -134,7 +136,10 @@ class DeviceVoidbindEngine(
     // --- Onboarding -----------------------------------------------------------
 
     override suspend fun createIdentity(): EngineResult<RecoveryBackup> = io("Couldn't create the identity.") {
-        provision(UserIdentity.create()).also { _identity.value = loadState() }
+        provision(UserIdentity.create()).also {
+            store.markBackupPending() // until the user confirms what they wrote down
+            _identity.value = loadState()
+        }
     }
 
     override suspend fun restoreIdentity(recoverySecret: String): EngineResult<Unit> = io(
@@ -143,6 +148,7 @@ class DeviceVoidbindEngine(
         // A mistyped secret throws IllegalArgumentException from the parser; its message
         // (what was wrong with it) is what the Restore screen shows.
         provision(UserIdentity.restore(recoverySecret))
+        store.markBackupChecked(clock()) // they just typed it: the written copy works
         _identity.value = loadState()
     }
 
@@ -159,42 +165,33 @@ class DeviceVoidbindEngine(
         val device = DeviceIdentity(ks.publicKey, enc.publicKey, enc.privateKey) { ks.sign(it) }
         val cert = Enrolment.selfEnrol(user, device, clock())
         store.saveOwner(cert, user.userPublicKey, enc.publicKey, enc.privateKey, defaultDeviceName())
-        val kept = when (biometric.authenticateStrong(KEEP_RECOVERY_TITLE, STRONG_SUBTITLE)) {
-            StrongAuth.SUCCESS -> runCatching { store.keepRecoverySecret(user.recovery.bytes) }.isSuccess
-            StrongAuth.CANCELLED, StrongAuth.UNAVAILABLE -> false
-        }
-        return backup(user.recovery).copy(keptOnDevice = kept)
+        return backup(user.recovery).copy(keptOnDevice = recovery.offerToKeep(user.recovery))
     }
 
     override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> = ioResult("Couldn't show the recovery secret.") {
         check(store.hasUserKey()) { "This device keeps no copy of the recovery secret." }
-        when (val genesis = unsealGenesis("Show recovery secret")) {
+        when (val genesis = recovery.unsealGenesis("Show recovery secret")) {
             is EngineResult.Failed -> genesis
             is EngineResult.Ready -> EngineResult.Ready(backup(genesis.value.recovery).copy(keptOnDevice = true))
         }
     }
 
-    /**
-     * Unseal the kept recovery secret and derive the genesis identity from it, behind a
-     * **strong biometric** — never the screen-lock PIN. Genesis is the one authority
-     * that bypasses the co-signed remove quorum (voidbind-go ADR-0008), so a thief who
-     * knows the PIN must not reach it. The identity is returned for one use and never
-     * cached.
-     */
-    private suspend fun unsealGenesis(title: String): EngineResult<UserIdentity> {
-        val auth = biometric.authenticateStrong(title, STRONG_SUBTITLE)
-        return when (auth) {
-            StrongAuth.CANCELLED -> cancelledFailure()
+    override suspend fun verifyRecoverySecret(secret: String): EngineResult<RecoveryCheck> = ioResult(
+        "That recovery secret could not be read.",
+    ) {
+        val persisted = store.load() ?: return@ioResult internalFailure("No identity on this device.")
+        recovery.verify(secret, persisted).also { _identity.value = loadState() }
+    }
 
-            StrongAuth.UNAVAILABLE -> strongBiometricRequiredFailure()
+    override suspend fun confirmBackup(): EngineResult<Unit> = io("Couldn't record the backup.") {
+        store.markBackupChecked(clock())
+        _identity.value = loadState()
+    }
 
-            StrongAuth.SUCCESS -> store.recoverySecret()
-                ?.let { EngineResult.Ready(UserIdentity.fromSecret(RecoverySecret.of(it))) }
-                ?: internalFailure(
-                    "This phone's copy of the recovery secret is gone — enrolling a new fingerprint " +
-                        "or face erases it. Use your written recovery secret instead.",
-                )
-        }
+    override suspend fun forgetRecoverySecret(): EngineResult<Unit> = ioResult("Couldn't remove the recovery copy.") {
+        val persisted = store.load() ?: return@ioResult internalFailure("No identity on this device.")
+        val lapsed = renewal.health(persisted, deviceKeys.getOrCreate().publicKey).lapsed
+        recovery.forget(lapsed).also { _identity.value = loadState() }
     }
 
     // --- Scanning -------------------------------------------------------------
@@ -586,27 +583,6 @@ class DeviceVoidbindEngine(
         }
     }
 
-    private fun <T> internalFailure(message: String): EngineResult<T> =
-        EngineResult.Failed(EngineFailure(message, EngineFailure.Kind.INTERNAL, retryable = false))
-
-    private fun <T> cancelledFailure(): EngineResult<T> = EngineResult.Failed(CANCELLED_FAILURE)
-
-    /**
-     * A destructive/authority act asked for a strong biometric and this device has
-     * none enrolled. We deliberately do NOT fall back to the screen-lock credential
-     * (that is the exact hole strong-only closes), so the honest answer is to point
-     * the user at recovery. Not retryable — retrying without enrolling a biometric
-     * hits the same wall.
-     */
-    private fun <T> strongBiometricRequiredFailure(): EngineResult<T> = EngineResult.Failed(
-        EngineFailure(
-            "This needs a fingerprint or face unlock — your PIN can't authorise it. " +
-                "Enrol a biometric on this device, or use another device or your recovery secret.",
-            EngineFailure.Kind.INTERNAL,
-            retryable = false,
-        ),
-    )
-
     private fun PairingOutcome.Failed.toEngineFailure(): EngineFailure = EngineFailure(
         message = message,
         kind = when (kind) {
@@ -775,7 +751,7 @@ class DeviceVoidbindEngine(
         return IdentityState.Active(
             identity = Identity(
                 label = persisted.deviceName, // the enrolled/chosen device name — never a leftover tag
-                fingerprint = fingerprint(persisted.userPublicKey),
+                fingerprint = UserFingerprint.of(persisted.userPublicKey),
                 fullKey = one.rarebit.voidbind.KeyRef.ed25519(persisted.userPublicKey).render(),
                 offlineVerifiable = true,
             ),
@@ -796,6 +772,7 @@ class DeviceVoidbindEngine(
             biometricApproval = persisted.biometricApproval,
             holdsRecoverySecret = store.hasUserKey(),
             membership = renewal.health(persisted, devicePub),
+            backup = recovery.status(),
         )
     }
 
@@ -851,7 +828,7 @@ class DeviceVoidbindEngine(
         check(store.hasUserKey()) {
             "This device is no longer a member of the identity, so it can't add devices. Re-admit it from another device, or restore from the recovery secret."
         }
-        return when (val genesis = unsealGenesis("Add a device with your recovery key")) {
+        return when (val genesis = recovery.unsealGenesis("Add a device with your recovery key")) {
             is EngineResult.Failed -> genesis
 
             is EngineResult.Ready -> EngineResult.Ready(
@@ -881,8 +858,6 @@ class DeviceVoidbindEngine(
         return RecoveryBackup(groupedSecret = rendered.chunked(4).joinToString(" "), rawSecret = rendered)
     }
 
-    private fun fingerprint(pub: ByteArray): String = Hex.encode(pub).uppercase().take(12).chunked(4).joinToString(" ")
-
     private fun shortFingerprint(pub: ByteArray): String =
         Hex.encode(pub).uppercase().take(8).chunked(4).joinToString(" ")
 
@@ -910,13 +885,9 @@ class DeviceVoidbindEngine(
         const val INVITE_TTL_SECONDS = 600
 
         private const val PAIRING_FAILED = "Couldn't complete the pairing."
-        private const val KEEP_RECOVERY_TITLE = "Keep a recovery copy on this phone"
-        private const val STRONG_SUBTITLE = "Confirm with your fingerprint or face"
         private const val SIGN_IN_FAILED = "Couldn't complete the sign-in."
         private const val LOGIN_UNREACHABLE = "Couldn't reach the site."
         private const val PUSH_FAILED = "Couldn't register this device for sign-in wake-ups."
-        private val CANCELLED_FAILURE =
-            EngineFailure("Authentication cancelled.", EngineFailure.Kind.CANCELLED, retryable = false)
 
         /**
          * The default pairing relay when Settings holds no override — a build-time value,
