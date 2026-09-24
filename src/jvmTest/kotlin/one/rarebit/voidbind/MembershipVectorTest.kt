@@ -9,7 +9,8 @@ import kotlin.test.assertTrue
 
 /**
  * The cross-implementation PARITY suite for the membership op-set (ADR-0007):
- * voidbind-go's golden vectors, `testdata/vectors/membership/` (v0.9.0, one JSON file per case),
+ * voidbind-go's golden vectors, `testvectors/vectors/membership/` (one JSON file per case,
+ * pinned by `VOIDBIND_GO_REF`),
  * copied verbatim into `src/jvmTest/resources/vectors/membership/` and replayed
  * here byte-for-byte — exactly as `CertTest` pins the cert wire. Each file holds
  * the op TOKENS (in reverse build order, so a naive in-order replay is still

@@ -50,8 +50,10 @@ class UserIdentity private constructor(
 
         /**
          * Mint a BRAND-NEW identity from fresh CSPRNG entropy. The returned
-         * [recovery] secret is shown to the user exactly once and never persisted —
-         * losing it is losing the account (ADR-0021/0022).
+         * [recovery] secret is shown to the user and written down offline — losing
+         * every copy is losing the account (ADR-0021/0022). This library never
+         * persists it; an app that keeps a sealed copy (Cruciform does, behind a
+         * strong biometric) owns that decision.
          */
         fun create(): UserIdentity =
             fromSecret(RecoverySecret.of(CryptographyRandom.Default.nextBytes(Labels.RECOVERY_SECRET_LEN)))

@@ -34,9 +34,18 @@ class RecoverySecret private constructor(val bytes: ByteArray) {
         /** Wrap raw 32 bytes (e.g. freshly generated CSPRNG output). */
         fun of(bytes: ByteArray): RecoverySecret = RecoverySecret(bytes.copyOf())
 
-        /** Parse a bech32m recovery string. Enforces the `heyarr` HRP and 32-byte length. */
+        /**
+         * Parse a bech32m recovery string. Enforces the `heyarr` HRP and 32-byte length.
+         *
+         * Whitespace anywhere is ignored, so the grouped form the secret is displayed
+         * and written down in (`heya rr1q …`, possibly across lines) parses as typed,
+         * and so does the all-uppercase form a QR code carries. Neither can change
+         * which secret is read: whitespace is not in the bech32 alphabet, and case is
+         * folded before the checksum (mixed case is still refused). Mirrors
+         * voidbind-go `recovery.ParseSecret`.
+         */
         fun parse(s: String): RecoverySecret {
-            val decoded = Bech32m.decode(s.trim())
+            val decoded = Bech32m.decode(s.filterNot { it.isWhitespace() })
             require(decoded.hrp == Labels.RECOVERY_HRP) {
                 "wrong HRP: expected '${Labels.RECOVERY_HRP}', got '${decoded.hrp}'"
             }

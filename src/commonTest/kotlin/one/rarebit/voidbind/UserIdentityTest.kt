@@ -3,6 +3,7 @@ package one.rarebit.voidbind
 import one.rarebit.voidbind.crypto.Hex
 import one.rarebit.voidbind.crypto.X25519
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
@@ -58,6 +59,20 @@ class UserIdentityTest {
         val flipped = good.substring(0, i) + (if (good[i] == 'q') 'p' else 'q') + good.substring(i + 1)
         assertNotEquals(good, flipped)
         assertFailsWith<IllegalArgumentException> { UserIdentity.restore(flipped) }
+    }
+
+    @Test
+    fun theGroupedAndUppercaseFormsRestoreTheSameIdentity() {
+        val id = UserIdentity.create()
+        val raw = id.recovery.format()
+        // The backup screen's display form (4-char groups), wrapped across lines as
+        // it would be on paper, and the uppercase form a QR code carries.
+        val grouped = raw.chunked(4).chunked(4).joinToString("\n") { it.joinToString(" ") }
+        for (form in listOf(grouped, raw.uppercase(), grouped.uppercase(), "  $raw\n")) {
+            assertContentEquals(id.userPublicKey, UserIdentity.restore(form).userPublicKey, form)
+        }
+        val mixed = raw.substring(0, raw.length / 2).uppercase() + raw.substring(raw.length / 2)
+        assertFailsWith<IllegalArgumentException> { UserIdentity.restore(mixed) }
     }
 
     @Test
