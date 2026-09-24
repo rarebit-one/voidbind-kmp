@@ -28,3 +28,16 @@ proves the library's `PossessionProof` / `DeviceCredential` bytes are exactly wh
 
 If a value in this file ever has to change to make a test pass, the wire format
 broke — stop and investigate against voidbind-go.
+
+## `typ/` and `membership/typed-*`
+
+These are the token-type (`typ`) vectors from voidbind-go ADR-0009, copied
+verbatim from voidbind-go `testvectors/vectors/` at `VOIDBIND_GO_REF`. See
+`typ/README.md` for the schema.
+
+`TypVectorTest` replays the checks this library can answer
+(`op`/`op_user`/`possession`) at their phase-1 verdicts. It also asserts that
+`Cert.parse` refuses every token Go's cert verifier calls `wrong_type`, and that
+the typed mint paths reproduce Go's typed tokens byte for byte.
+`MembershipVectorTest` picks up the `typed-*` membership cases on its own. They
+include a typed cosigned remove, which fails if `coreBytes` drops `typ`.

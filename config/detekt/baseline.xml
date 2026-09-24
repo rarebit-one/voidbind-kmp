@@ -26,6 +26,7 @@
     <ID>LongParameterList:DeviceAuthorization.kt$DeviceAuthorization$( http: HttpTransport, identity: UserIdentity, clock: () -&gt; Long, certLifetimeSeconds: Long = Enrolment.DEFAULT_LIFETIME_SECONDS, pollIntervalMillis: Long = 150, knownOps: List&lt;String&gt; = emptyList(), maxWaitMillis: Long = RelayClient.DEFAULT_MAX_WAIT_MILLIS, )</ID>
     <ID>LongParameterList:Membership.kt$Membership.View$( val user: String, /** The current device set, by rendered device key. */ val members: Map&lt;String, Member&gt;, /** Every device with an effective remove and no genesis re-add that covers it. */ val removed: Set&lt;String&gt;, /** The frontier of the structurally valid DAG (ops nothing cites), sorted — what a member cites as prev. */ val heads: List&lt;String&gt;, /** Every structurally valid op by hash — the state an RP records and a device replicates. */ val accepted: Map&lt;String, MembershipOp&gt;, /** Structurally invalid tokens by hash (of the raw token) with the reason. */ val rejected: Map&lt;String, String&gt;, /** Accepted ops that change nothing right now, with why. */ val ineffective: Map&lt;String, String&gt;, )</ID>
     <ID>LongParameterList:MembershipOp.kt$MembershipOp.Companion$( signer: Ed25519Signer, byPublicKey: ByteArray, usr: String, kind: Kind, dev: String, deviceEnc: String, prev: List&lt;String&gt;, issuedAt: Long, lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS, )</ID>
+    <ID>LongParameterList:MembershipOp.kt$MembershipOp.Companion$( typ: String, signer: Ed25519Signer, byPublicKey: ByteArray, usr: String, kind: Kind, dev: String, deviceEnc: String, prev: List&lt;String&gt;, issuedAt: Long, lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS, )</ID>
     <ID>LoopWithTooManyJumpStatements:Membership.kt$Membership.Evaluator$for</ID>
     <ID>LoopWithTooManyJumpStatements:MiniJson.kt$MiniJson.Parser$while</ID>
     <ID>MagicNumber:Base64Url.kt$Base64Url$0x3F</ID>
@@ -353,7 +354,7 @@
     <ID>SwallowedException:PossessionProof.kt$PossessionProof$e: Exception</ID>
     <ID>SwallowedException:PossessionProof.kt$PossessionProof$e: IllegalArgumentException</ID>
     <ID>ThrowsCount:MembershipOp.kt$MembershipOp$private fun validate()</ID>
-    <ID>ThrowsCount:MembershipOp.kt$MembershipOp.Companion$fun sign( signer: Ed25519Signer, byPublicKey: ByteArray, usr: String, kind: Kind, dev: String, deviceEnc: String, prev: List&lt;String&gt;, issuedAt: Long, lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS, ): String</ID>
+    <ID>ThrowsCount:MembershipOp.kt$MembershipOp.Companion$internal fun signTyped( typ: String, signer: Ed25519Signer, byPublicKey: ByteArray, usr: String, kind: Kind, dev: String, deviceEnc: String, prev: List&lt;String&gt;, issuedAt: Long, lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS, ): String</ID>
     <ID>ThrowsCount:MembershipOp.kt$MembershipOp.Companion$fun user(rawToken: String): String</ID>
     <ID>ThrowsCount:MembershipOp.kt$MembershipOp.Companion$fun verify(rawToken: String, verifier: Ed25519Verifier = Ed25519Engine.verifier()): MembershipOp</ID>
     <ID>ThrowsCount:OffloadProtocol.kt$OffloadProtocol.Reader$fun field(): ByteArray</ID>

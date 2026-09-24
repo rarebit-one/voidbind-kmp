@@ -20,12 +20,13 @@ import one.rarebit.voidbind.crypto.MiniJson
  * `Device <op>~<proof>` credential and the possession proof's `sha256(token)`
  * binding survive unchanged:
  * ```
- * payload  {v:3, usr, op:"add"|"remove", dev, denc?, by, prev:[opHash…], cosig?:[{by,sig}…], iat, exp?}
+ * payload  {v:3, typ?, usr, op:"add"|"remove", dev, denc?, by, prev:[opHash…], cosig?:[{by,sig}…], iat, exp?}
  * token    b64url(payload) "." b64url(ed25519.Sign(by, payload))
  * hash     "sha256:" hex(sha256(token))
  * ```
  * The payload is compact JSON with the fields in exactly that order (they are
- * signed as-is). `denc`, `cosig` and `exp` are omitted when empty/zero, matching
+ * signed as-is). `typ` (ADR-0009: `voidbind.op`, second after `v`), `denc`, `cosig`
+ * and `exp` are omitted when empty/zero, matching
  * Go's `omitempty`; `prev` is always present (`[]` when empty), sorted and
  * de-duplicated so equal head sets sign to equal bytes.
  *
@@ -61,6 +62,12 @@ data class MembershipOp(
     val issuedAt: Long,
     /** Expiry (unix seconds) for an add; 0 for a remove, which never expires. */
     val expiresAt: Long,
+    /**
+     * The body's ADR-0009 `typ` claim as signed: [TokenType.OP], [TokenType.CERT] (a
+     * cert read as a genesis add), or `""` for an untyped legacy token. It is carried
+     * so that [coreBytes] reproduces the exact signed payload.
+     */
+    val typ: String = "",
 ) {
     /** What an op does to the membership set. */
     enum class Kind(val wire: String) {
@@ -83,10 +90,14 @@ data class MembershipOp(
      * Why an op is refused by [verify]. Distinct because they call for different
      * actions; [Membership.evaluate] maps them onto its `rejected` reasons.
      */
-    enum class Failure { MALFORMED, BAD_SIGNATURE, GENESIS, NO_PREV }
+    enum class Failure { MALFORMED, BAD_SIGNATURE, GENESIS, NO_PREV, WRONG_TYPE }
 
     /** Thrown by [verify] (and [sign]) for an op that is not an op. */
-    class OpException(val failure: Failure, message: String) : IllegalArgumentException(message)
+    class OpException(
+        val failure: Failure,
+        message: String,
+        cause: Throwable? = null,
+    ) : IllegalArgumentException(message, cause)
 
     companion object {
         /** The version prefixing an op payload; v1 and v2 are certs and are reinterpreted. */
@@ -130,6 +141,24 @@ data class MembershipOp(
             prev: List<String>,
             issuedAt: Long,
             lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS,
+        ): String = signTyped("", signer, byPublicKey, usr, kind, dev, deviceEnc, prev, issuedAt, lifetimeSeconds)
+
+        /**
+         * [sign] with an explicit ADR-0009 `typ` (`""` mints the untyped legacy body).
+         * This is the phase-2 emit path. It stays internal until every verifier
+         * accepts `typ`.
+         */
+        internal fun signTyped(
+            typ: String,
+            signer: Ed25519Signer,
+            byPublicKey: ByteArray,
+            usr: String,
+            kind: Kind,
+            dev: String,
+            deviceEnc: String,
+            prev: List<String>,
+            issuedAt: Long,
+            lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS,
         ): String {
             val usrRef = try {
                 KeyRef.parse(usr)
@@ -147,6 +176,7 @@ data class MembershipOp(
 
             val fields = ArrayList<Pair<String, Any>>()
             fields += "v" to VERSION
+            fields += typFields(typ)
             fields += "usr" to usr
             fields += "op" to kind.wire
             fields += "dev" to dev
@@ -189,7 +219,11 @@ data class MembershipOp(
             } catch (_: Throwable) {
                 throw OpException(Failure.MALFORMED, "payload is not JSON")
             }
+            // ADR-0009: an op verifier accepts an op or a cert (a genesis add). Any
+            // other `typ` is refused before the body is read as either.
+            val typ = checkOpTyp(obj)
             val v = (obj["v"] as? Long)?.toInt() ?: throw OpException(Failure.MALFORMED, "no version")
+            if (!TokenType.versionOk(typ, v)) throw OpException(Failure.MALFORMED, "$typ at v$v")
             val usr = obj["usr"] as? String ?: ""
             val op: MembershipOp = when {
                 v in 1 until VERSION -> {
@@ -203,6 +237,7 @@ data class MembershipOp(
                         by = usr, prev = emptyList(), cosig = emptyList(),
                         issuedAt = obj["iat"] as? Long ?: 0L,
                         expiresAt = obj["exp"] as? Long ?: 0L,
+                        typ = typ,
                     )
                 }
 
@@ -235,6 +270,7 @@ data class MembershipOp(
                         cosig = cosig,
                         issuedAt = obj["iat"] as? Long ?: 0L,
                         expiresAt = obj["exp"] as? Long ?: 0L,
+                        typ = typ,
                     )
                 }
 
@@ -276,9 +312,11 @@ data class MembershipOp(
             } catch (_: Throwable) {
                 throw OpException(Failure.MALFORMED, "payload is not JSON")
             }
+            val typ = checkOpTyp(obj)
             val v = (obj["v"] as? Long)?.toInt() ?: 0
             val usr = obj["usr"] as? String ?: ""
-            if (v < 1 || v > VERSION || usr.isEmpty()) throw OpException(Failure.MALFORMED, "malformed membership op")
+            val known = v in 1..VERSION && TokenType.versionOk(typ, v)
+            if (!known || usr.isEmpty()) throw OpException(Failure.MALFORMED, "malformed membership op")
             return usr
         }
 
@@ -302,11 +340,14 @@ data class MembershipOp(
          * core whether it co-signs alone or beside others, and [Membership.evaluate]
          * can reconstruct the exact preimage from a parsed op. Mirrors voidbind-go
          * `enrolment.coreBytes` byte-for-byte (same field order and omitempty rules as
-         * [sign]: `denc`/`exp` omitted when empty/zero, `prev` always present).
+         * [sign]: `typ` second when present (ADR-0009), `denc`/`exp` omitted when
+         * empty/zero, `prev` always present). Leaving `typ` out here would make every
+         * typed cosigned remove under-threshold, and this replica would then diverge.
          */
         fun coreBytes(op: MembershipOp): ByteArray {
             val fields = ArrayList<Pair<String, Any>>()
             fields += "v" to op.version
+            fields += typFields(op.typ)
             fields += "usr" to op.user
             fields += "op" to op.kind.wire
             fields += "dev" to op.device
@@ -365,3 +406,17 @@ data class MembershipOp(
         if (!genesis && prev.isEmpty()) throw OpException(Failure.NO_PREV, "a member-signed op must cite its heads")
     }
 }
+
+/** [TokenType.check] for the op verifiers, mapped onto [MembershipOp.OpException]. */
+private fun checkOpTyp(obj: Map<String, Any>): String = try {
+    TokenType.check(obj, TokenType.OP, TokenType.CERT)
+} catch (e: TokenType.TypeException) {
+    val f = when (e.failure) {
+        TokenType.Failure.WRONG_TYPE -> MembershipOp.Failure.WRONG_TYPE
+        TokenType.Failure.MALFORMED -> MembershipOp.Failure.MALFORMED
+    }
+    throw MembershipOp.OpException(f, e.message ?: "bad typ", e)
+}
+
+/** The ADR-0009 `typ` member (second, after `v`), or nothing for an untyped body. */
+private fun typFields(typ: String): List<Pair<String, Any>> = if (typ.isEmpty()) emptyList() else listOf("typ" to typ)

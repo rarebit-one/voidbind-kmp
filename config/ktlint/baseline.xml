@@ -5,8 +5,8 @@
         <error line="15" column="121" source="standard:function-signature" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/Cert.kt">
-        <error line="83" column="41" source="standard:function-signature" />
-        <error line="85" column="39" source="standard:function-signature" />
+        <error line="96" column="41" source="standard:function-signature" />
+        <error line="98" column="39" source="standard:function-signature" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/DeepLink.kt">
         <error line="1" column="1" source="standard:filename" />
@@ -16,8 +16,8 @@
         <error line="18" column="5" source="standard:class-signature" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/MembershipOp.kt">
-        <error line="286" column="62" source="standard:function-signature" />
-        <error line="296" column="19" source="standard:property-naming" />
+        <error line="324" column="62" source="standard:function-signature" />
+        <error line="334" column="19" source="standard:property-naming" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/UserIdentity.kt">
         <error line="56" column="37" source="standard:function-signature" />
