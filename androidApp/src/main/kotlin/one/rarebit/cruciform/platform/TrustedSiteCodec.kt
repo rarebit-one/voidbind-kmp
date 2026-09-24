@@ -36,14 +36,17 @@ object TrustedSiteCodec {
         if (lines.first() != HEADER) return emptyList() // pre-v1 (undelimited) — see the class doc
         return lines.drop(1).filter { it.isNotBlank() }.mapNotNull { line ->
             val p = line.split(FIELD)
-            if (p.size != FIELDS || p[0].isEmpty()) null
-            else TrustedSite(
-                id = p[0],
-                domain = p[1],
-                appName = p[2],
-                lastUsed = p[3],
-                accent = runCatching { SiteAccent.valueOf(p[4]) }.getOrDefault(SiteAccent.BLUE),
-            )
+            if (p.size != FIELDS || p[0].isEmpty()) {
+                null
+            } else {
+                TrustedSite(
+                    id = p[0],
+                    domain = p[1],
+                    appName = p[2],
+                    lastUsed = p[3],
+                    accent = runCatching { SiteAccent.valueOf(p[4]) }.getOrDefault(SiteAccent.BLUE),
+                )
+            }
         }
     }
 }

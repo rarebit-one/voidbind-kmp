@@ -106,6 +106,7 @@ class PairflowInitiator(
 ) {
     private val signer: Ed25519Signer
     private val signPub: ByteArray
+
     /** Empty for genesis (the recovery key has no encryption key). */
     private val encPub: ByteArray
     private val lifetimeSeconds: Long
@@ -142,6 +143,7 @@ class PairflowInitiator(
                 ops = merged
                 lifetimeSeconds = 0
             }
+
             is PairflowAuthority.Genesis -> {
                 require(authority.publicKey.size == Pairing.ED25519_PUBLIC_KEY_SIZE) { "pairflow: a user identity key is required" }
                 signer = authority.signer

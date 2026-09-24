@@ -34,7 +34,9 @@ object LoginWakeNotifier {
             putExtra(UnifiedPushReceiver.EXTRA_LOGIN_TUPLE, loginTuple)
         }
         val pi = PendingIntent.getActivity(
-            context, NOTIFICATION_ID, open,
+            context,
+            NOTIFICATION_ID,
+            open,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 

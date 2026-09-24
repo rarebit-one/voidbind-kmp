@@ -22,7 +22,9 @@ class RelayClientWaitTest {
         }
         override fun post(url: String, body: ByteArray?, contentType: String?) = HttpResponse(200, ByteArray(0))
         override fun put(url: String, body: ByteArray, contentType: String?) = HttpResponse(204, ByteArray(0))
-        override fun sleep(millis: Long) { sleptMillis += millis }
+        override fun sleep(millis: Long) {
+            sleptMillis += millis
+        }
     }
 
     private fun client(t: HttpTransport, maxWaitMillis: Long) =

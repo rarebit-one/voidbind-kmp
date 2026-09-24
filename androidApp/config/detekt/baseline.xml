@@ -70,6 +70,7 @@
     <ID>InstanceOfCheckForException:InviteCoordinator.kt$InviteCoordinator$t is IllegalArgumentException</ID>
     <ID>InstanceOfCheckForException:InviteCoordinator.kt$InviteCoordinator$t is IllegalStateException</ID>
     <ID>LongMethod:CruciformNavHost.kt$@Composable fun CruciformNavHost( appViewModel: AppViewModel, handoff: Handoff? = null, onHandoffFinished: (Handoff, approved: Boolean) -&gt; Unit = { _, _ -&gt; }, /** * A `cruciform://pair-joined` report from a relying-party app on this phone * (ADR-0008). Handed to the invite coordinator, which checks it against the relay * before anything is shown. */ samePhoneJoin: SamePhoneJoin? = null, /** * The one-tap add is signed and delivered: send the human back to the RP's * `&lt;scheme&gt;://pair-done?session=` landing and finish. `(rpScheme, session)`. */ onSamePhoneDone: (String?, String) -&gt; Unit = { _, _ -&gt; }, /** * The one-tap report was refused (a key or code that disagreed with the relay): * tell the RP through its `pair-done?outcome=refused` leg so it stops waiting. * `(rpScheme, session, reason)`. Cruciform's own failure dialog stays up. */ onSamePhoneRefused: (String?, String, String) -&gt; Unit = { _, _, _ -&gt; }, )</ID>
+    <ID>LongMethod:DevicesScreen.kt$@Composable fun DevicesScreen( devices: List&lt;MemberDevice&gt;, onBack: () -&gt; Unit, onAddDevice: () -&gt; Unit, onRemove: (MemberDevice) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>LongMethod:HomeScreen.kt$@Composable fun HomeScreen( identity: Identity, device: DeviceInfo, trustedSites: List&lt;TrustedSite&gt;, onSettings: () -&gt; Unit, onCopyIdentity: () -&gt; Unit, onDevice: () -&gt; Unit, onDevices: () -&gt; Unit, onSite: (TrustedSite) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>LongMethod:LoginApprovalScreen.kt$@Composable fun LoginApprovalScreen( request: LoginRequest, onDeny: () -&gt; Unit, onApprove: () -&gt; Unit, modifier: Modifier = Modifier, policy: SitePolicyView? = null, onSetAlwaysAsk: (Boolean) -&gt; Unit = {}, )</ID>
     <ID>LongMethod:MainActivity.kt$MainActivity$override fun onCreate(savedInstanceState: Bundle?)</ID>
@@ -286,7 +287,6 @@
     <ID>MaxLineLength:DevicesScreen.kt$Icon(Icons.Rounded.Devices, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(36.dp))</ID>
     <ID>MaxLineLength:DevicesScreen.kt$Icon(Icons.Rounded.Lock, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))</ID>
     <ID>MaxLineLength:DevicesScreen.kt$Text("admitted ${d.admittedLabel} by ${d.admittedByLabel}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)</ID>
-    <ID>MaxLineLength:DevicesScreen.kt$TextButton(onClick = { pendingRemove = null; onRemove(target) }) { Text("Remove", color = VbColors.Coral) }</ID>
     <ID>MaxLineLength:HandoffRouterTest.kt$HandoffRouterTest$val h = HandoffRouter.fromDeepLink(HandoffRouter.ACTION_VIEW, "$invite&amp;callback=myapp%3A%2F%2Fpaired", seq = 3)!!</ID>
     <ID>MaxLineLength:HandoffRouterTest.kt$HandoffRouterTest$val invite = "voidbind:pair?relay=http%3A%2F%2Frelay&amp;salt=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff&amp;session=sess1&amp;usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4&amp;v=3"</ID>
     <ID>MaxLineLength:HandoffRouterTest.kt$HandoffRouterTest$val uri = "voidbind:login?rp=http%3A%2F%2F192.168.16.224%3A7777&amp;id=d0865b8fd4dd6174b0c35e514a0a5e37&amp;callback=heyarr%3A%2F%2Fdone"</ID>
@@ -375,7 +375,6 @@
     <ID>MaxLineLength:RpAppIdentity.kt$RpAppIdentity.Companion$if (refusedFor == null) SamePhonePairCallback.doneUri(s, session) else SamePhonePairCallback.refusedUri(s, session, refusedFor)</ID>
     <ID>MaxLineLength:RpAppIdentity.kt$RpAppIdentity.Companion$return RpAppIdentity(pm.appLabelOrNull(callerPackage) ?: "This app", scheme = null, packageName = callerPackage, icon = icon)</ID>
     <ID>MaxLineLength:RpPairHandoff.kt$RpPairHandoff$if</ID>
-    <ID>MaxLineLength:RpPairHandoffTest.kt$RpPairHandoffTest$if (s[i] == '%') { out.add(s.substring(i + 1, i + 3).toInt(16).toByte()); i += 3 } else { out.add(s[i].code.toByte()); i++ }</ID>
     <ID>MaxLineLength:RpPairManifestQueriesTest.kt$RpPairManifestQueriesTest$return (0 until els.length).mapNotNull { (els.item(it) as org.w3c.dom.Element).getAttributeNS(android, attr).ifEmpty { null } }</ID>
     <ID>MaxLineLength:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$if (outcome != null) append('&amp;').append(PARAM_OUTCOME).append('=').append(RpPairHandoff.percentEncode(outcome))</ID>
     <ID>MaxLineLength:SamePhonePairCallback.kt$SamePhonePairCallback.Companion$if (reason != null) append('&amp;').append(PARAM_REASON).append('=').append(RpPairHandoff.percentEncode(reason))</ID>
@@ -388,7 +387,6 @@
     <ID>MaxLineLength:SamePhonePairCallbackTest.kt$SamePhonePairCallbackTest$assertTrue(SamePhonePairCallback.decide(Joined("s1", dev, "no digits"), "s1", dev, "also none") is Decision.Mismatch)</ID>
     <ID>MaxLineLength:ScanScreen.kt$OutlineButton("Enter code instead", onClick = onEnterManually, accent = VbColors.Mint, leadingIcon = Icons.Rounded.Keyboard)</ID>
     <ID>MaxLineLength:ScanScreen.kt$drawLine(VbColors.Mint, Offset(0f, size.height / 2f), Offset(size.width, size.height / 2f), strokeWidth = 4f)</ID>
-    <ID>MaxLineLength:ScanScreen.kt$l(size.width, size.height, size.width - corner, size.height)</ID>
     <ID>MaxLineLength:ScanScreen.kt$private</ID>
     <ID>MaxLineLength:SettingsScreen.kt$AboutRow(Icons.Rounded.Security, "Security &amp; protocol", "Voidbind protocol · hardware-bound device keys", onSecurity)</ID>
     <ID>MaxLineLength:SettingsScreen.kt$Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Amber)</ID>

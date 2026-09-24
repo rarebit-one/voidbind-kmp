@@ -13,9 +13,8 @@ package one.rarebit.voidbind.crypto
 internal object UrlQuery {
 
     /** Encode key/value pairs as Go's `url.Values.Encode()` does: keys sorted, `k=v&…`. */
-    fun encode(params: List<Pair<String, String>>): String =
-        params.sortedBy { it.first }
-            .joinToString("&") { (k, v) -> "${escape(k)}=${escape(v)}" }
+    fun encode(params: List<Pair<String, String>>): String = params.sortedBy { it.first }
+        .joinToString("&") { (k, v) -> "${escape(k)}=${escape(v)}" }
 
     /** Parse a `k=v&k=v` query into a map, tolerant of key order and `+`/`%XX`. */
     fun decode(query: String): Map<String, String> {
@@ -43,7 +42,9 @@ internal object UrlQuery {
                 c.toChar() in 'A'..'Z' || c.toChar() in 'a'..'z' || c.toChar() in '0'..'9' ||
                     c.toChar() == '-' || c.toChar() == '_' || c.toChar() == '.' || c.toChar() == '~' ->
                     out.append(c.toChar())
+
                 c == ' '.code -> out.append('+')
+
                 else -> {
                     out.append('%')
                     out.append(HEX[c ushr 4])
@@ -60,13 +61,23 @@ internal object UrlQuery {
         var i = 0
         while (i < s.length) {
             when (val c = s[i]) {
-                '+' -> { out.add(' '.code.toByte()); i++ }
+                '+' -> {
+                    out.add(' '.code.toByte())
+                    i++
+                }
+
                 '%' -> {
                     require(i + 2 < s.length) { "truncated percent-escape" }
-                    val hi = hexVal(s[i + 1]); val lo = hexVal(s[i + 2])
-                    out.add(((hi shl 4) or lo).toByte()); i += 3
+                    val hi = hexVal(s[i + 1])
+                    val lo = hexVal(s[i + 2])
+                    out.add(((hi shl 4) or lo).toByte())
+                    i += 3
                 }
-                else -> { out.add(c.code.toByte()); i++ }
+
+                else -> {
+                    out.add(c.code.toByte())
+                    i++
+                }
             }
         }
         return out.toByteArray().decodeToString()

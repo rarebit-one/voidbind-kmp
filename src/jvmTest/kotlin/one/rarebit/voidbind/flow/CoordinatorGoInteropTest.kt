@@ -1,13 +1,5 @@
 package one.rarebit.voidbind.flow
 
-import java.io.File
-import java.net.ServerSocket
-import java.nio.file.Files
-import org.junit.jupiter.api.Assumptions.assumeTrue
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 import one.rarebit.voidbind.DeviceIdentity
 import one.rarebit.voidbind.Ed25519Engine
 import one.rarebit.voidbind.Enrolment
@@ -19,6 +11,14 @@ import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.crypto.Ed25519Group
 import one.rarebit.voidbind.net.JdkHttpTransport
 import one.rarebit.voidbind.net.WebLoginClient
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import java.io.File
+import java.net.ServerSocket
+import java.nio.file.Files
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /**
  * CROSS-LANGUAGE proof for the app-facing COORDINATORS (not just the raw clients):
@@ -41,9 +41,8 @@ import one.rarebit.voidbind.net.WebLoginClient
  */
 class CoordinatorGoInteropTest {
     private val goDir = File(System.getProperty("user.home"), "Workspace/rarebit-one/voidbind-go")
-    private fun goAvailable(): Boolean =
-        goDir.isDirectory && System.getenv("PATH").orEmpty().split(File.pathSeparator)
-            .any { File(it, "go").canExecute() }
+    private fun goAvailable(): Boolean = goDir.isDirectory && System.getenv("PATH").orEmpty().split(File.pathSeparator)
+        .any { File(it, "go").canExecute() }
 
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
@@ -60,7 +59,9 @@ class CoordinatorGoInteropTest {
         val http = JdkHttpTransport()
         val deadline = System.currentTimeMillis() + within
         while (System.currentTimeMillis() < deadline) {
-            try { if (check()) return } catch (_: Exception) {}
+            try {
+                if (check()) return
+            } catch (_: Exception) {}
             http.sleep(100)
         }
         throw IllegalStateException("server not ready within ${within}ms")
@@ -86,7 +87,10 @@ class CoordinatorGoInteropTest {
         var err: Throwable? = null
         val tA = Thread { runCatching { sasInitiator = auth.handshake(invitation) }.onFailure { err = it } }
         val tB = Thread { runCatching { handshake = pairing.begin(invitation.inviteQr) }.onFailure { err = it } }
-        tA.start(); tB.start(); tA.join(20_000); tB.join(20_000)
+        tA.start()
+        tB.start()
+        tA.join(20_000)
+        tB.join(20_000)
         err?.let { throw it }
         return sasInitiator to handshake!!
     }

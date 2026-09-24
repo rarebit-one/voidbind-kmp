@@ -14,7 +14,10 @@ class DeviceAuthPolicyTest {
     private val cert = "eyJ2IjoyfQ.c2ln" // any non-empty cert token: the policy never parses it
     private val g = Ed25519Engine.generate()
     private var signCount = 0
-    private val signer = Ed25519Signer { signCount++; Ed25519Engine.sign(g.privateSeed, it) }
+    private val signer = Ed25519Signer {
+        signCount++
+        Ed25519Engine.sign(g.privateSeed, it)
+    }
 
     private class Resp(val status: Int, val header: String)
 

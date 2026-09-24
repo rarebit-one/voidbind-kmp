@@ -21,7 +21,9 @@ import one.rarebit.voidbind.policy.SitePolicyStore
  * the hardware-sealed [SealedSecretStore]. Records are line-delimited with a unit
  * separator between fields, the same shape as [IdentityStore]'s trusted-sites blob.
  */
-class ApprovalPolicyStore(private val prefs: SharedPreferences) : SitePolicyStore, ApprovalAuditLog {
+class ApprovalPolicyStore(private val prefs: SharedPreferences) :
+    SitePolicyStore,
+    ApprovalAuditLog {
 
     constructor(context: Context) : this(context.getSharedPreferences("voidbind.policy", Context.MODE_PRIVATE))
 
@@ -70,8 +72,7 @@ class ApprovalPolicyStore(private val prefs: SharedPreferences) : SitePolicyStor
         writeAudit(next)
     }
 
-    override fun entries(limit: Int): List<ApprovalAuditEntry> =
-        readAudit().asReversed().take(limit)
+    override fun entries(limit: Int): List<ApprovalAuditEntry> = readAudit().asReversed().take(limit)
 
     private fun readAudit(): List<ApprovalAuditEntry> =
         (prefs.getString(KEY_AUDIT, "") ?: "").split(REC).filter { it.isNotBlank() }.mapNotNull { line ->

@@ -95,10 +95,9 @@ object RpPairHandoff {
      * by scheme (first advert wins) and stably ordered by label so the button order does
      * not jitter between queries. An empty result → the QR / Sharesheet path only.
      */
-    fun targetsFrom(adverts: List<RpHandoffAdvert>): List<RpPairTarget> =
-        adverts.mapNotNull(::targetFrom)
-            .distinctBy { it.scheme }
-            .sortedBy { it.appName.lowercase() }
+    fun targetsFrom(adverts: List<RpHandoffAdvert>): List<RpPairTarget> = adverts.mapNotNull(::targetFrom)
+        .distinctBy { it.scheme }
+        .sortedBy { it.appName.lowercase() }
 
     /**
      * The advert whose package is [callerPackage] — the return leg of the same-phone

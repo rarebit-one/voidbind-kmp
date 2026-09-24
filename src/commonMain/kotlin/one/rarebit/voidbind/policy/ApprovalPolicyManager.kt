@@ -24,16 +24,14 @@ class ApprovalPolicyManager(
     fun policyFor(rp: String): SitePolicy? = policies.get(rp)
 
     /** The effective policy an approval sheet shows: [ApprovalPolicy.AlwaysAsk] for an unseen RP. */
-    fun effectivePolicy(rp: String): ApprovalPolicy =
-        policies.get(rp)?.policy ?: ApprovalPolicy.AlwaysAsk
+    fun effectivePolicy(rp: String): ApprovalPolicy = policies.get(rp)?.policy ?: ApprovalPolicy.AlwaysAsk
 
     /**
      * Whether the full consent sheet must be shown for [rp]. True for a brand-new or
      * always-ask RP; false only once the site is trust-on-first-use. The crypto path
      * (biometric-gated signature) runs regardless — this only governs UI friction.
      */
-    fun requiresConsentSheet(rp: String): Boolean =
-        ApprovalPolicyMachine.requiresConsentSheet(policies.get(rp))
+    fun requiresConsentSheet(rp: String): Boolean = ApprovalPolicyMachine.requiresConsentSheet(policies.get(rp))
 
     /** All remembered site policies (for the Settings trusted-sites view). */
     fun allPolicies(): List<SitePolicy> = policies.all()

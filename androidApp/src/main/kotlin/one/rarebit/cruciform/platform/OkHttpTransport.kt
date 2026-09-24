@@ -18,8 +18,7 @@ class OkHttpTransport(
     private val client: OkHttpClient = defaultClient(),
 ) : HttpTransport {
 
-    override fun get(url: String): HttpResponse =
-        execute(Request.Builder().url(url).get().build())
+    override fun get(url: String): HttpResponse = execute(Request.Builder().url(url).get().build())
 
     override fun post(url: String, body: ByteArray?, contentType: String?): HttpResponse {
         val rb = (body ?: ByteArray(0)).toRequestBody(contentType?.toMediaTypeOrNull())
@@ -46,10 +45,9 @@ class OkHttpTransport(
         }
     }
 
-    private fun execute(request: Request): HttpResponse =
-        client.newCall(request).execute().use { resp ->
-            HttpResponse(resp.code, resp.body?.bytes() ?: ByteArray(0))
-        }
+    private fun execute(request: Request): HttpResponse = client.newCall(request).execute().use { resp ->
+        HttpResponse(resp.code, resp.body?.bytes() ?: ByteArray(0))
+    }
 
     private companion object {
         fun defaultClient(): OkHttpClient = OkHttpClient.Builder()

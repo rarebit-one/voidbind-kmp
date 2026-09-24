@@ -79,18 +79,17 @@ interface BiometricAuthenticator {
 /** Backed by androidx `BiometricPrompt`; must be constructed with a [FragmentActivity]. */
 class AndroidBiometricAuthenticator(private val activity: FragmentActivity) : BiometricAuthenticator {
 
-    override suspend fun authenticate(title: String, subtitle: String): Boolean =
-        withContext(Dispatchers.Main) {
-            suspendCancellableCoroutine { cont ->
-                val prompt = prompt { ok -> if (cont.isActive) cont.resume(ok) }
-                val info = BiometricPrompt.PromptInfo.Builder()
-                    .setTitle(title)
-                    .setSubtitle(subtitle)
-                    .setAllowedAuthenticators(PresencePolicy.ANY)
-                    .build()
-                prompt.authenticate(info)
-            }
+    override suspend fun authenticate(title: String, subtitle: String): Boolean = withContext(Dispatchers.Main) {
+        suspendCancellableCoroutine { cont ->
+            val prompt = prompt { ok -> if (cont.isActive) cont.resume(ok) }
+            val info = BiometricPrompt.PromptInfo.Builder()
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .setAllowedAuthenticators(PresencePolicy.ANY)
+                .build()
+            prompt.authenticate(info)
         }
+    }
 
     override suspend fun authenticateStrong(title: String, subtitle: String): StrongAuth =
         withContext(Dispatchers.Main) {
@@ -102,33 +101,32 @@ class AndroidBiometricAuthenticator(private val activity: FragmentActivity) : Bi
                 .canAuthenticate(PresencePolicy.DESTRUCTIVE) == BiometricManager.BIOMETRIC_SUCCESS
             if (!canStrong) return@withContext StrongAuth.UNAVAILABLE
 
-            suspendCancellableCoroutine { cont ->
-                val prompt = prompt { ok ->
-                    if (cont.isActive) cont.resume(if (ok) StrongAuth.SUCCESS else StrongAuth.CANCELLED)
-                }
-                val info = BiometricPrompt.PromptInfo.Builder()
-                    .setTitle(title)
-                    .setSubtitle(subtitle)
-                    .setAllowedAuthenticators(PresencePolicy.DESTRUCTIVE)
-                    // A negative button is REQUIRED when DEVICE_CREDENTIAL is not among
-                    // the allowed authenticators; without it PromptInfo.build() throws.
-                    .setNegativeButtonText("Cancel")
-                    .setConfirmationRequired(true)
-                    .build()
-                prompt.authenticate(info)
+        suspendCancellableCoroutine { cont ->
+            val prompt = prompt { ok ->
+                if (cont.isActive) cont.resume(if (ok) StrongAuth.SUCCESS else StrongAuth.CANCELLED)
             }
+            val info = BiometricPrompt.PromptInfo.Builder()
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .setAllowedAuthenticators(PresencePolicy.DESTRUCTIVE)
+                // A negative button is REQUIRED when DEVICE_CREDENTIAL is not among
+                // the allowed authenticators; without it PromptInfo.build() throws.
+                .setNegativeButtonText("Cancel")
+                .setConfirmationRequired(true)
+                .build()
+            prompt.authenticate(info)
         }
+    }
 
-    private inline fun prompt(crossinline onDone: (Boolean) -> Unit): BiometricPrompt =
-        BiometricPrompt(
-            activity,
-            ContextCompat.getMainExecutor(activity),
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = onDone(true)
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) = onDone(false)
-                override fun onAuthenticationFailed() {
-                    // A single non-match — keep the prompt open for a retry.
-                }
-            },
-        )
+    private inline fun prompt(crossinline onDone: (Boolean) -> Unit): BiometricPrompt = BiometricPrompt(
+        activity,
+        ContextCompat.getMainExecutor(activity),
+        object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = onDone(true)
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) = onDone(false)
+            override fun onAuthenticationFailed() {
+                // A single non-match — keep the prompt open for a retry.
+            }
+        },
+    )
 }

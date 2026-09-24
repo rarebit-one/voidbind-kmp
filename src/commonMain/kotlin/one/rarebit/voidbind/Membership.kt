@@ -122,9 +122,11 @@ object Membership {
      */
     fun merge(vararg sets: List<String>): List<String> {
         val byHash = HashMap<String, String>()
-        for (set in sets) for (tok in set) {
-            if (tok.isEmpty()) continue
-            byHash[MembershipOp.hash(tok)] = tok
+        for (set in sets) {
+            for (tok in set) {
+                if (tok.isEmpty()) continue
+                byHash[MembershipOp.hash(tok)] = tok
+            }
         }
         return byHash.keys.sorted().map { byHash.getValue(it) }
     }
@@ -141,7 +143,9 @@ object Membership {
         now: Long,
         verifier: Ed25519Verifier = Ed25519Engine.verifier(),
     ): View {
-        val ref = try { KeyRef.parse(usr) } catch (e: IllegalArgumentException) {
+        val ref = try {
+            KeyRef.parse(usr)
+        } catch (e: IllegalArgumentException) {
             throw IllegalArgumentException("an identity (genesis key) is required: ${e.message}")
         }
         require(ref.alg == Labels.ALG_ED25519 && ref.bytes.size == 32) { "an identity (genesis key) is required" }
@@ -373,10 +377,18 @@ object Membership {
             for (cs in op.cosig) {
                 if (cs.by !in members) continue // not a member of the op's closure
                 if (cs.by in signed) continue // op.by re-signing, or a duplicate cosig
-                val pub = try { KeyRef.parse(cs.by) } catch (_: IllegalArgumentException) { null }
+                val pub = try {
+                    KeyRef.parse(cs.by)
+                } catch (_: IllegalArgumentException) {
+                    null
+                }
                 if (pub == null || pub.alg != Labels.ALG_ED25519 || pub.bytes.size != 32) continue
                 val sig = MembershipOp.decodeSigOrNull(cs.sig) ?: continue
-                val ok = try { verifier.verify(pub.bytes, msg, sig) } catch (_: Throwable) { false }
+                val ok = try {
+                    verifier.verify(pub.bytes, msg, sig)
+                } catch (_: Throwable) {
+                    false
+                }
                 if (!ok) continue
                 signed.add(cs.by)
             }
@@ -471,6 +483,7 @@ object Membership {
                         }
                         adds.getOrPut(dev) { ArrayList() }.add(Standing(op))
                     }
+
                     Kind.REMOVE -> {
                         var killed = 0
                         for (s in adds[dev].orEmpty()) {
@@ -490,8 +503,10 @@ object Membership {
                 }
             }
             val live = HashMap<String, MutableList<MembershipOp>>()
-            for ((dev, l) in adds) for (s in l) {
-                if (s.killedBy.isEmpty()) live.getOrPut(dev) { ArrayList() }.add(s.op)
+            for ((dev, l) in adds) {
+                for (s in l) {
+                    if (s.killedBy.isEmpty()) live.getOrPut(dev) { ArrayList() }.add(s.op)
+                }
             }
             for ((dev, l) in removes) {
                 if (live[dev].orEmpty().isEmpty() && l.isNotEmpty()) st.removed.add(dev)

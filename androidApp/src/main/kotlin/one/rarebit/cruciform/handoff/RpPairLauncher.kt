@@ -49,8 +49,7 @@ object RpPairLauncher {
      * validated by [RpPairHandoff.targetsFrom]. The Connect screen shows one button per
      * target and none otherwise.
      */
-    fun resolvable(context: Context): List<RpPairTarget> =
-        RpPairHandoff.targetsFrom(adverts(context))
+    fun resolvable(context: Context): List<RpPairTarget> = RpPairHandoff.targetsFrom(adverts(context))
 
     /**
      * Open [target] with the invite. `FLAG_ACTIVITY_NEW_TASK` so the RP lands in ITS OWN

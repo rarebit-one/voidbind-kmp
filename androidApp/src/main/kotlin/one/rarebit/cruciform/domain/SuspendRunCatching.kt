@@ -10,11 +10,10 @@ import kotlin.coroutines.cancellation.CancellationException
  * had merely failed, and runs its failure branch (an error dialog, a navigation) on a
  * dead composition. Rethrowing lets structured concurrency finish the cancel.
  */
-suspend fun <T> suspendRunCatching(block: suspend () -> T): Result<T> =
-    try {
-        Result.success(block())
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Throwable) {
-        Result.failure(e)
-    }
+suspend fun <T> suspendRunCatching(block: suspend () -> T): Result<T> = try {
+    Result.success(block())
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Throwable) {
+    Result.failure(e)
+}

@@ -1,14 +1,14 @@
 package one.rarebit.voidbind.offload
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 import one.rarebit.voidbind.Ed25519Engine
 import one.rarebit.voidbind.Pairing
 import one.rarebit.voidbind.crypto.Hex
 import one.rarebit.voidbind.crypto.MiniJson
 import one.rarebit.voidbind.crypto.VoidbindEncryption
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /**
  * The cross-implementation PARITY suite for the cruciform-offload wire (ADR-0098):
@@ -86,7 +86,10 @@ class OffloadVectorTest {
         assertEquals(v.str("signing_input_hex"), Hex.encode(input), "response signing input must match Go")
 
         val resp = OffloadProtocol.verifyResponse(
-            Ed25519Engine.verifier(), v.bytes("phone_pub_hex"), v.bytes("nonce_hex"), v.bytes("response_hex"),
+            Ed25519Engine.verifier(),
+            v.bytes("phone_pub_hex"),
+            v.bytes("nonce_hex"),
+            v.bytes("response_hex"),
         )
         assertTrue(resp.sealed.contentEquals(v.bytes("sealed_hex")))
     }

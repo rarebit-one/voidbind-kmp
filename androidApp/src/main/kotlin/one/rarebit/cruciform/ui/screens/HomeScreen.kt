@@ -35,6 +35,7 @@ import one.rarebit.cruciform.domain.DeviceInfo
 import one.rarebit.cruciform.domain.HardwareBacking
 import one.rarebit.cruciform.domain.Identity
 import one.rarebit.cruciform.domain.TrustedSite
+import one.rarebit.cruciform.ui.components.CruciformMark
 import one.rarebit.cruciform.ui.components.HSpace
 import one.rarebit.cruciform.ui.components.IconCircle
 import one.rarebit.cruciform.ui.components.IdentityFingerprint
@@ -46,7 +47,6 @@ import one.rarebit.cruciform.ui.components.StatusPill
 import one.rarebit.cruciform.ui.components.VSpace
 import one.rarebit.cruciform.ui.components.VbCard
 import one.rarebit.cruciform.ui.components.VbHairline
-import one.rarebit.cruciform.ui.components.CruciformMark
 import one.rarebit.cruciform.ui.components.WashCard
 import one.rarebit.cruciform.ui.theme.VbColors
 import one.rarebit.cruciform.ui.theme.VbType

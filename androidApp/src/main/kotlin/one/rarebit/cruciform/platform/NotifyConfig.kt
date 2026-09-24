@@ -42,6 +42,5 @@ object NotifyConfig {
         RelayConfig.validateBase(input, noun = "push plane", example = EXAMPLE_NOTIFY)
 
     /** `validate(input)` as a nullable normalised URL, for callers that only need go/no-go. */
-    fun normalizeOrNull(input: String): String? =
-        (validate(input) as? RelayConfig.Validation.Valid)?.url
+    fun normalizeOrNull(input: String): String? = (validate(input) as? RelayConfig.Validation.Valid)?.url
 }

@@ -28,11 +28,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -181,9 +181,13 @@ private fun PolicyControl(policy: SitePolicyView, onSetAlwaysAsk: (Boolean) -> U
                 Column(Modifier.weight(1f)) {
                     Text("Always ask", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
                     Text(
-                        if (policy.pinnedAlwaysAsk) "Full review every time (pinned)"
-                        else if (policy.trusted) "Trusted — streamlined next time"
-                        else "Review this site every time",
+                        if (policy.pinnedAlwaysAsk) {
+                            "Full review every time (pinned)"
+                        } else if (policy.trusted) {
+                            "Trusted — streamlined next time"
+                        } else {
+                            "Review this site every time"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = VbColors.TextSecondary,
                     )

@@ -107,10 +107,14 @@ fun ScanScreen(
                 fun l(x1: Float, y1: Float, x2: Float, y2: Float) =
                     drawLine(VbColors.Blue, Offset(x1, y1), Offset(x2, y2), strokeWidth = sw)
                 // corner brackets
-                l(0f, 0f, corner, 0f); l(0f, 0f, 0f, corner)
-                l(size.width, 0f, size.width - corner, 0f); l(size.width, 0f, size.width, corner)
-                l(0f, size.height, corner, size.height); l(0f, size.height, 0f, size.height - corner)
-                l(size.width, size.height, size.width - corner, size.height); l(size.width, size.height, size.width, size.height - corner)
+                l(0f, 0f, corner, 0f)
+                l(0f, 0f, 0f, corner)
+                l(size.width, 0f, size.width - corner, 0f)
+                l(size.width, 0f, size.width, corner)
+                l(0f, size.height, corner, size.height)
+                l(0f, size.height, 0f, size.height - corner)
+                l(size.width, size.height, size.width - corner, size.height)
+                l(size.width, size.height, size.width, size.height - corner)
                 // scan line
                 drawLine(VbColors.Mint, Offset(0f, size.height / 2f), Offset(size.width, size.height / 2f), strokeWidth = 4f)
             }

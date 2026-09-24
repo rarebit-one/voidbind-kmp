@@ -61,7 +61,10 @@ fun DevicesScreen(
         AlertDialog(
             onDismissRequest = { pendingRemove = null },
             confirmButton = {
-                TextButton(onClick = { pendingRemove = null; onRemove(target) }) { Text("Remove", color = VbColors.Coral) }
+                TextButton(onClick = {
+                    pendingRemove = null
+                    onRemove(target)
+                }) { Text("Remove", color = VbColors.Coral) }
             },
             dismissButton = { TextButton(onClick = { pendingRemove = null }) { Text("Cancel") } },
             title = { Text("Remove ${target.fingerprint}?") },

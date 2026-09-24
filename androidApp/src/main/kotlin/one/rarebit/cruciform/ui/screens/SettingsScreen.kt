@@ -9,21 +9,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Hub
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.VpnKey
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,7 +55,7 @@ import one.rarebit.cruciform.domain.IdentityState
 import one.rarebit.cruciform.domain.TrustedSite
 import one.rarebit.cruciform.platform.NotifyConfig
 import one.rarebit.cruciform.platform.RelayConfig
-import one.rarebit.voidbind.policy.ApprovalPolicy
+import one.rarebit.cruciform.ui.components.CruciformMark
 import one.rarebit.cruciform.ui.components.HSpace
 import one.rarebit.cruciform.ui.components.IconCircle
 import one.rarebit.cruciform.ui.components.OutlineButton
@@ -68,9 +68,9 @@ import one.rarebit.cruciform.ui.components.StatusPill
 import one.rarebit.cruciform.ui.components.VSpace
 import one.rarebit.cruciform.ui.components.VbCard
 import one.rarebit.cruciform.ui.components.VbHairline
-import one.rarebit.cruciform.ui.components.CruciformMark
 import one.rarebit.cruciform.ui.theme.VbColors
 import one.rarebit.cruciform.ui.theme.VbType
+import one.rarebit.voidbind.policy.ApprovalPolicy
 
 /**
  * Settings (Mockup 8): identity header, device, pairing relay, trusted sites, recovery,

@@ -2,6 +2,12 @@ package one.rarebit.voidbind.net
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import one.rarebit.voidbind.Ed25519Engine
+import one.rarebit.voidbind.KeyRef
+import one.rarebit.voidbind.Pairing
+import one.rarebit.voidbind.WebLogin
+import one.rarebit.voidbind.crypto.Base64Url
+import one.rarebit.voidbind.crypto.MiniJson
 import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.AfterTest
@@ -9,12 +15,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import one.rarebit.voidbind.Ed25519Engine
-import one.rarebit.voidbind.KeyRef
-import one.rarebit.voidbind.Pairing
-import one.rarebit.voidbind.WebLogin
-import one.rarebit.voidbind.crypto.Base64Url
-import one.rarebit.voidbind.crypto.MiniJson
 
 /**
  * CI-safe coverage of the network clients: a faithful in-JVM mock of the
@@ -29,6 +29,7 @@ class NetworkClientsTest {
 
     // relay state: "id/role/type" -> bytes
     private val slots = ConcurrentHashMap<String, ByteArray>()
+
     // weblogin state
     private val approved = ConcurrentHashMap<String, Boolean>()
 
@@ -46,8 +47,11 @@ class NetworkClientsTest {
 
     private fun body(ex: HttpExchange): ByteArray = ex.requestBody.readBytes()
     private fun send(ex: HttpExchange, code: Int, b: ByteArray = ByteArray(0)) {
-        if (b.isEmpty()) ex.sendResponseHeaders(code, -1) else {
-            ex.sendResponseHeaders(code, b.size.toLong()); ex.responseBody.use { it.write(b) }
+        if (b.isEmpty()) {
+            ex.sendResponseHeaders(code, -1)
+        } else {
+            ex.sendResponseHeaders(code, b.size.toLong())
+            ex.responseBody.use { it.write(b) }
         }
         ex.close()
     }
@@ -57,6 +61,7 @@ class NetworkClientsTest {
         val m = ex.requestMethod
         when {
             m == "POST" && p == "/v1/sessions" -> send(ex, 200, """{"session_id":"s1"}""".encodeToByteArray())
+
             p.startsWith("/v1/sessions/") -> {
                 val key = p.removePrefix("/v1/sessions/") // id/role/type
                 if (m == "PUT") {
@@ -66,23 +71,28 @@ class NetworkClientsTest {
                     if (v == null) send(ex, 404) else send(ex, 200, v)
                 }
             }
+
             m == "POST" && p == "/login" ->
                 send(ex, 200, """{"id":"L1","qr":"voidbind:login?rp=$base&id=L1"}""".encodeToByteArray())
+
             p == "/login/L1/challenge" -> {
                 val nonce = Base64Url.encode(ByteArray(32) { 0x11 })
                 send(ex, 200, """{"id":"L1","nonce":"$nonce","audience":"aud","expires_at":4102444800}""".encodeToByteArray())
             }
+
             m == "POST" && p == "/login/L1/approve" -> {
                 val o = MiniJson.parseObject(body(ex).decodeToString())
                 // record that a well-formed assertion arrived
                 approved["L1"] = (o["cert"] as? String)?.isNotEmpty() == true && (o["sig"] as? String)?.isNotEmpty() == true
                 send(ex, if (approved["L1"] == true) 204 else 401)
             }
+
             p == "/login/L1" -> {
                 val ok = approved["L1"] == true
                 val j = if (ok) """{"status":"approved","token":"TOK123","user":"ed25519:aa"}""" else """{"status":"pending"}"""
                 send(ex, 200, j.encodeToByteArray())
             }
+
             else -> send(ex, 404)
         }
     }
@@ -102,14 +112,19 @@ class NetworkClientsTest {
         val initiator = PairflowInitiator(
             initRelay,
             PairflowAuthority.Genesis({ Ed25519Engine.sign(user.privateSeed, it) }, user.publicKey, emptyList(), 7_776_000L),
-            salt, 1_724_700_000L,
+            salt,
+            1_724_700_000L,
         )
         val responder = PairflowResponder(respRelay, KeyRef.ed25519(user.publicKey).render(), dev.publicKey, devEnc, salt, 1_724_700_000L)
 
-        var sasInit = ""; var sasResp = ""
+        var sasInit = ""
+        var sasResp = ""
         val ti = Thread { sasInit = initiator.handshake() }
         val tr = Thread { sasResp = responder.handshake() }
-        ti.start(); tr.start(); ti.join(10_000); tr.join(10_000)
+        ti.start()
+        tr.start()
+        ti.join(10_000)
+        tr.join(10_000)
 
         assertEquals(sasInit, sasResp, "SAS must match over the relay")
         assertEquals(Pairing.DIGITS, sasInit.length)

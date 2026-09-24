@@ -58,19 +58,17 @@ object PossessionProof {
     private val sha256 = CryptographyProvider.Default.get(SHA256).hasher()
 
     /** `base64url(sha256(certToken))` — the `crt` field, computed over the token's UTF-8 bytes. */
-    fun certHash(certToken: String): String =
-        Base64Url.encode(sha256.hashBlocking(certToken.encodeToByteArray()))
+    fun certHash(certToken: String): String = Base64Url.encode(sha256.hashBlocking(certToken.encodeToByteArray()))
 
     /** The exact JSON bytes the device signs: `{"v":2,"crt":…,"iat":…,"exp":…}`. */
-    fun signingBytes(certToken: String, issuedAt: Long, expiresAt: Long): ByteArray =
-        MiniJson.encodeObject(
-            listOf(
-                "v" to VERSION,
-                "crt" to certHash(certToken),
-                "iat" to issuedAt,
-                "exp" to expiresAt,
-            ),
-        ).encodeToByteArray()
+    fun signingBytes(certToken: String, issuedAt: Long, expiresAt: Long): ByteArray = MiniJson.encodeObject(
+        listOf(
+            "v" to VERSION,
+            "crt" to certHash(certToken),
+            "iat" to issuedAt,
+            "exp" to expiresAt,
+        ),
+    ).encodeToByteArray()
 
     /**
      * Mint a proof over [certToken] issued at [now] (unix seconds) for [ttlSeconds],

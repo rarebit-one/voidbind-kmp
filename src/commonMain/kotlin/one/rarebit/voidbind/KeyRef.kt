@@ -15,8 +15,7 @@ data class KeyRef(val alg: String, val bytes: ByteArray) {
 
     override fun toString(): String = render()
 
-    override fun equals(other: Any?): Boolean =
-        other is KeyRef && alg == other.alg && bytes.contentEquals(other.bytes)
+    override fun equals(other: Any?): Boolean = other is KeyRef && alg == other.alg && bytes.contentEquals(other.bytes)
 
     override fun hashCode(): Int = 31 * alg.hashCode() + bytes.contentHashCode()
 
