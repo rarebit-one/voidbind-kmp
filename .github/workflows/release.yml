@@ -45,6 +45,50 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#app-v}" >> "$GITHUB_OUTPUT"
 
+      # Endpoint defaults baked into BuildConfig (androidApp/build.gradle.kts). None are
+      # committed, so a release gets them from repository VARIABLES (not secrets: they
+      # are URLs the APK ships in plain sight). Fail here, before the build, rather than
+      # publish an APK with no relay to pair through or no RP to push membership to.
+      # CRUCIFORM_DEFAULT_NOTIFY is optional: without it the app skips push registration.
+      # Every value must be https:// (release builds block cleartext; the gradle
+      # preReleaseBuild check would reject it later anyway).
+      - name: Require the release endpoint variables
+        env:
+          CRUCIFORM_DEFAULT_RELAY: ${{ vars.CRUCIFORM_DEFAULT_RELAY }}
+          CRUCIFORM_DEFAULT_NOTIFY: ${{ vars.CRUCIFORM_DEFAULT_NOTIFY }}
+          CRUCIFORM_MEMBERSHIP_RPS: ${{ vars.CRUCIFORM_MEMBERSHIP_RPS }}
+        run: |
+          fail=0
+          trim() { local v="$1"; v="${v#"${v%%[![:space:]]*}"}"; printf '%s' "${v%"${v##*[![:space:]]}"}"; }
+          check_https() { # name value
+            local url
+            IFS=',' read -ra urls <<< "$2"
+            for url in "${urls[@]}"; do
+              url="$(trim "$url")"
+              [ -z "$url" ] && continue
+              if [[ "$url" != https://* ]]; then
+                echo "::error title=Insecure release variable::Repository variable $1 must contain only https:// URLs (release builds block cleartext)."
+                fail=1
+              fi
+            done
+          }
+          for name in CRUCIFORM_DEFAULT_RELAY CRUCIFORM_MEMBERSHIP_RPS; do
+            value="$(trim "${!name}")"
+            if [ -z "$value" ] || [ -z "$(trim "${value//,/}")" ]; then
+              echo "::error title=Missing release variable::Repository variable $name is not set. Set it with: gh variable set $name -R ${{ github.repository }} --body 'https://...'"
+              fail=1
+            else
+              check_https "$name" "$value"
+            fi
+          done
+          notify="$(trim "$CRUCIFORM_DEFAULT_NOTIFY")"
+          if [ -z "$notify" ]; then
+            echo "::warning title=No push plane::CRUCIFORM_DEFAULT_NOTIFY is not set; this release build will skip push registration."
+          else
+            check_https CRUCIFORM_DEFAULT_NOTIFY "$notify"
+          fi
+          exit "$fail"
+
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
@@ -66,6 +110,9 @@ jobs:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          CRUCIFORM_DEFAULT_RELAY: ${{ vars.CRUCIFORM_DEFAULT_RELAY }}
+          CRUCIFORM_DEFAULT_NOTIFY: ${{ vars.CRUCIFORM_DEFAULT_NOTIFY }}
+          CRUCIFORM_MEMBERSHIP_RPS: ${{ vars.CRUCIFORM_MEMBERSHIP_RPS }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
