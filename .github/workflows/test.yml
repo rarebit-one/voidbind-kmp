@@ -25,6 +25,30 @@ jobs:
       - name: gradle jvmTest + android compile
         run: ./gradlew jvmTest compileReleaseKotlinAndroid --no-daemon --stacktrace
 
+  # voidbind-go is the single source of truth for the protocol golden vectors
+  # (its `testvectors` package). The copies under src/jvmTest/resources/vectors/
+  # must match voidbind-go's testvectors/vectors/ byte-for-byte at the commit
+  # pinned in VOIDBIND_GO_REF, so a hand-edit or a stale copy fails here rather
+  # than letting the port silently agree with itself. Plain git (no extra
+  # action to pin); voidbind-go is private, so it reads with the org PAT.
+  vector-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: diff vectors against voidbind-go at the pinned ref
+        env:
+          VOIDBIND_GO_TOKEN: ${{ secrets.AUTOLAND_PAT }}
+        run: |
+          if [ -z "$VOIDBIND_GO_TOKEN" ]; then
+            # Fork PRs get no secrets and cannot read the private voidbind-go;
+            # the check still runs on every same-repo PR and on push to main.
+            echo "::warning::no voidbind-go token (fork PR?); skipping the vector drift check"
+            exit 0
+          fi
+          scripts/check-vector-drift.sh
+
   # The first-party Android authenticator app (Compose UI). Device behaviour
   # (StrongBox non-extractability, biometric gating) is device-tested per
   # docs/DEVICE-TESTING.md, not here — this job proves the app module compiles and
