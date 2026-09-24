@@ -40,7 +40,7 @@ struct SettingsView: View {
                         subtitle: "Your recovery secret still restores the account",
                         tint: VB.danger) { confirmSignOut = true }
                 }
-                Text("Voidbind • self-sovereign identity\nNo account, no password, no server.")
+                Text("Cruciform • Voidbind protocol\nNo account, no password, no server.")
                     .font(VB.rounded(12)).foregroundStyle(VB.textFaint)
                     .multilineTextAlignment(.center).padding(.top, 8)
             }

@@ -252,6 +252,6 @@ class MainActivity : FragmentActivity() {
     }
 
     private companion object {
-        const val TAG = "VoidbindHandoff"
+        const val TAG = "CruciformHandoff"
     }
 }

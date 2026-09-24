@@ -14,7 +14,7 @@ import Voidbind
 /// > iosApp/README.md). The biometric/Secure-Enclave paths still need a real
 /// > device (docs/DEVICE-TESTING.md).
 @main
-struct VoidbindApp: App {
+struct Cruciform: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {
