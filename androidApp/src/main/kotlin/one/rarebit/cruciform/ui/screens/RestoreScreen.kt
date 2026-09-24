@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import one.rarebit.cruciform.domain.EngineResult
 import one.rarebit.cruciform.ui.components.AppTopBar
 import one.rarebit.cruciform.ui.components.PrimaryButton
 import one.rarebit.cruciform.ui.components.ScreenPadding
@@ -30,13 +31,13 @@ import one.rarebit.cruciform.ui.theme.VbColors
 
 /**
  * Restore an identity from a recovery secret. The library refuses a mistyped
- * secret at the bech32m checksum (UserIdentity.restore throws), which surfaces here
+ * secret at the bech32m checksum (the engine returns it as a Failed), which surfaces here
  * as an inline error — nothing is provisioned until it parses.
  */
 @Composable
 fun RestoreScreen(
     onBack: () -> Unit,
-    onRestore: suspend (String) -> Unit,
+    onRestore: suspend (String) -> EngineResult<Unit>,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -63,7 +64,10 @@ fun RestoreScreen(
             VSpace(20)
             OutlinedTextField(
                 value = secret,
-                onValueChange = { secret = it; error = null },
+                onValueChange = {
+                    secret = it
+                    error = null
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Recovery secret") },
                 placeholder = { Text("heyarr1…") },
@@ -90,11 +94,13 @@ fun RestoreScreen(
                     busy = true
                     error = null
                     scope.launch {
+                        // The engine returns every failure as a value (a mistyped secret says
+                        // what was wrong with it); only a cancellation unwinds past here.
                         try {
-                            onRestore(secret.trim())
-                            onDone()
-                        } catch (e: Throwable) {
-                            error = e.message ?: "That recovery secret could not be read."
+                            when (val result = onRestore(secret.trim())) {
+                                is EngineResult.Ready -> onDone()
+                                is EngineResult.Failed -> error = result.failure.message
+                            }
                         } finally {
                             busy = false
                         }

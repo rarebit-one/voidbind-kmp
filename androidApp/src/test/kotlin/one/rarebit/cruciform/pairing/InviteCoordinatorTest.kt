@@ -16,7 +16,7 @@ import one.rarebit.cruciform.domain.ApprovalActivity
 import one.rarebit.cruciform.domain.EngineFailure
 import one.rarebit.cruciform.domain.EngineResult
 import one.rarebit.cruciform.domain.IdentityState
-import one.rarebit.cruciform.domain.LoginRequestResult
+import one.rarebit.cruciform.domain.LoginRequest
 import one.rarebit.cruciform.domain.MemberDevice
 import one.rarebit.cruciform.domain.PairInviteDisplay
 import one.rarebit.cruciform.domain.PairSession
@@ -45,43 +45,56 @@ class InviteCoordinatorTest {
         var mintResult: EngineResult<PairInviteDisplay> = EngineResult.Ready(
             PairInviteDisplay("INV · AAAA BBBB", "voidbind:pair?v=3&session=s1", 600, session = "s1"),
         )
+
         /** Completed by the test to "join" the new device (or fail the wait). */
         var handshake = CompletableDeferred<EngineResult<PairSession>>()
         var confirmResult: EngineResult<Unit> = EngineResult.Ready(Unit)
 
-        override suspend fun startPairInvite(): EngineResult<PairInviteDisplay> { mints++; return mintResult }
+        override suspend fun startPairInvite(): EngineResult<PairInviteDisplay> {
+            mints++
+            return mintResult
+        }
         override suspend fun awaitPairHandshake(): EngineResult<PairSession> = handshake.await()
-        override suspend fun confirmPairing(): EngineResult<Unit> { confirms++; return confirmResult }
+        override suspend fun confirmPairing(): EngineResult<Unit> {
+            confirms++
+            return confirmResult
+        }
 
         // Unused by the coordinator.
         override val identity: StateFlow<IdentityState> = MutableStateFlow(IdentityState.Loading)
-        override suspend fun refresh() {}
-        override suspend fun createIdentity(): RecoveryBackup = error("unused")
-        override suspend fun restoreIdentity(recoverySecret: String) {}
-        override suspend fun revealRecoverySecret(): RecoveryBackup = error("unused")
+        override suspend fun refresh(): EngineResult<Unit> = EngineResult.Ready(Unit)
+        override suspend fun createIdentity(): EngineResult<RecoveryBackup> = error("unused")
+        override suspend fun restoreIdentity(recoverySecret: String): EngineResult<Unit> = error("unused")
+        override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> = error("unused")
         override fun parseScanned(raw: String): ScannedCode = ScannedCode.Unknown(raw)
-        override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequestResult = error("unused")
-        override suspend fun approveLogin(code: ScannedCode.WebLogin) {}
-        override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int) {}
-        override suspend fun denyLogin() {}
-        override suspend fun registerForPush(endpoint: String) = false
-        override suspend fun unregisterFromPush() {}
+        override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): EngineResult<LoginRequest> = error("unused")
+        override suspend fun approveLogin(code: ScannedCode.WebLogin): EngineResult<Unit> = error("unused")
+        override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int): EngineResult<Unit> {
+            error("unused")
+        }
+        override suspend fun denyLogin(): EngineResult<Unit> = error("unused")
+        override suspend fun registerForPush(endpoint: String): EngineResult<Unit> = error("unused")
+        override suspend fun unregisterFromPush(): EngineResult<Unit> = error("unused")
         override suspend fun joinPairInvite(code: ScannedCode.PairInvite): EngineResult<PairSession> = error("unused")
-        override suspend fun devices(): List<MemberDevice> = emptyList()
+        override suspend fun devices(): EngineResult<List<MemberDevice>> = EngineResult.Ready(emptyList())
         override suspend fun removeDevice(deviceId: String): EngineResult<Unit> = EngineResult.Ready(Unit)
-        override suspend fun renameDevice(name: String) {}
-        override suspend fun setBiometricApproval(enabled: Boolean) {}
-        override suspend fun revokeSite(siteId: String) {}
-        override suspend fun sitePolicy(rp: String): SitePolicyView = error("unused")
-        override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean) {}
-        override suspend fun approvalActivity(limit: Int): List<ApprovalActivity> = emptyList()
+        override suspend fun renameDevice(name: String): EngineResult<Unit> = error("unused")
+        override suspend fun setBiometricApproval(enabled: Boolean): EngineResult<Unit> = error("unused")
+        override suspend fun revokeSite(siteId: String): EngineResult<Unit> = error("unused")
+        override suspend fun sitePolicy(rp: String): EngineResult<SitePolicyView> = error("unused")
+        override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean): EngineResult<Unit> = error("unused")
+        override suspend fun approvalActivity(limit: Int): EngineResult<List<ApprovalActivity>> = error("unused")
     }
 
     private class CountingKeepAlive : ProcessKeepAlive {
         var begins = 0
         var ends = 0
-        override fun begin() { begins++ }
-        override fun end() { ends++ }
+        override fun begin() {
+            begins++
+        }
+        override fun end() {
+            ends++
+        }
     }
 
     private val peerDev = "ed25519:9f1c0aa2b3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e"

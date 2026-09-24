@@ -19,8 +19,10 @@ import one.rarebit.voidbind.net.HttpResponse
 import one.rarebit.voidbind.policy.ApprovalPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
@@ -63,6 +65,11 @@ class DeviceVoidbindEngineTest {
 
     private fun failure(result: EngineResult<*>): EngineFailure = assertIs<EngineResult.Failed>(result).failure
 
+    private fun <T> ready(result: EngineResult<T>): T = when (result) {
+        is EngineResult.Ready -> result.value
+        is EngineResult.Failed -> throw AssertionError("expected Ready, got $result")
+    }
+
     /** A second member, admitted by genesis (the recovery secret) — as a Restore would admit it. */
     private fun admitSibling(rawSecret: String): String {
         val user = UserIdentity.restore(rawSecret)
@@ -80,7 +87,7 @@ class DeviceVoidbindEngineTest {
         val engine = engine()
         assertEquals(IdentityState.Loading, engine.identity.value)
 
-        engine.refresh()
+        assertEquals(EngineResult.Ready(Unit), engine.refresh())
 
         assertEquals(IdentityState.None, engine.identity.value)
     }
@@ -89,7 +96,7 @@ class DeviceVoidbindEngineTest {
     fun `createIdentity provisions an owner and publishes Active`() = runTest {
         val engine = engine()
 
-        val backup = engine.createIdentity()
+        val backup = ready(engine.createIdentity())
 
         val user = UserIdentity.restore(backup.rawSecret)
         assertEquals(backup.rawSecret.chunked(4).joinToString(" "), backup.groupedSecret)
@@ -104,7 +111,7 @@ class DeviceVoidbindEngineTest {
 
     @Test
     fun `restoreIdentity re-derives the same user identity from the secret`() = runTest {
-        val backup = engine().createIdentity()
+        val backup = ready(engine().createIdentity())
         val createdKey = active(engine().apply { refresh() }).identity.fullKey
 
         val otherStore = IdentityStore(InMemoryPrefs(), InMemorySealer())
@@ -119,18 +126,20 @@ class DeviceVoidbindEngineTest {
             deviceKeys = SoftwareDeviceKeys(),
             defaultDeviceName = { "Second Phone" },
         )
-        restored.restoreIdentity(backup.rawSecret)
+        assertEquals(EngineResult.Ready(Unit), restored.restoreIdentity(backup.rawSecret))
 
         assertEquals(createdKey, active(restored).identity.fullKey)
         assertTrue(otherStore.hasUserKey())
     }
 
     @Test
-    fun `restoreIdentity with a mistyped secret throws and provisions nothing`() = runTest {
-        val engine = engine()
+    fun `restoreIdentity with a mistyped secret fails with the parser's reason and provisions nothing`() = runTest {
+        val f = failure(engine().restoreIdentity("heyarr1notarealsecret"))
 
-        assertFailsWith<Exception> { engine.restoreIdentity("heyarr1notarealsecret") }
-
+        assertEquals(EngineFailure.Kind.INTERNAL, f.kind)
+        assertFalse(f.retryable)
+        // The parser's own explanation (a bad checksum / length) — not the generic fallback.
+        assertNotEquals("That recovery secret could not be read.", f.message)
         assertFalse(store.isProvisioned())
     }
 
@@ -145,30 +154,66 @@ class DeviceVoidbindEngineTest {
     }
 
     @Test
-    fun `a lapsed key window with the prompt cancelled rethrows and provisions nothing`() = runTest {
+    fun `a lapsed key window with the prompt declined is CANCELLED and provisions nothing`() = runTest {
         keys.authRequiredLoads = 1
         biometric.presence = false
 
-        assertFailsWith<AuthenticationRequiredException> { engine().createIdentity() }
+        val f = failure(engine().createIdentity())
 
+        assertEquals(EngineFailure("Authentication cancelled.", EngineFailure.Kind.CANCELLED, retryable = false), f)
         assertFalse(store.isProvisioned())
+    }
+
+    @Test
+    fun `an unexpected keystore error is a Failed with a human message, never raw text`() = runTest {
+        val engine = DeviceVoidbindEngine(
+            store = store,
+            policyStore = policyStore,
+            transport = transport,
+            biometric = biometric,
+            relay = { relay },
+            clock = { NOW },
+            membershipRps = emptyList(),
+            deviceKeys = { throw java.security.KeyStoreException("HAL error 0x1d") },
+            defaultDeviceName = { "Test Phone" },
+        )
+
+        val f = failure(engine.createIdentity())
+
+        assertEquals("Couldn't create the identity.", f.message)
+        assertEquals(EngineFailure.Kind.INTERNAL, f.kind)
+    }
+
+    @Test
+    fun `a cancellation is never turned into a Failed`() = runTest {
+        val engine = engine()
+        val sibling = admitSibling(ready(engine.createIdentity()).rawSecret)
+        biometric.cancelWith = CancellationException("screen left")
+
+        // The coroutine is being torn down: the engine must rethrow, not report a failure
+        // for a dead caller to render.
+        assertFailsWith<CancellationException> { engine.revealRecoverySecret() }
+        // …including through the pairing boundary, which used to catch Throwable.
+        assertFailsWith<CancellationException> { engine.removeDevice(sibling) }
     }
 
     @Test
     fun `revealRecoverySecret is biometric-gated and returns the sealed secret`() = runTest {
         val engine = engine()
-        val backup = engine.createIdentity()
+        val backup = ready(engine.createIdentity())
 
-        assertEquals(backup, engine.revealRecoverySecret())
+        assertEquals(EngineResult.Ready(backup), engine.revealRecoverySecret())
         assertEquals(listOf("Show recovery secret"), biometric.prompts)
 
         biometric.presence = false
-        assertFailsWith<IllegalArgumentException> { engine.revealRecoverySecret() }
+        assertEquals(EngineFailure.Kind.CANCELLED, failure(engine.revealRecoverySecret()).kind)
     }
 
     @Test
     fun `revealRecoverySecret refuses on a device that holds no secret`() = runTest {
-        assertFailsWith<IllegalStateException> { engine().revealRecoverySecret() }
+        val f = failure(engine().revealRecoverySecret())
+
+        assertEquals("This device has no recovery secret — it was added by pairing.", f.message)
         assertTrue(biometric.prompts.isEmpty())
     }
 
@@ -201,31 +246,48 @@ class DeviceVoidbindEngineTest {
 
     @Test
     fun `fetchLoginRequest without an identity fails cleanly`() = runTest {
-        val result = engine().fetchLoginRequest(login)
+        val f = failure(engine().fetchLoginRequest(login))
 
-        assertEquals(LoginRequestResult.Failed("No identity on this device."), result)
+        assertEquals(EngineFailure("No identity on this device.", EngineFailure.Kind.INTERNAL, retryable = false), f)
         assertTrue(transport.requests.isEmpty())
     }
 
     @Test
-    fun `fetchLoginRequest maps an unreachable RP to Failed, not a throw`() = runTest {
+    fun `fetchLoginRequest maps an unreachable RP to UNREACHABLE, not a throw`() = runTest {
         val engine = engine()
         engine.createIdentity()
 
-        val result = assertIs<LoginRequestResult.Failed>(engine.fetchLoginRequest(login))
+        val f = failure(engine.fetchLoginRequest(login))
 
-        assertFalse(result.expired)
-        // Nothing is pending, so an approve now is a precondition failure.
-        assertFailsWith<IllegalStateException> { engine.approveLogin(login) }
+        assertEquals(EngineFailure.Kind.UNREACHABLE, f.kind)
+        assertEquals("Couldn't reach the site.", f.message)
     }
 
     @Test
-    fun `fetchLoginRequest maps a 404 challenge to expired`() = runTest {
+    fun `fetchLoginRequest maps a 404 challenge to EXPIRED and a 500 to REJECTED`() = runTest {
         val engine = engine()
         engine.createIdentity()
         transport.handler = { _, _, _ -> HttpResponse(404, ByteArray(0)) }
 
-        assertTrue(assertIs<LoginRequestResult.Failed>(engine.fetchLoginRequest(login)).expired)
+        val expired = failure(engine.fetchLoginRequest(login))
+        assertEquals(EngineFailure.Kind.EXPIRED, expired.kind)
+        assertFalse(expired.retryable)
+
+        transport.handler = { _, _, _ -> HttpResponse(500, ByteArray(0)) }
+        assertEquals(EngineFailure.Kind.REJECTED, failure(engine.fetchLoginRequest(login)).kind)
+    }
+
+    @Test
+    fun `approving with nothing fetched is a Failed, not a throw`() = runTest {
+        val engine = engine()
+        engine.createIdentity()
+
+        val f = failure(engine.approveLogin(login))
+
+        // The precondition ("no login in progress") is library-internal: the human sees
+        // the one sign-in message.
+        assertEquals("Couldn't complete the sign-in.", f.message)
+        assertEquals("Couldn't complete the sign-in.", failure(engine.approveNumberMatch(login, 42)).message)
     }
 
     @Test
@@ -234,34 +296,67 @@ class DeviceVoidbindEngineTest {
         engine.createIdentity()
         rpServes()
 
-        val ready = assertIs<LoginRequestResult.Ready>(engine.fetchLoginRequest(login)).request
-        assertEquals("rp.example.test", ready.domain)
-        assertEquals(60, ready.expiresInSeconds)
-        assertTrue(ready.candidates.isEmpty())
+        val request = ready(engine.fetchLoginRequest(login))
+        assertEquals("rp.example.test", request.domain)
+        assertEquals(60, request.expiresInSeconds)
+        assertTrue(request.candidates.isEmpty())
 
-        engine.approveLogin(login)
+        assertEquals(EngineResult.Ready(Unit), engine.approveLogin(login))
 
         assertTrue(transport.requests.contains("POST $RP/login/L1/approve"))
         assertEquals(listOf("rp.example.test"), active(engine).trustedSites.map { it.id })
-        val activity = engine.approvalActivity()
+        val activity = ready(engine.approvalActivity())
         assertEquals(1, activity.size)
         assertTrue(activity.single().approved)
         assertEquals("just now", activity.single().whenLabel)
         // The pending login is consumed.
-        assertFailsWith<IllegalStateException> { engine.approveLogin(login) }
+        assertEquals(EngineFailure.Kind.INTERNAL, failure(engine.approveLogin(login)).kind)
     }
 
     @Test
-    fun `an RP refusing the approval throws and trusts nothing`() = runTest {
+    fun `an RP refusing the approval is a Failed that leaks no HTTP detail and trusts nothing`() = runTest {
         val engine = engine()
         engine.createIdentity()
         rpServes(approveStatus = 403)
         engine.fetchLoginRequest(login)
 
-        assertFailsWith<IllegalArgumentException> { engine.approveLogin(login) }
+        val f = failure(engine.approveLogin(login))
 
+        assertEquals("Couldn't complete the sign-in.", f.message)
+        assertFalse(f.message.contains("403"))
         assertTrue(active(engine).trustedSites.isEmpty())
-        assertTrue(engine.approvalActivity().isEmpty())
+        assertTrue(ready(engine.approvalActivity()).isEmpty())
+    }
+
+    @Test
+    fun `a declined prompt on approval is CANCELLED`() = runTest {
+        engine().createIdentity()
+        rpServes()
+        biometric.presence = false
+        // The next signature finds the key's auth window lapsed.
+        val lapsing = DeviceVoidbindEngine(
+            store = store,
+            policyStore = policyStore,
+            transport = transport,
+            biometric = biometric,
+            relay = { relay },
+            clock = { NOW },
+            membershipRps = emptyList(),
+            deviceKeys = {
+                object : DeviceSigningKey {
+                    override val publicKey: ByteArray get() = keys.publicKey
+                    override fun sign(message: ByteArray): ByteArray = throw AuthenticationRequiredException("lapsed")
+                    override fun backing(): HardwareBacking = HardwareBacking.TEE
+                }
+            },
+            defaultDeviceName = { "Test Phone" },
+        )
+        ready(lapsing.fetchLoginRequest(login))
+
+        val f = failure(lapsing.approveLogin(login))
+
+        assertEquals(EngineFailure.Kind.CANCELLED, f.kind)
+        assertEquals(listOf("Authenticate"), biometric.prompts)
     }
 
     @Test
@@ -271,43 +366,56 @@ class DeviceVoidbindEngineTest {
         rpServes()
         engine.fetchLoginRequest(login)
 
-        engine.denyLogin()
+        assertEquals(EngineResult.Ready(Unit), engine.denyLogin())
 
         assertFalse(transport.requests.any { it.startsWith("POST") })
-        assertFalse(engine.approvalActivity().single().approved)
+        assertFalse(ready(engine.approvalActivity()).single().approved)
         assertTrue(active(engine).trustedSites.isEmpty())
     }
 
     @Test
     fun `denyLogin with nothing pending is a no-op`() = runTest {
         val engine = engine()
-        engine.denyLogin()
-        assertTrue(engine.approvalActivity().isEmpty())
+        assertEquals(EngineResult.Ready(Unit), engine.denyLogin())
+        assertTrue(ready(engine.approvalActivity()).isEmpty())
     }
 
     // --- push ------------------------------------------------------------------------
 
     @Test
-    fun `registerForPush is false without an identity or a configured plane`() = runTest {
+    fun `registerForPush fails without an identity or a configured plane, without dialling`() = runTest {
         val engine = engine()
         notify = NOTIFY
-        assertFalse(engine.registerForPush("https://push.example.test/up/abc"))
+        assertEquals("No identity on this device.", failure(engine.registerForPush(ENDPOINT)).message)
 
         engine.createIdentity()
         notify = ""
-        assertFalse(engine.registerForPush("https://push.example.test/up/abc"))
+        assertEquals("No push plane is set up.", failure(engine.registerForPush(ENDPOINT)).message)
         assertTrue(transport.requests.isEmpty())
     }
 
     @Test
-    fun `registerForPush swallows a transport failure`() = runTest {
+    fun `registerForPush turns a transport failure into a Failed`() = runTest {
         val engine = engine()
         engine.createIdentity()
         notify = NOTIFY
 
-        assertFalse(engine.registerForPush("https://push.example.test/up/abc"))
+        val f = failure(engine.registerForPush(ENDPOINT))
+
+        assertEquals("Couldn't register this device for sign-in wake-ups.", f.message)
         assertEquals(1, transport.requests.size)
-        engine.unregisterFromPush() // best-effort: must not throw either
+        // Best-effort teardown too: a failure is a value, never a throw.
+        assertEquals(EngineFailure.Kind.INTERNAL, failure(engine.unregisterFromPush()).kind)
+    }
+
+    @Test
+    fun `registerForPush does not leak the plane's refusal text`() = runTest {
+        val engine = engine()
+        engine.createIdentity()
+        notify = NOTIFY
+        transport.handler = { _, _, _ -> HttpResponse(403, ByteArray(0)) }
+
+        assertFalse(failure(engine.registerForPush(ENDPOINT)).message.contains("403"))
     }
 
     @Test
@@ -320,8 +428,14 @@ class DeviceVoidbindEngineTest {
             HttpResponse(200, body.encodeToByteArray())
         }
 
-        assertTrue(engine.registerForPush("https://push.example.test/up/abc"))
+        assertEquals(EngineResult.Ready(Unit), engine.registerForPush(ENDPOINT))
         assertTrue(transport.requests.single().startsWith("POST $NOTIFY"))
+    }
+
+    @Test
+    fun `unregisterFromPush with nothing to unregister succeeds quietly`() = runTest {
+        assertEquals(EngineResult.Ready(Unit), engine().unregisterFromPush())
+        assertTrue(transport.requests.isEmpty())
     }
 
     // --- pairing: every failure is a value, never a throw ----------------------------
@@ -378,11 +492,11 @@ class DeviceVoidbindEngineTest {
     @Test
     fun `devices lists this device first, admitted by genesis`() = runTest {
         val engine = engine()
-        assertTrue(engine.devices().isEmpty())
-        val backup = engine.createIdentity()
+        assertEquals(EngineResult.Ready(emptyList<MemberDevice>()), engine.devices())
+        val backup = ready(engine.createIdentity())
         val sibling = admitSibling(backup.rawSecret)
 
-        val devices = engine.devices()
+        val devices = ready(engine.devices())
 
         assertEquals(listOf(selfId, sibling), devices.map { it.id })
         assertTrue(devices.first().isThisDevice)
@@ -404,7 +518,7 @@ class DeviceVoidbindEngineTest {
     @Test
     fun `removeDevice needs a strong biometric`() = runTest {
         val engine = engine()
-        val sibling = admitSibling(engine.createIdentity().rawSecret)
+        val sibling = admitSibling(ready(engine.createIdentity()).rawSecret)
 
         biometric.strong = StrongAuth.CANCELLED
         assertEquals(EngineFailure.Kind.CANCELLED, failure(engine.removeDevice(sibling)).kind)
@@ -414,13 +528,13 @@ class DeviceVoidbindEngineTest {
         assertFalse(f.retryable)
         assertTrue(f.message.contains("fingerprint or face"))
 
-        assertEquals(2, engine.devices().size) // nothing was signed
+        assertEquals(2, ready(engine.devices()).size) // nothing was signed
     }
 
     @Test
     fun `removeDevice signs a remove, drops the member and pushes the replica to each RP`() = runTest {
         val engine = engine(membershipRps = listOf("$RP/", "https://down.example.test"))
-        val sibling = admitSibling(engine.createIdentity().rawSecret)
+        val sibling = admitSibling(ready(engine.createIdentity()).rawSecret)
         val usr = active(engine).identity.fullKey
         transport.handler = { _, url, _ ->
             if (url.startsWith(RP)) HttpResponse(200, ByteArray(0)) else throw java.io.IOException("down")
@@ -428,7 +542,7 @@ class DeviceVoidbindEngineTest {
 
         assertEquals(EngineResult.Ready(Unit), engine.removeDevice(sibling))
 
-        assertEquals(listOf(selfId), engine.devices().map { it.id })
+        assertEquals(listOf(selfId), ready(engine.devices()).map { it.id })
         assertEquals(3, store.knownOps().size) // genesis add, sibling add, the remove
         assertEquals(
             listOf("POST $RP/membership/$usr", "POST https://down.example.test/membership/$usr"),
@@ -443,8 +557,8 @@ class DeviceVoidbindEngineTest {
         val engine = engine()
         engine.createIdentity()
 
-        engine.renameDevice("Work phone")
-        engine.setBiometricApproval(false)
+        assertEquals(EngineResult.Ready(Unit), engine.renameDevice("Work phone"))
+        assertEquals(EngineResult.Ready(Unit), engine.setBiometricApproval(false))
 
         val state = active(engine)
         assertEquals("Work phone", state.device.name)
@@ -458,15 +572,15 @@ class DeviceVoidbindEngineTest {
         engine.createIdentity()
         assertEquals(
             SitePolicyView("a.example", ApprovalPolicy.AlwaysAsk, pinnedAlwaysAsk = false),
-            engine.sitePolicy("a.example"),
+            ready(engine.sitePolicy("a.example")),
         )
 
         engine.setAlwaysAsk("a.example", alwaysAsk = false)
-        assertTrue(engine.sitePolicy("a.example").trusted)
+        assertTrue(ready(engine.sitePolicy("a.example")).trusted)
 
         engine.setAlwaysAsk("a.example", alwaysAsk = true)
-        assertTrue(engine.sitePolicy("a.example").pinnedAlwaysAsk)
-        assertFalse(engine.sitePolicy("a.example").trusted)
+        assertTrue(ready(engine.sitePolicy("a.example")).pinnedAlwaysAsk)
+        assertFalse(ready(engine.sitePolicy("a.example")).trusted)
 
         store.upsertTrustedSite(TrustedSite("a.example", "a.example", "", "just now"))
         engine.refresh()
@@ -474,7 +588,7 @@ class DeviceVoidbindEngineTest {
 
         engine.revokeSite("a.example")
         assertTrue(active(engine).trustedSites.isEmpty())
-        assertFalse(engine.sitePolicy("a.example").pinnedAlwaysAsk)
+        assertFalse(ready(engine.sitePolicy("a.example")).pinnedAlwaysAsk)
     }
 
     private companion object {
@@ -482,5 +596,6 @@ class DeviceVoidbindEngineTest {
         const val RELAY = "https://relay.example.test/pair"
         const val NOTIFY = "https://notify.example.test"
         const val RP = "https://rp.example.test"
+        const val ENDPOINT = "https://push.example.test/up/abc"
     }
 }

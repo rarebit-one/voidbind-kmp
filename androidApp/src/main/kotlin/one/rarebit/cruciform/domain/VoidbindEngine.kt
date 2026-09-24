@@ -12,6 +12,15 @@ import kotlinx.coroutines.flow.StateFlow
  * Everything cryptographic stays behind this seam: screens receive already-formatted
  * fingerprints and booleans and never see key bytes. Suspending calls are the ones
  * that touch hardware (a biometric-gated signature) or the network (relay/RP).
+ *
+ * **One error model.** Every suspending call returns an [EngineResult] and MUST NOT
+ * throw for a failure — hardware, network, a missing precondition or a bug all resolve
+ * to [EngineResult.Failed] carrying a user-facing [EngineFailure], converted on the
+ * worker thread that failed. The single exception is coroutine cancellation: a
+ * [kotlin.coroutines.cancellation.CancellationException] always propagates, so a
+ * cancelled caller is torn down instead of running its failure branch (see
+ * [suspendRunCatching]). Call sites therefore branch on the result and need no
+ * try/catch of their own.
  */
 interface VoidbindEngine {
 
@@ -19,7 +28,7 @@ interface VoidbindEngine {
     val identity: StateFlow<IdentityState>
 
     /** Load identity state from the keystore (call on start). */
-    suspend fun refresh()
+    suspend fun refresh(): EngineResult<Unit>
 
     // --- Onboarding -----------------------------------------------------------
 
@@ -28,13 +37,19 @@ interface VoidbindEngine {
      * provision the hardware device key, self-sign the first enrolment cert. Returns
      * the recovery secret to display for backup. Biometric-gated.
      */
-    suspend fun createIdentity(): RecoveryBackup
+    suspend fun createIdentity(): EngineResult<RecoveryBackup>
 
-    /** Restore an identity on this device from a recovery secret string. */
-    suspend fun restoreIdentity(recoverySecret: String)
+    /**
+     * Restore an identity on this device from a recovery secret string. A mistyped
+     * secret is a `Failed` whose message says what was wrong with it.
+     */
+    suspend fun restoreIdentity(recoverySecret: String): EngineResult<Unit>
 
-    /** Re-display the recovery secret (Settings → Recovery backup). Biometric-gated. */
-    suspend fun revealRecoverySecret(): RecoveryBackup
+    /**
+     * Re-display the recovery secret (Settings → Recovery backup). Biometric-gated: a
+     * dismissed prompt is a `Failed` of kind CANCELLED.
+     */
+    suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup>
 
     // --- Scanning -------------------------------------------------------------
 
@@ -49,15 +64,17 @@ interface VoidbindEngine {
      * one — the returned [LoginRequest.candidates] is non-empty for the latter, and
      * the UI shows the number grid instead of a plain Approve button.
      *
-     * The fetch touches the network and MUST NOT throw for a transport/IO failure: an
-     * unreachable RP, a TLS error, a timeout, a non-2xx, or a cleartext-blocked URL all
-     * resolve to [LoginRequestResult.Failed] so the UI can render an error rather than the
-     * app crashing with an uncaught main-thread exception.
+     * An unreachable RP, a TLS error, a timeout or a cleartext-blocked URL is a `Failed`
+     * of kind UNREACHABLE; a stale login code (404/410) is EXPIRED, so the UI can say
+     * "scan a fresh QR"; any other non-2xx is REJECTED.
      */
-    suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): LoginRequestResult
+    suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): EngineResult<LoginRequest>
 
-    /** Approve a scanned (v1) web login — sign the challenge with the hardware key. Biometric-gated. */
-    suspend fun approveLogin(code: ScannedCode.WebLogin)
+    /**
+     * Approve a scanned (v1) web login — sign the challenge with the hardware key.
+     * Biometric-gated. The RP refusing the assertion is a `Failed`; nothing is trusted.
+     */
+    suspend fun approveLogin(code: ScannedCode.WebLogin): EngineResult<Unit>
 
     /**
      * Approve a **number-matching (v2)** login by the number the human tapped — sign
@@ -66,13 +83,13 @@ interface VoidbindEngine {
      * anti-phishing point. [chosen] must be one of the fetched
      * [LoginRequest.candidates].
      */
-    suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int)
+    suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int): EngineResult<Unit>
 
     /**
      * The human declined the pending login. Records a denial in the approval audit
      * trail (nothing is signed, and trust is untouched) and clears the pending login.
      */
-    suspend fun denyLogin()
+    suspend fun denyLogin(): EngineResult<Unit>
 
     // --- Push wake (self-hosted ntfy / UnifiedPush) ---------------------------
 
@@ -80,14 +97,14 @@ interface VoidbindEngine {
      * Register this device's [endpoint] (the ntfy topic URL a UnifiedPush distributor
      * handed us) with the notify plane, cert-authenticated, so a push login can wake
      * this phone. Call on app open with the current endpoint; a subscription is
-     * short-lived by design, so re-registering is normal. Returns true on success,
-     * false if there is no identity yet or the plane refused it (best-effort — a
-     * failure just means no background wake, and QR login still works).
+     * short-lived by design, so re-registering is normal. `Failed` when there is no
+     * identity yet, no plane is configured, or the plane refused it — best-effort: a
+     * failure just means no background wake, and QR login still works.
      */
-    suspend fun registerForPush(endpoint: String): Boolean
+    suspend fun registerForPush(endpoint: String): EngineResult<Unit>
 
     /** Drop this device's wake subscription (cert-authenticated). Best-effort. */
-    suspend fun unregisterFromPush()
+    suspend fun unregisterFromPush(): EngineResult<Unit>
 
     // --- Pairing --------------------------------------------------------------
     //
@@ -127,7 +144,7 @@ interface VoidbindEngine {
      * The identity's current device set as this device evaluates it from the ops it
      * knows (its replica) — including itself. Empty when there is no identity.
      */
-    suspend fun devices(): List<MemberDevice>
+    suspend fun devices(): EngineResult<List<MemberDevice>>
 
     /**
      * Remove [deviceId] from the identity: gated on a STRONG biometric (no device-credential
@@ -141,9 +158,11 @@ interface VoidbindEngine {
 
     // --- Settings actions -----------------------------------------------------
 
-    suspend fun renameDevice(name: String)
-    suspend fun setBiometricApproval(enabled: Boolean)
-    suspend fun revokeSite(siteId: String)
+    suspend fun renameDevice(name: String): EngineResult<Unit>
+
+    suspend fun setBiometricApproval(enabled: Boolean): EngineResult<Unit>
+
+    suspend fun revokeSite(siteId: String): EngineResult<Unit>
 
     // --- Per-RP approval policy + audit ---------------------------------------
 
@@ -154,16 +173,16 @@ interface VoidbindEngine {
      * full review or a streamlined confirm — the biometric-gated signature is unchanged
      * either way.
      */
-    suspend fun sitePolicy(rp: String): SitePolicyView
+    suspend fun sitePolicy(rp: String): EngineResult<SitePolicyView>
 
     /**
      * Set [rp]'s policy: pinning [alwaysAsk] forces the full sheet on every login (and
      * blocks silent trust-on-first-use); clearing it trusts the site. Persisted.
      */
-    suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean)
+    suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean): EngineResult<Unit>
 
     /** The approval-activity log, newest first, at most [limit] entries. */
-    suspend fun approvalActivity(limit: Int = 100): List<ApprovalActivity>
+    suspend fun approvalActivity(limit: Int = 100): EngineResult<List<ApprovalActivity>>
 }
 
 /** The per-RP policy as the approval sheet / settings shows it. */
