@@ -165,16 +165,20 @@ class DeviceVoidbindEngine(
         val device = DeviceIdentity(ks.publicKey, enc.publicKey, enc.privateKey) { ks.sign(it) }
         val cert = Enrolment.selfEnrol(user, device, clock())
         store.saveOwner(cert, user.userPublicKey, enc.publicKey, enc.privateKey, defaultDeviceName())
-        return backup(user.recovery).copy(keptOnDevice = recovery.offerToKeep(user.recovery))
+        return backup(user).copy(keptOnDevice = recovery.offerToKeep(user.recovery))
     }
 
-    override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> = ioResult("Couldn't show the recovery secret.") {
-        check(store.hasUserKey()) { "This device keeps no copy of the recovery secret." }
-        when (val genesis = recovery.unsealGenesis("Show recovery secret")) {
-            is EngineResult.Failed -> genesis
-            is EngineResult.Ready -> EngineResult.Ready(backup(genesis.value.recovery).copy(keptOnDevice = true))
+    override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> =
+        ioResult("Couldn't show the recovery secret.") {
+            if (!store.hasUserKey()) return@ioResult notYetFailure("This device keeps no copy of the recovery secret.")
+            when (val genesis = recovery.unsealGenesis("Show recovery secret")) {
+                is EngineResult.Failed -> genesis
+                is EngineResult.Ready -> EngineResult.Ready(backup(genesis.value).copy(keptOnDevice = true))
+            }
         }
-    }
+
+    override suspend fun splitRecoverySecret(): EngineResult<List<String>> =
+        ioResult("Couldn't split the recovery secret.") { recovery.split() }
 
     override suspend fun verifyRecoverySecret(secret: String): EngineResult<RecoveryCheck> = ioResult(
         "That recovery secret could not be read.",
@@ -202,7 +206,10 @@ class DeviceVoidbindEngine(
             is one.rarebit.voidbind.VoidbindQr.Pair -> ScannedCode.PairInvite(qr.invite.relay, qr.invite.session, raw)
         }
     } catch (_: Exception) {
-        ScannedCode.Unknown(raw)
+        // Not a login or pairing code: perhaps the recovery sheet's QR (the secret in
+        // upper case; the parser folds case and ignores whitespace, checksum included).
+        val isSecret = runCatching { RecoverySecret.parse(raw) }.isSuccess
+        if (isSecret) ScannedCode.RecoverySecret(raw) else ScannedCode.Unknown(raw)
     }
 
     // --- Web login ------------------------------------------------------------
@@ -259,11 +266,12 @@ class DeviceVoidbindEngine(
     // An approval's failure never shows the library's text ("weblogin: approve refused:
     // HTTP 403"): the RP refusing, the network dropping or nothing being pending all read
     // as one human message; a declined prompt reads as CANCELLED.
-    override suspend fun approveLogin(code: ScannedCode.WebLogin): EngineResult<Unit> = io(SIGN_IN_FAILED, revealPreconditions = false) {
-        val (approval, request) = pendingLogin ?: error("no login in progress")
-        withDeviceAuth { approval.approve(request) }
-        finishApproval(request, matchNumber = null)
-    }
+    override suspend fun approveLogin(code: ScannedCode.WebLogin): EngineResult<Unit> =
+        io(SIGN_IN_FAILED, revealPreconditions = false) {
+            val (approval, request) = pendingLogin ?: error("no login in progress")
+            withDeviceAuth { approval.approve(request) }
+            finishApproval(request, matchNumber = null)
+        }
 
     override suspend fun approveNumberMatch(code: ScannedCode.WebLogin, chosen: Int): EngineResult<Unit> = io(
         SIGN_IN_FAILED,
@@ -302,7 +310,7 @@ class DeviceVoidbindEngine(
     override suspend fun renewMembership(): EngineResult<Unit> = ioResult("Couldn't renew this device.") {
         val persisted = store.load() ?: return@ioResult internalFailure("No identity on this device.")
         val op = withDeviceAuth { renewal.selfRenewal(persisted, onlyIfDue = false) }
-            ?: return@ioResult internalFailure(
+            ?: return@ioResult notYetFailure(
                 "This device is no longer a member, so it can't renew itself. " +
                     "Re-admit it from another device, or restore from the recovery secret.",
             )
@@ -394,7 +402,9 @@ class DeviceVoidbindEngine(
                     pendingAuthorization = authorization to invitation
                     EngineResult.Ready(
                         PairInviteDisplay(
-                            inviteId = "INV · ${invitation.relaySession.uppercase().take(8).chunked(4).joinToString(" ")}",
+                            inviteId = "INV · ${invitation.relaySession.uppercase().take(
+                                8,
+                            ).chunked(4).joinToString(" ")}",
                             qrPayload = invitation.inviteQr,
                             expiresInSeconds = INVITE_TTL_SECONDS,
                             // The relay session the invite names: an RP on this phone
@@ -483,7 +493,14 @@ class DeviceVoidbindEngine(
                     // the ops that authorise it (its replica from here on).
                     val admission = outcome.value
                     val userPub = KeyRef.parse(MembershipOp.verify(admission.op).user).bytes
-                    store.saveJoined(admission.op, admission.ops, userPub, join.enc.publicKey, join.enc.privateKey, defaultDeviceName())
+                    store.saveJoined(
+                        admission.op,
+                        admission.ops,
+                        userPub,
+                        join.enc.publicKey,
+                        join.enc.privateKey,
+                        defaultDeviceName(),
+                    )
                     pendingJoin = null
                     _identity.value = loadState()
                     EngineResult.Ready(Unit)
@@ -599,31 +616,32 @@ class DeviceVoidbindEngine(
 
     // --- Devices (membership, ADR-0005) ---------------------------------------
 
-    override suspend fun devices(): EngineResult<List<MemberDevice>> = ioResult("Couldn't load this identity's devices.") {
-        val persisted = store.load() ?: return@ioResult EngineResult.Ready(emptyList())
-        val usr = KeyRef.ed25519(persisted.userPublicKey).render()
-        val self = KeyRef.ed25519(deviceKeys.getOrCreate().publicKey).render()
-        val view = Membership.evaluate(usr, persisted.ops, clock())
-        val members = view.members.values
-            .sortedWith(compareBy<Membership.Member> { it.device != self }.thenBy { it.admittedAt })
-            .map { m ->
-                val admitting = view.accepted[m.admittedBy]
-                MemberDevice(
-                    id = m.device,
-                    fingerprint = shortFingerprint(KeyRef.parse(m.device).bytes),
-                    isThisDevice = m.device == self,
-                    admittedByLabel = when {
-                        admitting == null -> "unknown"
-                        admitting.genesis -> "genesis (recovery key)"
-                        admitting.by == self -> "this device"
-                        else -> shortFingerprint(KeyRef.parse(admitting.by).bytes)
-                    },
-                    admittedLabel = dateLabel(m.admittedAt),
-                    expiresLabel = "renews by ${dateLabel(m.expiresAt)}",
-                )
-            }
-        EngineResult.Ready(members)
-    }
+    override suspend fun devices(): EngineResult<List<MemberDevice>> =
+        ioResult("Couldn't load this identity's devices.") {
+            val persisted = store.load() ?: return@ioResult EngineResult.Ready(emptyList())
+            val usr = KeyRef.ed25519(persisted.userPublicKey).render()
+            val self = KeyRef.ed25519(deviceKeys.getOrCreate().publicKey).render()
+            val view = Membership.evaluate(usr, persisted.ops, clock())
+            val members = view.members.values
+                .sortedWith(compareBy<Membership.Member> { it.device != self }.thenBy { it.admittedAt })
+                .map { m ->
+                    val admitting = view.accepted[m.admittedBy]
+                    MemberDevice(
+                        id = m.device,
+                        fingerprint = shortFingerprint(KeyRef.parse(m.device).bytes),
+                        isThisDevice = m.device == self,
+                        admittedByLabel = when {
+                            admitting == null -> "unknown"
+                            admitting.genesis -> "genesis (recovery key)"
+                            admitting.by == self -> "this device"
+                            else -> shortFingerprint(KeyRef.parse(admitting.by).bytes)
+                        },
+                        admittedLabel = dateLabel(m.admittedAt),
+                        expiresLabel = "renews by ${dateLabel(m.expiresAt)}",
+                    )
+                }
+            EngineResult.Ready(members)
+        }
 
     override suspend fun removeDevice(deviceId: String): EngineResult<Unit> = ioResult(
         "Couldn't remove the device.",
@@ -684,7 +702,9 @@ class DeviceVoidbindEngine(
     private fun pushMembership(ops: List<String>): Int {
         val persisted = store.load() ?: return 0
         val usr = KeyRef.ed25519(persisted.userPublicKey).render()
-        val body = MiniJson.encodeObject(listOf("ops" to one.rarebit.voidbind.WebLogin.presentable(ops))).encodeToByteArray()
+        val body = MiniJson.encodeObject(
+            listOf("ops" to one.rarebit.voidbind.WebLogin.presentable(ops)),
+        ).encodeToByteArray()
         var accepted = 0
         for (rp in membershipRps) {
             val ok = runCatching {
@@ -705,10 +725,11 @@ class DeviceVoidbindEngine(
         _identity.value = loadState()
     }
 
-    override suspend fun setBiometricApproval(enabled: Boolean): EngineResult<Unit> = io("Couldn't change biometric approval.") {
-        store.setBiometricApproval(enabled)
-        _identity.value = loadState()
-    }
+    override suspend fun setBiometricApproval(enabled: Boolean): EngineResult<Unit> =
+        io("Couldn't change biometric approval.") {
+            store.setBiometricApproval(enabled)
+            _identity.value = loadState()
+        }
 
     override suspend fun revokeSite(siteId: String): EngineResult<Unit> = io("Couldn't revoke $siteId.") {
         store.removeTrustedSite(siteId)
@@ -718,14 +739,15 @@ class DeviceVoidbindEngine(
 
     // --- Per-RP approval policy + audit ---------------------------------------
 
-    override suspend fun sitePolicy(rp: String): EngineResult<SitePolicyView> = io("Couldn't read $rp's approval policy.") {
-        val p = policy.policyFor(rp)
-        SitePolicyView(
-            rp = rp,
-            policy = p?.policy ?: ApprovalPolicy.AlwaysAsk,
-            pinnedAlwaysAsk = p?.pinnedAlwaysAsk ?: false,
-        )
-    }
+    override suspend fun sitePolicy(rp: String): EngineResult<SitePolicyView> =
+        io("Couldn't read $rp's approval policy.") {
+            val p = policy.policyFor(rp)
+            SitePolicyView(
+                rp = rp,
+                policy = p?.policy ?: ApprovalPolicy.AlwaysAsk,
+                pinnedAlwaysAsk = p?.pinnedAlwaysAsk ?: false,
+            )
+        }
 
     override suspend fun setAlwaysAsk(rp: String, alwaysAsk: Boolean): EngineResult<Unit> = io(
         "Couldn't change $rp's approval policy.",
@@ -853,9 +875,14 @@ class DeviceVoidbindEngine(
         }
     }
 
-    private fun backup(secret: RecoverySecret): RecoveryBackup {
-        val rendered = secret.format()
-        return RecoveryBackup(groupedSecret = rendered.chunked(4).joinToString(" "), rawSecret = rendered)
+    private fun backup(user: UserIdentity): RecoveryBackup {
+        val rendered = user.recovery.format()
+        return RecoveryBackup(
+            groupedSecret = rendered.chunked(4).joinToString(" "),
+            rawSecret = rendered,
+            fingerprint = user.fingerprint,
+            userId = user.userId.render(),
+        )
     }
 
     private fun shortFingerprint(pub: ByteArray): String =

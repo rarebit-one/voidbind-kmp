@@ -77,13 +77,18 @@ class NetworkClientsTest {
 
             p == "/login/L1/challenge" -> {
                 val nonce = Base64Url.encode(ByteArray(32) { 0x11 })
-                send(ex, 200, """{"id":"L1","nonce":"$nonce","audience":"aud","expires_at":4102444800}""".encodeToByteArray())
+                send(
+                    ex,
+                    200,
+                    """{"id":"L1","nonce":"$nonce","audience":"aud","expires_at":4102444800}""".encodeToByteArray(),
+                )
             }
 
             m == "POST" && p == "/login/L1/approve" -> {
                 val o = MiniJson.parseObject(body(ex).decodeToString())
                 // record that a well-formed assertion arrived
-                approved["L1"] = (o["cert"] as? String)?.isNotEmpty() == true && (o["sig"] as? String)?.isNotEmpty() == true
+                approved["L1"] =
+                    (o["cert"] as? String)?.isNotEmpty() == true && (o["sig"] as? String)?.isNotEmpty() == true
                 send(ex, if (approved["L1"] == true) 204 else 401)
             }
 
@@ -111,11 +116,21 @@ class NetworkClientsTest {
         val respRelay = RelayClient(http, base, session, RelayClient.ROLE_RESPONDER, pollIntervalMillis = 10)
         val initiator = PairflowInitiator(
             initRelay,
-            PairflowAuthority.Genesis({ Ed25519Engine.sign(user.privateSeed, it) }, user.publicKey, emptyList(), 7_776_000L),
+            PairflowAuthority.Genesis({
+                Ed25519Engine.sign(user.privateSeed, it)
+            }, user.publicKey, emptyList(), 7_776_000L),
             salt,
             1_724_700_000L,
         )
-        val responder = PairflowResponder(respRelay, KeyRef.ed25519(user.publicKey).render(), dev.publicKey, devEnc, salt, 1_724_700_000L)
+        val responder =
+            PairflowResponder(
+                respRelay,
+                KeyRef.ed25519(user.publicKey).render(),
+                dev.publicKey,
+                devEnc,
+                salt,
+                1_724_700_000L,
+            )
 
         var sasInit = ""
         var sasResp = ""

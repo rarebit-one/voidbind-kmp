@@ -94,7 +94,12 @@ fun NumberMatchApprovalScreen(
                 .background(VbColors.Mint.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Rounded.PhonelinkLock, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(32.dp))
+            Icon(
+                Icons.Rounded.PhonelinkLock,
+                contentDescription = null,
+                tint = VbColors.Mint,
+                modifier = Modifier.size(32.dp),
+            )
         }
         VSpace(14)
         Text("CONFIRM IT'S YOU", style = MaterialTheme.typography.labelMedium, color = VbColors.Mint)
@@ -142,10 +147,20 @@ fun NumberMatchApprovalScreen(
 
         Spacer(Modifier.weight(1f))
 
-        DangerButton("Not me · Deny", onClick = onDeny, leadingIcon = Icons.Rounded.Cancel, modifier = Modifier.fillMaxWidth())
+        DangerButton(
+            "Not me · Deny",
+            onClick = onDeny,
+            leadingIcon = Icons.Rounded.Cancel,
+            modifier = Modifier.fillMaxWidth(),
+        )
         VSpace(10)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Fingerprint, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.Rounded.Fingerprint,
+                contentDescription = null,
+                tint = VbColors.TextMuted,
+                modifier = Modifier.size(16.dp),
+            )
             HSpace(8)
             Text(
                 "Tapping a number signs with your device key",
@@ -164,7 +179,11 @@ fun NumberMatchApprovalScreen(
         ) {
             Icon(Icons.Rounded.Memory, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(16.dp))
             HSpace(8)
-            Text("Signed by StrongBox key · this device", style = MaterialTheme.typography.labelMedium, color = VbColors.TextSecondary)
+            Text(
+                "Signed by StrongBox key · this device",
+                style = MaterialTheme.typography.labelMedium,
+                color = VbColors.TextSecondary,
+            )
         }
     }
 }
@@ -207,7 +226,12 @@ private fun MatchRow(icon: ImageVector, label: String, value: String, last: Bool
         HSpace(12)
         Text(label, style = MaterialTheme.typography.bodyLarge, color = VbColors.TextSecondary)
         Spacer(Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyLarge, color = VbColors.TextPrimary, fontWeight = FontWeight.Medium)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = VbColors.TextPrimary,
+            fontWeight = FontWeight.Medium,
+        )
     }
     if (!last) VbHairline(Modifier.padding(horizontal = 16.dp))
 }

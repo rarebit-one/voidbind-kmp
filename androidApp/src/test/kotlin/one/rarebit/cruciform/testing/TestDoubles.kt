@@ -113,9 +113,7 @@ class InMemorySealer : SecretSealer {
  * [authRequiredLoads] makes the next N [getOrCreate] calls throw like a hardware key
  * whose post-authentication window has lapsed.
  */
-class SoftwareDeviceKeys(
-    private val backing: HardwareBacking = HardwareBacking.STRONGBOX,
-) : DeviceKeys {
+class SoftwareDeviceKeys(private val backing: HardwareBacking = HardwareBacking.STRONGBOX) : DeviceKeys {
     private val key = UserIdentity.create()
     var authRequiredLoads = 0
     var loads = 0
@@ -138,10 +136,8 @@ class SoftwareDeviceKeys(
 }
 
 /** Scripted [BiometricAuthenticator] that records every prompt title. */
-class FakeBiometric(
-    var presence: Boolean = true,
-    var strong: StrongAuth = StrongAuth.SUCCESS,
-) : BiometricAuthenticator {
+class FakeBiometric(var presence: Boolean = true, var strong: StrongAuth = StrongAuth.SUCCESS) :
+    BiometricAuthenticator {
     val prompts = mutableListOf<String>()
 
     /** When set, every prompt throws it — the caller's coroutine being torn down mid-prompt. */

@@ -55,11 +55,7 @@ object DeviceAuthPolicy {
      * the request with the given `Authorization` header value. Being `inline`, [send]
      * may suspend when called from a coroutine.
      */
-    inline fun <R> execute(
-        credential: DeviceCredential,
-        statusOf: (R) -> Int,
-        send: (headerValue: String) -> R,
-    ): R {
+    inline fun <R> execute(credential: DeviceCredential, statusOf: (R) -> Int, send: (headerValue: String) -> R): R {
         var attempt = 1
         var header = credential.headerValue()
         while (true) {

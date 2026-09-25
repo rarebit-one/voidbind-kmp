@@ -126,7 +126,9 @@ class PairflowInitiator(
         require(salt.size >= Pairing.MIN_SALT_LEN) { "pairflow: salt is too short" }
         when (authority) {
             is PairflowAuthority.Device -> {
-                require(authority.encPublicKey.size == Pairing.ENC_KEY_SIZE) { "pairflow: a device encryption key is required" }
+                require(authority.encPublicKey.size == Pairing.ENC_KEY_SIZE) {
+                    "pairflow: a device encryption key is required"
+                }
                 val op = MembershipOp.verify(authority.admittingOp)
                 val self = KeyRef.ed25519(authority.signPublicKey).render()
                 require(op.device == self) { "pairflow: the admitting op admits ${op.device}, not this device" }
@@ -135,7 +137,9 @@ class PairflowInitiator(
                 // Refuse a device its own ops do not find a member at now — the pairing
                 // would end in an op no RP honours, and the responder would refuse it
                 // before the SAS anyway.
-                check(view.isMember(self)) { "pairflow: this device is not a member of ${op.user} under the ops it holds" }
+                check(view.isMember(self)) {
+                    "pairflow: this device is not a member of ${op.user} under the ops it holds"
+                }
                 signer = authority.signer
                 signPub = authority.signPublicKey
                 encPub = authority.encPublicKey
@@ -145,7 +149,9 @@ class PairflowInitiator(
             }
 
             is PairflowAuthority.Genesis -> {
-                require(authority.publicKey.size == Pairing.ED25519_PUBLIC_KEY_SIZE) { "pairflow: a user identity key is required" }
+                require(authority.publicKey.size == Pairing.ED25519_PUBLIC_KEY_SIZE) {
+                    "pairflow: a user identity key is required"
+                }
                 signer = authority.signer
                 signPub = authority.publicKey
                 encPub = ByteArray(0)
@@ -324,13 +330,19 @@ class PairflowResponder(
         require(op.kind == MembershipOp.Kind.ADD && op.user == userId) {
             "pairflow: received a ${op.kind.wire} for ${op.user}, want an add for $userId"
         }
-        require(op.by == KeyRef.ed25519(initSign).render()) { "pairflow: op signed by ${op.by}, not the initiator bound in the SAS" }
+        require(op.by == KeyRef.ed25519(initSign).render()) {
+            "pairflow: op signed by ${op.by}, not the initiator bound in the SAS"
+        }
         require(op.device == deviceId) { "pairflow: op admits device ${op.device}, not this device $deviceId" }
-        require(op.deviceEnc == deviceEncId) { "pairflow: op binds encryption key ${op.deviceEnc}, not this device's $deviceEncId" }
+        require(op.deviceEnc == deviceEncId) {
+            "pairflow: op binds encryption key ${op.deviceEnc}, not this device's $deviceEncId"
+        }
         val ops = Membership.merge(initOps, admOps, listOf(opToken))
         val view = Membership.evaluate(userId, ops, now)
         view.rejected[op.hash]?.let { throw IllegalStateException("pairflow: the received op is rejected: $it") }
-        view.ineffective[op.hash]?.let { throw IllegalStateException("pairflow: the received op does not admit this device: $it") }
+        view.ineffective[op.hash]?.let {
+            throw IllegalStateException("pairflow: the received op does not admit this device: $it")
+        }
         check(view.isMember(deviceId)) { "pairflow: this device is not a member of $userId after the admission" }
         return Admission(opToken, ops)
     }

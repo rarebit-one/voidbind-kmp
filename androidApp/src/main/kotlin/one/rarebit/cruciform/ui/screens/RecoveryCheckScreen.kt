@@ -28,6 +28,8 @@ import one.rarebit.cruciform.domain.EngineResult
 import one.rarebit.cruciform.ui.components.AppTopBar
 import one.rarebit.cruciform.ui.components.OutlineButton
 import one.rarebit.cruciform.ui.components.PrimaryButton
+import one.rarebit.cruciform.ui.components.ScanSheetButton
+import one.rarebit.cruciform.ui.components.ScannedSecretEffect
 import one.rarebit.cruciform.ui.components.ScreenPadding
 import one.rarebit.cruciform.ui.components.SecureScreen
 import one.rarebit.cruciform.ui.components.VSpace
@@ -42,6 +44,10 @@ import one.rarebit.cruciform.ui.theme.VbColors
  * "Group N" for the confirm step after creating). [onCheck] returns the success line
  * to show, or a failure whose message is shown inline. [onSkip], when given, offers
  * "Not now".
+ *
+ * With a single field, [onScan] offers to scan a printed recovery sheet instead of
+ * typing; the result arrives as [scanned], fills the field (nothing is checked until
+ * "Check") and is then [onScannedConsumed].
  */
 @Composable
 fun RecoveryCheckScreen(
@@ -53,6 +59,9 @@ fun RecoveryCheckScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     onSkip: (() -> Unit)? = null,
+    onScan: (() -> Unit)? = null,
+    scanned: String? = null,
+    onScannedConsumed: () -> Unit = {},
 ) {
     SecureScreen()
     val scope = rememberCoroutineScope()
@@ -60,6 +69,10 @@ fun RecoveryCheckScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var success by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    ScannedSecretEffect(scanned.takeIf { fields.size == 1 }, onScannedConsumed) {
+        values[0] = it
+        error = null
+    }
 
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         AppTopBar(title = title, onBack = onBack)
@@ -99,6 +112,7 @@ fun RecoveryCheckScreen(
                 VSpace(20)
                 PrimaryButton(text = "Done", onClick = onDone, modifier = Modifier.fillMaxWidth())
             } else {
+                ScanSheetButton(onScan.takeIf { fields.size == 1 }, enabled = !busy, spacing = 10)
                 VSpace(10)
                 PrimaryButton(
                     text = if (busy) "Checking…" else "Check",

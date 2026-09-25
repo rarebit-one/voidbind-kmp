@@ -33,7 +33,11 @@ class GoInteropTest {
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
     private fun buildCli(): File {
-        val out = File.createTempFile("vb-interop", "").apply { delete() }
+        // The binary is ~11 MB and /tmp is often RAM-backed: remove it when the test JVM exits.
+        val out = File.createTempFile("vb-interop", "").apply {
+            delete()
+            deleteOnExit()
+        }
         val p = ProcessBuilder("go", "build", "-o", out.absolutePath, "./cmd/voidbind")
             .directory(goDir).redirectErrorStream(true).start()
         val log = p.inputStream.readBytes().decodeToString()
@@ -72,7 +76,9 @@ class GoInteropTest {
             val salt = ByteArray(32) { (it * 3 + 2).toByte() }
             val init = PairflowInitiator(
                 RelayClient(http, base, session, RelayClient.ROLE_INITIATOR, pollIntervalMillis = 20),
-                PairflowAuthority.Genesis({ Ed25519Engine.sign(user.privateSeed, it) }, user.publicKey, emptyList(), 7_776_000L),
+                PairflowAuthority.Genesis({
+                    Ed25519Engine.sign(user.privateSeed, it)
+                }, user.publicKey, emptyList(), 7_776_000L),
                 salt,
                 1_724_700_000L,
             )

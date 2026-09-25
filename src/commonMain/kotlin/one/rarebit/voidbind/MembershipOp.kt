@@ -93,11 +93,8 @@ data class MembershipOp(
     enum class Failure { MALFORMED, BAD_SIGNATURE, GENESIS, NO_PREV, WRONG_TYPE }
 
     /** Thrown by [verify] (and [sign]) for an op that is not an op. */
-    class OpException(
-        val failure: Failure,
-        message: String,
-        cause: Throwable? = null,
-    ) : IllegalArgumentException(message, cause)
+    class OpException(val failure: Failure, message: String, cause: Throwable? = null) :
+        IllegalArgumentException(message, cause)
 
     companion object {
         /** The version prefixing an op payload; v1 and v2 are certs and are reinterpreted. */
@@ -183,7 +180,11 @@ data class MembershipOp(
             val by = KeyRef.ed25519(byPublicKey).render()
             val heads = normalisePrev(prev)
             if (heads.size > MAX_PREV) throw OpException(Failure.MALFORMED, "${heads.size} prev, max $MAX_PREV")
-            if (by != usr && heads.isEmpty()) throw OpException(Failure.NO_PREV, "a member-signed op must cite its heads")
+            if (by != usr &&
+                heads.isEmpty()
+            ) {
+                throw OpException(Failure.NO_PREV, "a member-signed op must cite its heads")
+            }
 
             val fields = ArrayList<Pair<String, Any>>()
             fields += "v" to VERSION
@@ -223,8 +224,12 @@ data class MembershipOp(
             val token = rawToken.trim()
             val dot = token.indexOf('.')
             if (dot < 0) throw OpException(Failure.MALFORMED, "malformed membership op")
-            val body = decodeOrNull(token.substring(0, dot)) ?: throw OpException(Failure.MALFORMED, "payload is not base64url")
-            val sig = decodeOrNull(token.substring(dot + 1)) ?: throw OpException(Failure.MALFORMED, "signature is not base64url")
+            val body =
+                decodeOrNull(token.substring(0, dot))
+                    ?: throw OpException(Failure.MALFORMED, "payload is not base64url")
+            val sig =
+                decodeOrNull(token.substring(dot + 1))
+                    ?: throw OpException(Failure.MALFORMED, "signature is not base64url")
             val obj = try {
                 MiniJson.parseObject(body.decodeToString())
             } catch (_: Throwable) {
@@ -257,7 +262,12 @@ data class MembershipOp(
                     val prevRaw = obj["prev"]
                     val prev = when (prevRaw) {
                         null, is MiniJson.Null -> emptyList()
-                        is List<*> -> prevRaw.map { it as? String ?: throw OpException(Failure.MALFORMED, "prev is not a string list") }
+
+                        is List<*> -> prevRaw.map {
+                            it as? String
+                                ?: throw OpException(Failure.MALFORMED, "prev is not a string list")
+                        }
+
                         else -> throw OpException(Failure.MALFORMED, "prev is not a list")
                     }
                     val cosigRaw = obj["cosig"]
@@ -265,7 +275,8 @@ data class MembershipOp(
                         null, is MiniJson.Null -> emptyList()
 
                         is List<*> -> cosigRaw.map { e ->
-                            val m = e as? Map<*, *> ?: throw OpException(Failure.MALFORMED, "cosig entry is not an object")
+                            val m =
+                                e as? Map<*, *> ?: throw OpException(Failure.MALFORMED, "cosig entry is not an object")
                             Cosig(m["by"] as? String ?: "", m["sig"] as? String ?: "")
                         }
 
@@ -317,7 +328,9 @@ data class MembershipOp(
             val token = rawToken.trim()
             val dot = token.indexOf('.')
             if (dot < 0) throw OpException(Failure.MALFORMED, "malformed membership op")
-            val body = decodeOrNull(token.substring(0, dot)) ?: throw OpException(Failure.MALFORMED, "payload is not base64url")
+            val body =
+                decodeOrNull(token.substring(0, dot))
+                    ?: throw OpException(Failure.MALFORMED, "payload is not base64url")
             val obj = try {
                 MiniJson.parseObject(body.decodeToString())
             } catch (_: Throwable) {
@@ -389,13 +402,21 @@ data class MembershipOp(
      * is never a device. Mirrors Go's `Op.validate`.
      */
     private fun validate() {
-        if (user.isEmpty() || device.isEmpty() || by.isEmpty()) throw OpException(Failure.MALFORMED, "a binding is empty")
+        if (user.isEmpty() || device.isEmpty() ||
+            by.isEmpty()
+        ) {
+            throw OpException(Failure.MALFORMED, "a binding is empty")
+        }
         val usrRef = try {
             KeyRef.parse(user)
         } catch (e: IllegalArgumentException) {
             throw OpException(Failure.MALFORMED, "usr: ${e.message}")
         }
-        if (usrRef.alg != Labels.ALG_ED25519 || usrRef.bytes.size != 32) throw OpException(Failure.MALFORMED, "usr: not an ed25519 key")
+        if (usrRef.alg != Labels.ALG_ED25519 ||
+            usrRef.bytes.size != 32
+        ) {
+            throw OpException(Failure.MALFORMED, "usr: not an ed25519 key")
+        }
         if (device == user) throw OpException(Failure.GENESIS, "genesis cannot be added or removed")
         if (issuedAt <= 0) throw OpException(Failure.MALFORMED, "no issued-at")
         if (prev.size > MAX_PREV) throw OpException(Failure.MALFORMED, "${prev.size} prev, max $MAX_PREV")

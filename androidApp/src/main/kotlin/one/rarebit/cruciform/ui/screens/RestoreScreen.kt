@@ -23,7 +23,10 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import one.rarebit.cruciform.domain.EngineResult
 import one.rarebit.cruciform.ui.components.AppTopBar
+import one.rarebit.cruciform.ui.components.OutlineButton
 import one.rarebit.cruciform.ui.components.PrimaryButton
+import one.rarebit.cruciform.ui.components.ScanSheetButton
+import one.rarebit.cruciform.ui.components.ScannedSecretEffect
 import one.rarebit.cruciform.ui.components.ScreenPadding
 import one.rarebit.cruciform.ui.components.SecureScreen
 import one.rarebit.cruciform.ui.components.VSpace
@@ -32,20 +35,33 @@ import one.rarebit.cruciform.ui.theme.VbColors
 /**
  * Restore an identity from a recovery secret. The library refuses a mistyped
  * secret at the bech32m checksum (the engine returns it as a Failed), which surfaces here
- * as an inline error — nothing is provisioned until it parses.
+ * as an inline error — nothing is provisioned until it parses. [onUseShares] switches to
+ * restoring from recovery shares instead.
+ *
+ * [onScan] opens the scanner for a printed recovery sheet; its result arrives as
+ * [scanned], which fills the field (nothing restores until the button is pressed) and is
+ * then [onScannedConsumed].
  */
 @Composable
 fun RestoreScreen(
     onBack: () -> Unit,
     onRestore: suspend (String) -> EngineResult<Unit>,
     onDone: () -> Unit,
+    onUseShares: () -> Unit,
     modifier: Modifier = Modifier,
+    onScan: (() -> Unit)? = null,
+    scanned: String? = null,
+    onScannedConsumed: () -> Unit = {},
 ) {
     SecureScreen()
     val scope = rememberCoroutineScope()
     var secret by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    ScannedSecretEffect(scanned, onScannedConsumed) {
+        secret = it
+        error = null
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         AppTopBar(title = "Restore identity", onBack = onBack)
@@ -86,7 +102,9 @@ fun RestoreScreen(
                 VSpace(8)
                 Text(error!!, style = MaterialTheme.typography.bodyMedium, color = VbColors.Coral)
             }
-            VSpace(20)
+            VSpace(12)
+            ScanSheetButton(onScan, enabled = !busy, spacing = 8)
+            VSpace(12)
             PrimaryButton(
                 text = if (busy) "Restoring…" else "Restore identity",
                 onClick = {
@@ -108,6 +126,14 @@ fun RestoreScreen(
                 },
                 enabled = secret.isNotBlank() && !busy,
                 fill = VbColors.Mint,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            VSpace(10)
+            OutlineButton(
+                text = "I have recovery shares instead",
+                onClick = onUseShares,
+                enabled = !busy,
+                accent = VbColors.TextSecondary,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

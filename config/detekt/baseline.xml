@@ -20,6 +20,7 @@
     <ID>EmptyFunctionBlock:PairingErrorTest.kt$PairingErrorTest.LonelyTransport${}</ID>
     <ID>EmptyFunctionBlock:PairingErrorTest.kt$PairingErrorTest.StatusTransport${}</ID>
     <ID>EmptyFunctionBlock:PairingErrorTest.kt$PairingErrorTest.ThrowingTransport${}</ID>
+    <ID>LongMethod:CoordinatorGoInteropTest.kt$CoordinatorGoInteropTest$@Test fun memberPhoneAdmitsTheNextPhoneThroughTheLiveGoRelayAndTheGoRpHonoursTheOps()</ID>
     <ID>LongMethod:Membership.kt$Membership.Evaluator$fun frame(set: Set&lt;String&gt;, window: (MembershipOp) -&gt; String): FrameState</ID>
     <ID>LongMethod:MembershipOp.kt$MembershipOp.Companion$fun verify(rawToken: String, verifier: Ed25519Verifier = Ed25519Engine.verifier()): MembershipOp</ID>
     <ID>LongParameterList:DeviceAuthorization.kt$DeviceAuthorization$( http: HttpTransport, device: DeviceIdentity, admittingOp: String, knownOps: List&lt;String&gt;, clock: () -&gt; Long, pollIntervalMillis: Long = 150, maxWaitMillis: Long = RelayClient.DEFAULT_MAX_WAIT_MILLIS, )</ID>
@@ -230,113 +231,19 @@
     <ID>MagicNumber:XChaCha20Poly1305.kt$XChaCha20Poly1305$9</ID>
     <ID>MatchingDeclarationName:DeepLink.kt$VoidbindDeepLink</ID>
     <ID>MatchingDeclarationName:OffloadInvite.kt$OffloadDeepLink</ID>
-    <ID>MaxLineLength:Aead.android.kt$aeadKeyDecoder.decodeFromByteArrayBlocking(ChaCha20Poly1305.Key.Format.RAW, key).cipher().decryptWithIvBlocking(nonce12, ciphertext, aad)</ID>
-    <ID>MaxLineLength:Aead.android.kt$aeadKeyDecoder.decodeFromByteArrayBlocking(ChaCha20Poly1305.Key.Format.RAW, key).cipher().encryptWithIvBlocking(nonce12, plaintext, aad)</ID>
-    <ID>MaxLineLength:Aead.ios.kt$aeadKeyDecoder.decodeFromByteArrayBlocking(ChaCha20Poly1305.Key.Format.RAW, key).cipher().decryptWithIvBlocking(nonce12, ciphertext, aad)</ID>
-    <ID>MaxLineLength:Aead.ios.kt$aeadKeyDecoder.decodeFromByteArrayBlocking(ChaCha20Poly1305.Key.Format.RAW, key).cipher().encryptWithIvBlocking(nonce12, plaintext, aad)</ID>
-    <ID>MaxLineLength:CoordinatorGoInteropTest.kt$CoordinatorGoInteropTest$assertTrue(Membership.evaluate(usr, admission.ops, now).isMember(KeyRef.ed25519(phoneB.signPublicKey).render()))</ID>
-    <ID>MaxLineLength:CoordinatorGoInteropTest.kt$CoordinatorGoInteropTest$private</ID>
-    <ID>MaxLineLength:CoordinatorGoInteropTest.kt$CoordinatorGoInteropTest$val</ID>
-    <ID>MaxLineLength:CoordinatorGoInteropTest.kt$CoordinatorGoInteropTest$val auth = DeviceAuthorization(http, phoneA, admittingOp = certA, knownOps = emptyList(), clock = { now }, pollIntervalMillis = 20)</ID>
-    <ID>MaxLineLength:CoordinatorGoInteropTest.kt$CoordinatorGoInteropTest$val relay = ProcessBuilder(cli.absolutePath, "relay", "--addr", "127.0.0.1:$relayPort").redirectErrorStream(true).start()</ID>
-    <ID>MaxLineLength:CoordinatorGoInteropTest.kt$CoordinatorGoInteropTest$val rp = ProcessBuilder(cli.absolutePath, "login-serve", "--addr", "127.0.0.1:$rpPort", "--pin", usr).redirectErrorStream(true).start()</ID>
-    <ID>MaxLineLength:CoordinatorPairingTest.kt$CoordinatorPairingTest$private</ID>
-    <ID>MaxLineLength:CoordinatorPairingTest.kt$CoordinatorPairingTest$val auth = DeviceAuthorization(http, phoneA, admittingOp = certA, knownOps = emptyList(), clock = { now }, pollIntervalMillis = 10)</ID>
-    <ID>MaxLineLength:CoordinatorPairingTest.kt$CoordinatorPairingTest$val authB = DeviceAuthorization(http, phoneB, admission.op, admission.ops, clock = { now + 1 }, pollIntervalMillis = 10)</ID>
-    <ID>MaxLineLength:CoordinatorPairingTest.kt$CoordinatorPairingTest$val tB = Thread { runCatching { responderHandshake = pairing.begin(invitation.inviteQr) }.onFailure { responderError = it } }</ID>
-    <ID>MaxLineLength:DeepLinkTest.kt$DeepLinkTest$assertEquals("$brokerQr&amp;callback=allthing%3A%2F%2Fsignin", VoidbindDeepLink.loginUriFromTuple(brokerQr, "allthing://signin"))</ID>
-    <ID>MaxLineLength:DeepLinkTest.kt$DeepLinkTest$assertFailsWith&lt;IllegalArgumentException&gt; { VoidbindDeepLink.loginUriFromTuple("voidbind:pair?v=3", "allthing://x") }</ID>
-    <ID>MaxLineLength:DeepLinkTest.kt$DeepLinkTest$assertFailsWith&lt;IllegalArgumentException&gt; { VoidbindDeepLink.parse("voidbind:login?rp=x&amp;callback=myapp%3A%2F%2Fx") }</ID>
-    <ID>MaxLineLength:DeepLinkTest.kt$DeepLinkTest$for</ID>
-    <ID>MaxLineLength:DeepLinkTest.kt$DeepLinkTest$val invite = Invite.encode("http://relay", "sess1", Hex.decode(saltHex), "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4")</ID>
-    <ID>MaxLineLength:DeviceAuthorization.kt$DeviceAuthorization${ PairflowAuthority.Device(device.asSigner(), device.signPublicKey, device.encPublicKey, admittingOp, knownOps) }</ID>
-    <ID>MaxLineLength:DeviceCredentialTest.kt$DeviceCredentialTest$assertFailsWith&lt;IllegalArgumentException&gt; { DeviceCredential(cert, signer, { now }, ttlSeconds = 60, reuseForSeconds = 0) }</ID>
-    <ID>MaxLineLength:DeviceCredentialTest.kt$DeviceCredentialTest$assertFailsWith&lt;IllegalArgumentException&gt; { DeviceCredential(cert, signer, { now }, ttlSeconds = 60, reuseForSeconds = 61) }</ID>
     <ID>MaxLineLength:DeviceCredentialTest.kt$DeviceCredentialTest$private</ID>
     <ID>MaxLineLength:DeviceCredentialTest.kt$DeviceCredentialTest$private val proof = "eyJ2IjoyLCJjcnQiOiJJdG01WGo5Vmtta2NkQWNOV3JjNEM0QU1LeVppTmx2cFRZM2dfS2FtakxJIiwiaWF0IjoxNzg4MzUwNDAwLCJleHAiOjE3ODgzNTA1MjB9.Qrj11oz4bLp_Zy8xWcHzQkhvYsjcCdy69LGGRcoCABPnlz3WynYLQwVFuxoVlYkn024FaXIDhXGadMAfR5g5Bw"</ID>
-    <ID>MaxLineLength:GoInteropTest.kt$GoInteropTest$PairflowAuthority.Genesis({ Ed25519Engine.sign(user.privateSeed, it) }, user.publicKey, emptyList(), 7_776_000L)</ID>
-    <ID>MaxLineLength:GoSignatureAssertions.kt$internal</ID>
-    <ID>MaxLineLength:Invite.kt$Invite$require(salt.size &gt;= Pairing.MIN_SALT_LEN) { "invite salt is too short (${salt.size} &lt; ${Pairing.MIN_SALT_LEN})" }</ID>
-    <ID>MaxLineLength:InviteTest.kt$InviteTest$Invite.decode(golden.replaceFirst("&amp;usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4", ""))</ID>
-    <ID>MaxLineLength:InviteTest.kt$InviteTest$Invite.decode(golden.replaceFirst("v=3", "v=2").replaceFirst("&amp;usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4", ""))</ID>
-    <ID>MaxLineLength:InviteTest.kt$InviteTest$val</ID>
-    <ID>MaxLineLength:JvmDeviceKeyStoreTest.kt$JvmDeviceKeyStoreTest$assertEquals(implicitDefault.publicKey(), longWindow.publicKey(), "window does not alter key identity per alias")</ID>
-    <ID>MaxLineLength:LoginApproval.kt$LoginApproval$val</ID>
-    <ID>MaxLineLength:LoginQrTest.kt$LoginQrTest$val invite = Invite.encode(relay = "http://relay", session = "sess1", salt = one.rarebit.voidbind.crypto.Hex.decode(saltHex), usr = "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4")</ID>
-    <ID>MaxLineLength:Membership.kt$Membership.Evaluator$rejected[h] = if (ex.failure == MembershipOp.Failure.BAD_SIGNATURE) Reason.BAD_SIGNATURE else Reason.MALFORMED</ID>
-    <ID>MaxLineLength:Membership.kt$Membership.Evaluator$st.ineffective[op.hash] = if (adds[op.by].orEmpty().isNotEmpty()) Reason.OUTRANKED else Reason.UNAUTHORISED</ID>
-    <ID>MaxLineLength:MembershipOp.kt$MembershipOp$if (user.isEmpty() || device.isEmpty() || by.isEmpty()) throw OpException(Failure.MALFORMED, "a binding is empty")</ID>
-    <ID>MaxLineLength:MembershipOp.kt$MembershipOp$if (usrRef.alg != Labels.ALG_ED25519 || usrRef.bytes.size != 32) throw OpException(Failure.MALFORMED, "usr: not an ed25519 key")</ID>
-    <ID>MaxLineLength:MembershipOp.kt$MembershipOp.Companion$if (by != usr &amp;&amp; heads.isEmpty()) throw OpException(Failure.NO_PREV, "a member-signed op must cite its heads")</ID>
-    <ID>MaxLineLength:MembershipOp.kt$MembershipOp.Companion$is List&lt;*&gt; -&gt; prevRaw.map { it as? String ?: throw OpException(Failure.MALFORMED, "prev is not a string list") }</ID>
-    <ID>MaxLineLength:MembershipOp.kt$MembershipOp.Companion$val body = decodeOrNull(token.substring(0, dot)) ?: throw OpException(Failure.MALFORMED, "payload is not base64url")</ID>
-    <ID>MaxLineLength:MembershipOp.kt$MembershipOp.Companion$val m = e as? Map&lt;*, *&gt; ?: throw OpException(Failure.MALFORMED, "cosig entry is not an object")</ID>
-    <ID>MaxLineLength:MembershipOp.kt$MembershipOp.Companion$val sig = decodeOrNull(token.substring(dot + 1)) ?: throw OpException(Failure.MALFORMED, "signature is not base64url")</ID>
     <ID>MaxLineLength:MembershipOpTest.kt$MembershipOpTest$"eyJ2IjozLCJ1c3IiOiJlZDI1NTE5OmY5NDdiMTBjODA4OWFhOGZlZDJkNDM1ZmFlMDY5ZDBjYTE1MTNiMzM2OTE5NTVhZTk2M2RmZThiYzViMzk4YzQiLCJvcCI6ImFkZCIsImRldiI6ImVkMjU1MTk6NDRmMjU1Mzc2YmQxMDgyMWY4MmIwZjlmNTY4NTA0Y2FhZjZjMTU4M2M2NWU2ODVkNjZkMDVlYzNhYWMzZDc4OSIsImRlbmMiOiJ4MjU1MTk6OTllMWU1OGFmOTAxZDc1OWU2OTY5ZmVmZTNjM2ZhNDdkOWNkZWY5NTRhYjY0ZTIxZmM5OTBjNWJhZTQ1ZDM1YyIsImJ5IjoiZWQyNTUxOTpmOTQ3YjEwYzgwODlhYThmZWQyZDQzNWZhZTA2OWQwY2ExNTEzYjMzNjkxOTU1YWU5NjNkZmU4YmM1YjM5OGM0IiwicHJldiI6W10sImlhdCI6MTc4ODI2NDAwMCwiZXhwIjoxNzk2MDQwMDAwfQ._6NQ53HSNPWvzQQVNbB2mEnGBwI__2fDvZ50OOMbiNGoFDPLPDSunF4ntlIvf3xnexcx8YAqCShYTszzC7KcDw"</ID>
     <ID>MaxLineLength:MembershipOpTest.kt$MembershipOpTest$"eyJ2IjozLCJ1c3IiOiJlZDI1NTE5OmY5NDdiMTBjODA4OWFhOGZlZDJkNDM1ZmFlMDY5ZDBjYTE1MTNiMzM2OTE5NTVhZTk2M2RmZThiYzViMzk4YzQiLCJvcCI6ImFkZCIsImRldiI6ImVkMjU1MTk6Y2U5YzgzZjEzYzZhMDY2NjY2NjVlMDQ3MWQ0NWMwYjRkNDEwN2Q4OTJlOGRkYjRkZTdhYzI3NTIwZTM2ZjM3ZCIsImRlbmMiOiJ4MjU1MTk6MzIzMzhhMDZkNGY2N2E2NjRmY2FhYmJmMWU5OGMxZTQ2ZjJiNTc1MGYyMjcwYmQ0YWYxMjczNTVlZDU2MDYxOSIsImJ5IjoiZWQyNTUxOTo0NGYyNTUzNzZiZDEwODIxZjgyYjBmOWY1Njg1MDRjYWFmNmMxNTgzYzY1ZTY4NWQ2NmQwNWVjM2FhYzNkNzg5IiwicHJldiI6WyJzaGEyNTY6OTY0NmI0OTFiNzNlMDYwYzUxYmRkOWUzYjY5Yjg5ZWE4M2ZjMmU1YTY2YzNiMzUxNDFlYzFlMGM1NzhhOGZjNyJdLCJpYXQiOjE3ODgyNjQzMDAsImV4cCI6MTc5NjA0MDMwMH0.xpU7mECpsz-GUYhnwB_26ZyyoT-p0e0en9DGpVri26K-cQmVVrfQcsDP9CYrRXXpzAtm5svBsqaI-JC8azuACg"</ID>
-    <ID>MaxLineLength:MembershipOpTest.kt$MembershipOpTest$assertEquals(MembershipOp.Failure.MALFORMED, assertFailsWith&lt;MembershipOp.OpException&gt; { MembershipOp.verify("AAAA.BBBB") }.failure)</ID>
-    <ID>MaxLineLength:MembershipOpTest.kt$MembershipOpTest$assertEquals(MembershipOp.Failure.MALFORMED, assertFailsWith&lt;MembershipOp.OpException&gt; { MembershipOp.verify("not-an-op") }.failure)</ID>
-    <ID>MaxLineLength:MembershipOpTest.kt$MembershipOpTest$val rm = MembershipOp.sign(g, gp, usr, MembershipOp.Kind.REMOVE, aId, "ignored?", listOf(addBHash, addAHash, addAHash), 1_788_264_400L)</ID>
-    <ID>MaxLineLength:MembershipVectorTest.kt$MembershipVectorTest$Vector</ID>
-    <ID>MaxLineLength:MembershipVectorTest.kt$MembershipVectorTest$assertTrue(view.rejected.keys.none { h -&gt; toks.any { MembershipOp.hash(it) == h } }, "rejected tokens are not state")</ID>
-    <ID>MaxLineLength:NetworkClientsTest.kt$NetworkClientsTest$PairflowAuthority.Genesis({ Ed25519Engine.sign(user.privateSeed, it) }, user.publicKey, emptyList(), 7_776_000L)</ID>
-    <ID>MaxLineLength:NetworkClientsTest.kt$NetworkClientsTest$approved["L1"] = (o["cert"] as? String)?.isNotEmpty() == true &amp;&amp; (o["sig"] as? String)?.isNotEmpty() == true</ID>
-    <ID>MaxLineLength:NetworkClientsTest.kt$NetworkClientsTest$send(ex, 200, """{"id":"L1","nonce":"$nonce","audience":"aud","expires_at":4102444800}""".encodeToByteArray())</ID>
     <ID>MaxLineLength:NetworkClientsTest.kt$NetworkClientsTest$val j = if (ok) """{"status":"approved","token":"TOK123","user":"ed25519:aa"}""" else """{"status":"pending"}"""</ID>
-    <ID>MaxLineLength:NetworkClientsTest.kt$NetworkClientsTest$val responder = PairflowResponder(respRelay, KeyRef.ed25519(user.publicKey).render(), dev.publicKey, devEnc, salt, 1_724_700_000L)</ID>
-    <ID>MaxLineLength:OffloadInvite.kt$OffloadDeepLink.PairInvite$other is PairInvite &amp;&amp; relayBase == other.relayBase &amp;&amp; session == other.session &amp;&amp; salt.contentEquals(other.salt)</ID>
-    <ID>MaxLineLength:OffloadProtocol.kt$OffloadProtocol$if (!resp.nonce.contentEquals(wantNonce)) throw OffloadWireException("response nonce does not match the request")</ID>
-    <ID>MaxLineLength:OffloadProtocol.kt$OffloadProtocol$if (ref.alg != "ed25519" || ref.bytes.size != ED25519_PUB) throw OffloadWireException("reveal sign is not an ed25519 key")</ID>
-    <ID>MaxLineLength:OffloadProtocol.kt$OffloadProtocol$public</ID>
-    <ID>MaxLineLength:OffloadProtocol.kt$OffloadProtocol.Reader$if (n &lt; 0 || n &gt; MAX_FIELD) throw OffloadWireException("malformed offload message: field of $n bytes exceeds $MAX_FIELD")</ID>
-    <ID>MaxLineLength:OffloadProtocol.kt$OffloadProtocol.Reader$if (v != WIRE_VERSION) throw OffloadWireException("malformed offload message: version $v, want $WIRE_VERSION")</ID>
-    <ID>MaxLineLength:OffloadResponder.kt$OffloadPairingResponder$require(Pairing.opens(desktopCommit, transportPub)) { "desktop commitment does not open against its revealed key" }</ID>
-    <ID>MaxLineLength:OffloadResponder.kt$OffloadPairingResponder$val transcript = OffloadProtocol.pairConfirmTranscript(invite.session, invite.salt, h.transportPub, devicePub, deviceEnc)</ID>
-    <ID>MaxLineLength:OffloadResponderTest.kt$OffloadResponderTest$OffloadUnwrapResponder(signer(phone.privateSeed), phoneEncSeed, transport.publicKey, Ed25519Engine.verifier())</ID>
-    <ID>MaxLineLength:OffloadResponderTest.kt$OffloadResponderTest$assertTrue(Pairing.opens(relay.slots["responder:commit"]!!, phone.publicKey, phoneEnc), "desktop opens phone commit")</ID>
-    <ID>MaxLineLength:OffloadResponderTest.kt$OffloadResponderTest$val desktopSas = Pairing.deriveSas(Pairing.Keys(transport.publicKey), Pairing.Keys(phone.publicKey, phoneEnc), salt)</ID>
-    <ID>MaxLineLength:OffloadResponderTest.kt$OffloadResponderTest$val responder = OffloadPairingResponder(signer(phone.privateSeed), phone.publicKey, phoneEnc, Ed25519Engine.verifier())</ID>
-    <ID>MaxLineLength:OffloadResponderTest.kt$OffloadResponderTest$val transcript = OffloadProtocol.pairConfirmTranscript(invite.session, salt, transport.publicKey, phone.publicKey, phoneEnc)</ID>
-    <ID>MaxLineLength:OffloadVectorTest.kt$OffloadVectorTest$assertTrue(verifier.verify(transportPub, transcript, v.bytes("transport_sig_hex")), "desktop confirm sig must verify")</ID>
-    <ID>MaxLineLength:OffloadVectorTest.kt$OffloadVectorTest$val input = OffloadProtocol.requestSigningInput(v.bytes("wrapped_hex"), v.bytes("eph_pub_hex"), v.bytes("nonce_hex"))</ID>
-    <ID>MaxLineLength:OffloadVectorTest.kt$OffloadVectorTest$val req = OffloadProtocol.verifyRequest(Ed25519Engine.verifier(), v.bytes("transport_pub_hex"), v.bytes("request_hex"))</ID>
-    <ID>MaxLineLength:Pairflow.kt$PairflowInitiator$check(view.isMember(self)) { "pairflow: this device is not a member of ${op.user} under the ops it holds" }</ID>
-    <ID>MaxLineLength:Pairflow.kt$PairflowInitiator$require(authority.encPublicKey.size == Pairing.ENC_KEY_SIZE) { "pairflow: a device encryption key is required" }</ID>
-    <ID>MaxLineLength:Pairflow.kt$PairflowInitiator$require(authority.publicKey.size == Pairing.ED25519_PUBLIC_KEY_SIZE) { "pairflow: a user identity key is required" }</ID>
-    <ID>MaxLineLength:Pairflow.kt$PairflowResponder$require(op.by == KeyRef.ed25519(initSign).render()) { "pairflow: op signed by ${op.by}, not the initiator bound in the SAS" }</ID>
-    <ID>MaxLineLength:Pairflow.kt$PairflowResponder$require(op.deviceEnc == deviceEncId) { "pairflow: op binds encryption key ${op.deviceEnc}, not this device's $deviceEncId" }</ID>
-    <ID>MaxLineLength:Pairflow.kt$PairflowResponder$view.ineffective[op.hash]?.let { throw IllegalStateException("pairflow: the received op does not admit this device: $it") }</ID>
-    <ID>MaxLineLength:PairingConfirmErrorTest.kt$PairingConfirmErrorTest$return DeviceIdentity(Ed25519Group.publicKeyFromSeed(seed), enc.publicKey, enc.privateKey) { Ed25519Engine.sign(seed, it) }</ID>
-    <ID>MaxLineLength:PairingConfirmErrorTest.kt$PairingConfirmErrorTest$val admission = assertIs&lt;PairingOutcome.Ready&lt;one.rarebit.voidbind.net.Admission&gt;&gt;(h.pairing.confirmCatching(h.handshake)).value</ID>
-    <ID>MaxLineLength:PairingErrorTest.kt$PairingErrorTest$assertEquals("Can't reach the relay at 192.168.16.224:7777. Check Wi-Fi or your VPN and try again.", failed.message)</ID>
-    <ID>MaxLineLength:PairingErrorTest.kt$PairingErrorTest$assertTrue("SocketTimeout" !in failed.message &amp;&amp; "failed to connect" !in failed.message, "no raw exception text")</ID>
-    <ID>MaxLineLength:PairingErrorTest.kt$PairingErrorTest$private val invite = Invite.Parsed(relay, "deadbeef", ByteArray(32) { 7 }, "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4")</ID>
-    <ID>MaxLineLength:PairingErrorTest.kt$PairingErrorTest$val auth = DeviceAuthorization(ThrowingTransport { RuntimeException("failed to connect") }, UserIdentity.create(), { 1L })</ID>
-    <ID>MaxLineLength:PairingErrorTest.kt$PairingErrorTest$val invitation = assertIs&lt;PairingOutcome.Ready&lt;DeviceAuthorization.Invitation&gt;&gt;(auth.inviteCatching(relay)).value</ID>
-    <ID>MaxLineLength:PairingErrorTest.kt$PairingErrorTest$val pairing = DevicePairing(ThrowingTransport { RuntimeException("failed to connect to /192.168.16.224 (port 7777)") }, device(), { 1L })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertEquals(PossessionProof.Reason.BAD_SIGNATURE, refused { PossessionProof.verify(flipped, pub, certA, nowA + 1, verifier) })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertEquals(PossessionProof.Reason.BAD_SIGNATURE, refused { PossessionProof.verify(proofA, devicePub(certB), certA, nowA + 1, verifier) })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertEquals(PossessionProof.Reason.EXPIRED, refused { PossessionProof.verify(proofA, pub, certA, nowA + 120, verifier) })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertEquals(PossessionProof.Reason.MALFORMED, refused { PossessionProof.verify("!!.!!", pub, certA, nowA + 1, verifier) })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertEquals(PossessionProof.Reason.MALFORMED, refused { PossessionProof.verify("no-dot", pub, certA, nowA + 1, verifier) })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertEquals(PossessionProof.Reason.NOT_YET_VALID, refused { PossessionProof.verify(proofA, pub, certA, nowA - 31, verifier) })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertEquals(PossessionProof.Reason.NOT_YET_VALID, refused { PossessionProof.verify(proofA, pub, certA, nowA - 60, verifier) })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertEquals(PossessionProof.Reason.WRONG_CERT, refused { PossessionProof.verify(proofA, pub, certB, nowA + 1, verifier) })</ID>
-    <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$assertMatchesGoToken(proofB, PossessionProof.mint(certB, signer(deviceSeedB), nowB, ttlSeconds = 0), devicePub(certB))</ID>
     <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$private</ID>
     <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$private val proofA = "eyJ2IjoyLCJjcnQiOiJsQ2ViWTBpTTM0SGM0Z3RGUERtZ1o2S0pMWWE0ejc0YklhU1hSWFV1d01ZIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjE3MDAwMDAxMjB9.2Ta_JOte2RDRHBFrNvOToo68--ea7TIfRjFPNGV-JtvQiXVb_hfE1gQCA9RwlbHyFJ9Mp0AZ5G_u19U1jB-FAg"</ID>
     <ID>MaxLineLength:PossessionProofTest.kt$PossessionProofTest$private val proofB = "eyJ2IjoyLCJjcnQiOiJJdG01WGo5Vmtta2NkQWNOV3JjNEM0QU1LeVppTmx2cFRZM2dfS2FtakxJIiwiaWF0IjoxNzg4MzUwNDAwLCJleHAiOjE3ODgzNTA1MjB9.Qrj11oz4bLp_Zy8xWcHzQkhvYsjcCdy69LGGRcoCABPnlz3WynYLQwVFuxoVlYkn024FaXIDhXGadMAfR5g5Bw"</ID>
-    <ID>MaxLineLength:RelayClientWaitTest.kt$RelayClientWaitTest$RelayClient(t, "http://relay.test/pair", "sess", RelayClient.ROLE_INITIATOR, pollIntervalMillis = 1_000, maxWaitMillis = maxWaitMillis)</ID>
-    <ID>MaxLineLength:RelayClientWaitTest.kt$RelayClientWaitTest$assertFailsWith&lt;RelayTimeout&gt; { RelayClient(t, "http://relay.test", "s", RelayClient.ROLE_INITIATOR, pollIntervalMillis = 1_000).fetch("commit") }</ID>
-    <ID>MaxLineLength:RelayClientWaitTest.kt$RelayClientWaitTest.ScriptedTransport$private</ID>
-    <ID>MaxLineLength:VoidbindEncryption.kt$VoidbindEncryption$require(wrapped.size == WRAP_OVERHEAD) { "unwrap: wrapped key must be $WRAP_OVERHEAD bytes, got ${wrapped.size}" }</ID>
-    <ID>MaxLineLength:WebLogin.kt$WebLogin.Assertion$data</ID>
-    <ID>MaxLineLength:X25519.kt$X25519$private val _121665 = longArrayOf(0xDB41L, 1L).let { init -&gt; LongArray(16).also { for (i in init.indices) it[i] = init[i] } }</ID>
     <ID>MayBeConst:OffloadProtocol.kt$OffloadProtocol$private val ED25519_PUB = 32</ID>
     <ID>MayBeConst:OffloadProtocol.kt$OffloadProtocol$private val SIG_SIZE = 64</ID>
     <ID>NestedBlockDepth:Membership.kt$Membership.Evaluator$fun frame(set: Set&lt;String&gt;, window: (MembershipOp) -&gt; String): FrameState</ID>
     <ID>NestedBlockDepth:MiniJson.kt$MiniJson$@Suppress("UNCHECKED_CAST") private fun encodeValue(sb: StringBuilder, v: Any)</ID>
-    <ID>ObjectPropertyNaming:X25519.kt$X25519$private val _121665 = longArrayOf(0xDB41L, 1L).let { init -&gt; LongArray(16).also { for (i in init.indices) it[i] = init[i] } }</ID>
+    <ID>ObjectPropertyNaming:X25519.kt$X25519$private val _121665 = longArrayOf(0xDB41L, 1L).let { init -&gt; LongArray(16).also { for (i in init.indices) { it[i] = init[i] } } }</ID>
     <ID>ReturnCount:DeepLink.kt$VoidbindDeepLink$fun isWellFormedCallback(callback: String): Boolean</ID>
     <ID>ReturnCount:DeepLink.kt$VoidbindDeepLink$private fun callbackOf(uri: String): String?</ID>
     <ID>ReturnCount:Membership.kt$Membership.Evaluator$fun authorised(h: String): Boolean</ID>
@@ -354,9 +261,9 @@
     <ID>SwallowedException:PossessionProof.kt$PossessionProof$e: Exception</ID>
     <ID>SwallowedException:PossessionProof.kt$PossessionProof$e: IllegalArgumentException</ID>
     <ID>ThrowsCount:MembershipOp.kt$MembershipOp$private fun validate()</ID>
-    <ID>ThrowsCount:MembershipOp.kt$MembershipOp.Companion$internal fun signTyped( typ: String, signer: Ed25519Signer, byPublicKey: ByteArray, usr: String, kind: Kind, dev: String, deviceEnc: String, prev: List&lt;String&gt;, issuedAt: Long, lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS, ): String</ID>
     <ID>ThrowsCount:MembershipOp.kt$MembershipOp.Companion$fun user(rawToken: String): String</ID>
     <ID>ThrowsCount:MembershipOp.kt$MembershipOp.Companion$fun verify(rawToken: String, verifier: Ed25519Verifier = Ed25519Engine.verifier()): MembershipOp</ID>
+    <ID>ThrowsCount:MembershipOp.kt$MembershipOp.Companion$internal fun signTyped( typ: String, signer: Ed25519Signer, byPublicKey: ByteArray, usr: String, kind: Kind, dev: String, deviceEnc: String, prev: List&lt;String&gt;, issuedAt: Long, lifetimeSeconds: Long = DEFAULT_LIFETIME_SECONDS, ): String</ID>
     <ID>ThrowsCount:OffloadProtocol.kt$OffloadProtocol.Reader$fun field(): ByteArray</ID>
     <ID>ThrowsCount:Pairflow.kt$PairflowResponder$fun receive(deviceEncPriv: ByteArray, sealer: CertSealer = VoidbindCertSealer): Admission</ID>
     <ID>ThrowsCount:PossessionProof.kt$PossessionProof$fun verify( proof: String, devicePublicKey: ByteArray, certToken: String, now: Long, verifier: Ed25519Verifier, ): Payload</ID>

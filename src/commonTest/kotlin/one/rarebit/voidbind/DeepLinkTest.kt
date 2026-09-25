@@ -40,8 +40,13 @@ class DeepLinkTest {
     @Test
     fun loginUriFromTheBrokerTupleRoundTrips() {
         assertEquals(brokerQr, VoidbindDeepLink.loginUriFromTuple(brokerQr))
-        assertEquals("$brokerQr&callback=allthing%3A%2F%2Fsignin", VoidbindDeepLink.loginUriFromTuple(brokerQr, "allthing://signin"))
-        assertFailsWith<IllegalArgumentException> { VoidbindDeepLink.loginUriFromTuple("voidbind:pair?v=3", "allthing://x") }
+        assertEquals(
+            "$brokerQr&callback=allthing%3A%2F%2Fsignin",
+            VoidbindDeepLink.loginUriFromTuple(brokerQr, "allthing://signin"),
+        )
+        assertFailsWith<IllegalArgumentException> {
+            VoidbindDeepLink.loginUriFromTuple("voidbind:pair?v=3", "allthing://x")
+        }
     }
 
     @Test
@@ -61,7 +66,14 @@ class DeepLinkTest {
         assertEquals("myapp://back", p.callback)
 
         // A web / javascript / intent / voidbind callback is dropped, the login kept.
-        for (bad in listOf("https://evil.example/x", "javascript:alert(1)", "intent://x#Intent;end", "voidbind:login?rp=a&id=b", "file:///etc/passwd", "content://media/1")) {
+        for (bad in listOf(
+            "https://evil.example/x",
+            "javascript:alert(1)",
+            "intent://x#Intent;end",
+            "voidbind:login?rp=a&id=b",
+            "file:///etc/passwd",
+            "content://media/1",
+        )) {
             val u = "$brokerQr&callback=${one.rarebit.voidbind.crypto.UrlQuery.escape(bad)}"
             val q = VoidbindDeepLink.parse(u) as VoidbindDeepLink.Parsed.Login
             assertNull(q.callback, "callback '$bad' must be dropped")
@@ -74,7 +86,9 @@ class DeepLinkTest {
     @Test
     fun parseIsAsStrictAsAScan() {
         assertFailsWith<IllegalArgumentException> { VoidbindDeepLink.parse("https://example.com/login") }
-        assertFailsWith<IllegalArgumentException> { VoidbindDeepLink.parse("voidbind:login?rp=x&callback=myapp%3A%2F%2Fx") } // no id
+        assertFailsWith<IllegalArgumentException> {
+            VoidbindDeepLink.parse("voidbind:login?rp=x&callback=myapp%3A%2F%2Fx")
+        } // no id
         assertFailsWith<IllegalArgumentException> { VoidbindDeepLink.parse("voidbind:other?rp=x&id=y") }
         assertNull(VoidbindDeepLink.parseOrNull("nope"))
     }
@@ -82,7 +96,12 @@ class DeepLinkTest {
     @Test
     fun pairHandoffCarriesTheInviteAndCallback() {
         val saltHex = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
-        val invite = Invite.encode("http://relay", "sess1", Hex.decode(saltHex), "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4")
+        val invite = Invite.encode(
+            "http://relay",
+            "sess1",
+            Hex.decode(saltHex),
+            "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4",
+        )
         val uri = VoidbindDeepLink.pairUri(invite, "myapp://paired")
         assertEquals("$invite&callback=myapp%3A%2F%2Fpaired", uri)
         val p = VoidbindDeepLink.parse(uri) as VoidbindDeepLink.Parsed.Pair

@@ -25,6 +25,7 @@ This is the runbook, plus the map of what still has to be built to reach the ful
 | Same-device app-to-app deep link (`voidbind:login?…` from an RP app) | ✅ approval sheet proven on-device via `adb am start` against a live heyarr node (Test 5) |
 | Reverse same-device handoff (ADR-0006): "Send to `<app>` on this phone" from the invite screen | ✅ buttons resolve per installed RP; **end-to-end (RP joins → SAS on both apps → confirm here) needs the human finger (Test 6)** |
 | Membership op-set (ADR-0005): any member adds the next; Devices list + Remove | ✅ library proven vs live voidbind-go (14/14 vectors, phone→phone through the Go relay, Go RP honours `ops`); **on-device: upgrade-in-place + Devices list proven; a real second-phone pair/remove needs a second phone (Test 4b)** |
+| Recovery shares (SLIP-39, voidbind-go ADR-0011): restore from 2-of-3 shares, typed; split on the phone | ✅ library passes Trezor's 45 vectors + combines Go-made shares (JVM); **on-device restore from Go-made shares: Test 2e; split on the phone and restore elsewhere: Test 2f** |
 
 The commonMain "device brain" (identity derivation, self-enrolment, the
 `LoginApproval` / `DevicePairing` / `DeviceAuthorization` coordinators, the QR
@@ -118,11 +119,120 @@ iOS; the Android onboarding screens).
    Settings reads "Checked <date>".
 4. **Remove the copy.** Settings → Recovery → **Remove the copy on this phone**:
    - before any drill, it refuses and points at the drill;
+   - before any drill, the refusal dialog is titled **Not yet** (not "Something went
+     wrong");
    - after one, it asks for a strong biometric (no PIN option), then the Recovery
-     backup and Remove rows disappear;
+     backup, Split into shares and Remove rows disappear;
    - the phone still signs in and renews itself;
    - adding a device from it still works (member-signed); re-admitting a REMOVED
      device now needs the paper (Restore on that device).
+
+## Test 2d — print the recovery sheet; scan it back (voidbind-go#52)
+
+The sheet mirrors voidbind-go `recovery/sheet` (`voidbind recovery sheet --out …`):
+the secret as an upper-case QR code (alphanumeric, version 4, medium error
+correction), the secret in four-character groups, the fingerprint and user ID, four
+numbered instructions, corner cut marks and a 50 mm calibration bar. The app draws it
+as a one-page PDF and hands it straight to the print framework; nothing of
+Cruciform's is written to disk. The layout is unit-tested (`RecoverySheetTest`); the
+print, the paper and the camera are what this test proves.
+
+1. **Print.** On the recovery backup screen (during Create, and from Settings →
+   Recovery backup) tap **Print recovery sheet**. The system print dialog opens with
+   A4 and black-and-white preselected. Choose a real printer (not "Save as PDF", which
+   writes the secret to storage) and print at **100% / actual size**, with any "fit
+   to page" option off. Letter paper also works: the card is Letter-safe and the page
+   follows the paper chosen in the dialog.
+2. **Measure the bar.** With a ruler, the bar under "This bar must measure exactly
+   50 mm" must be 50 mm (±0.5 mm), and the QR code 58 mm square including its white
+   margin (about 47 mm of modules inside it). If the bar is off, the print was scaled:
+   reprint at 100% and note the printer/driver. Compare with the Go sheet for the same
+   secret: same groups, same fingerprint (`XXXX XXXX XXXX XXXX`, also on Home), same
+   user ID (`ed25519:…`).
+3. **Scan into Restore.** On a phone with no identity (or after clearing app data):
+   Onboarding → Restore → **Scan recovery sheet**, and point the camera at the code.
+   The field fills with the upper-case secret and nothing happens until **Restore
+   identity**; the restored identity's fingerprint must equal the sheet's. The general
+   scanner (Onboarding → **Add this device**) on the sheet also lands in Restore with
+   the field filled.
+4. **Scan into the drill.** On an enrolled phone: Settings → **Test recovery secret** →
+   **Scan recovery sheet**. The field fills; **Check** shows "It matches this identity:
+   <fingerprint>" and the row then reads "Checked <date>". The bottom-bar scanner on
+   the sheet opens the same drill, filled. Another identity's sheet is refused, naming
+   both fingerprints.
+5. **Wrong codes say so.** In the bottom-bar scanner, a non-Voidbind QR (any URL) shows
+   "Not a Voidbind code" with **Scan again**, which re-arms the camera. In the Restore /
+   drill scanner, a login or pairing QR shows "Not a recovery secret…"; **Type it
+   instead** returns to the field.
+6. **Nothing lingers.** Screenshots are blocked on the scanner, as on the backup
+   screen. After printing, `adb shell run-as one.rarebit.cruciform ls -R cache files`
+   shows no PDF. (The print spooler holds its own copy of the job until it completes;
+   that is the system's, not the app's.)
+
+## Test 2e — restore from recovery shares (voidbind-go ADR-0011)
+
+The shares come from voidbind-go, so this also proves the SLIP-39 port against the
+Go implementation on real hardware (the JVM tests prove the maths; this proves the
+phone's PBKDF2 provider and the typing flow). Use a throwaway secret, or the
+identity's own secret on a wiped phone.
+
+1. **Make the shares.** In a voidbind-go checkout (ADR-0011 or later), split the
+   secret you will restore:
+   `echo heyarr1… | go run ./cmd/voidbind recovery split --secret-file -`. It prints
+   the user ID, the fingerprint (`XXXX XXXX XXXX XXXX`) and three 33-word shares, any
+   2 of which rebuild it. (`--sheets <dir>` also writes printable sheets.) Note the
+   fingerprint.
+2. **Reach the screen.** On a phone with no identity (reinstall the app, or use a
+   second device), tap **Restore from recovery shares** on the
+   welcome screen. Also check the other door: **Restore from a recovery secret** →
+   **I have recovery shares instead** lands on the same screen, and Back from it
+   returns to the welcome screen.
+3. **Refusals, one share at a time.** Type share 1 and tap **Add share**: the screen
+   reads "1 of 2 needed" and the field clears for share 2. Then check that each of
+   these is refused **inline, naming the share, and not counted** (the count stays
+   "1 of 2"):
+   - share 1 again ("Share 2 is one you've already entered");
+   - share 2 with one word changed ("Share 2 has a mistake");
+   - a share from a second `recovery split` of the same secret ("Share 2 is from a
+     different set of shares");
+   - a truncated share (drop the last word).
+   **Start over** clears the count back to "No shares entered yet".
+4. **Restore.** Enter any two different shares, in either order: the screen reads "2
+   of 2 shares entered: ready to restore". Tap **Restore identity** and approve the
+   device-key biometric. Assert Home shows the SAME identity: the fingerprint and
+   user ID from step 1 (Settings / the Home identity card), and no "Check your
+   recovery secret" card (a restore from shares counts as a check, as in 2c.3).
+   Declining the biometric leaves the shares in place with the reason shown; tapping
+   **Restore identity** again retries.
+5. **Memory only.** Enter one share, rotate the phone: the count survives (the
+   ViewModel outlives the rotation). Then enter one share, background the app and
+   kill it (`adb shell am kill one.rarebit.cruciform`), reopen: the count is gone, as
+   the shares were never saved. Leaving the screen (Back) also forgets them.
+
+## Test 2f — split into shares on the phone; restore from 2 of them elsewhere
+
+The phone splits its kept copy of the recovery secret with the same SLIP-39 profile
+as `voidbind recovery split` (any 2 of 3, no passphrase), so this proves the split
+half on real hardware; Test 2e proved the restore half.
+
+1. **Split.** On a phone that keeps the recovery copy: Settings → Recovery → **Split
+   into shares**. It asks for a strong biometric (no PIN option; declining shows
+   "Cancelled" and nothing opens). Then "Share 1 of 3 · any 2 restore your identity"
+   shows 33 numbered words in two columns. There is no copy button, and a screenshot
+   is blocked. Write it down, tap **Next** for shares 2 and 3, then **Done** returns to
+   Settings. Back, or leaving mid-way, forgets the shares; splitting again gives a new
+   set (shares from different splits don't combine).
+2. **Refusals.** On a phone that keeps no copy (removed in 2c.4, or created with the
+   biometric prompt declined), the row is absent. If the strong biometric can't be
+   used (every fingerprint and face removed since the copy was kept), the split is
+   refused in a dialog titled **Not yet** that points at a biometric or the paper.
+3. **Restore elsewhere.** On a second phone with no identity (or after clearing app
+   data), follow Test 2e.2–2e.4 with any 2 of the 3 shares from step 1. Home must show
+   the first phone's fingerprint (`XXXX XXXX XXXX XXXX`) and user ID. Try a second pair
+   too (e.g. shares 1 and 3) after clearing data again.
+4. **Nothing revoked.** The written recovery secret still passes Settings → **Test
+   recovery secret** on the first phone, and Settings → Devices there is unchanged
+   (splitting signs nothing).
 
 ## Test 2b — membership renewal (a device renews itself before its add lapses)
 

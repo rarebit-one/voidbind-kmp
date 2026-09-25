@@ -57,7 +57,12 @@ class LoginQrTest {
         assertEquals("L1", (login as VoidbindQr.Login).request.id)
 
         val saltHex = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
-        val invite = Invite.encode(relay = "http://relay", session = "sess1", salt = one.rarebit.voidbind.crypto.Hex.decode(saltHex), usr = "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4")
+        val invite = Invite.encode(
+            relay = "http://relay",
+            session = "sess1",
+            salt = one.rarebit.voidbind.crypto.Hex.decode(saltHex),
+            usr = "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4",
+        )
         val pair = VoidbindQr.parse(invite)
         assertTrue(pair is VoidbindQr.Pair)
         assertEquals("sess1", (pair as VoidbindQr.Pair).invite.session)

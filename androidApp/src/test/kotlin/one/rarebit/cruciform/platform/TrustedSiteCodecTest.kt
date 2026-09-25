@@ -8,7 +8,8 @@ import kotlin.test.assertTrue
 
 /** The trusted-sites list survives a round trip, and the pre-v1 blob is dropped, not misread. */
 class TrustedSiteCodecTest {
-    private val heyarr = TrustedSite("heyarr.br.thesim.family", "heyarr.br.thesim.family", "", "just now", SiteAccent.BLUE)
+    private val heyarr =
+        TrustedSite("heyarr.br.thesim.family", "heyarr.br.thesim.family", "", "just now", SiteAccent.BLUE)
     private val cove = TrustedSite("home.cove.lan", "home.cove.lan", "Cove Control", "yesterday", SiteAccent.PURPLE)
 
     @Test
@@ -48,6 +49,9 @@ class TrustedSiteCodecTest {
             "short${fs}row\n" +
             "${fs}no-id${fs}${fs}now${fs}BLUE\n" +
             "id${fs}host.example${fs}App${fs}now${fs}CHARTREUSE"
-        assertEquals(listOf(TrustedSite("id", "host.example", "App", "now", SiteAccent.BLUE)), TrustedSiteCodec.decode(raw))
+        assertEquals(
+            listOf(TrustedSite("id", "host.example", "App", "now", SiteAccent.BLUE)),
+            TrustedSiteCodec.decode(raw),
+        )
     }
 }

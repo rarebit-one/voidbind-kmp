@@ -52,6 +52,16 @@ interface VoidbindEngine {
     suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup>
 
     /**
+     * Split the kept recovery secret into SLIP-39 shares (Settings → Split into shares):
+     * the voidbind profile, any 2 of 3, no passphrase (voidbind-go ADR-0011). Behind a
+     * strong biometric, never the PIN, like [revealRecoverySecret]. The shares are for
+     * one showing: the caller holds them in memory only. Splitting revokes nothing (the
+     * written secret keeps working), and each call gives a fresh, unrelated set. A
+     * device that keeps no copy is a `Failed` of kind NOT_YET.
+     */
+    suspend fun splitRecoverySecret(): EngineResult<List<String>>
+
+    /**
      * Check a written recovery secret against this identity WITHOUT using it: parse it
      * (a typo is refused by the checksum), derive its identity, compare. Signs nothing
      * and needs no biometric — knowing the secret is the point. On a match it records

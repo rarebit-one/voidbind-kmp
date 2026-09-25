@@ -83,7 +83,11 @@ fun PairAllowScreen(
             }
 
             VSpace(28)
-            Text("Allow $appName to act as you?", style = MaterialTheme.typography.headlineMedium, color = VbColors.TextPrimary)
+            Text(
+                "Allow $appName to act as you?",
+                style = MaterialTheme.typography.headlineMedium,
+                color = VbColors.TextPrimary,
+            )
             VSpace(8)
             Text(
                 "It becomes one of your devices: it can sign in as you and hold your data, until you remove it in Settings → Devices.",
@@ -94,7 +98,12 @@ fun PairAllowScreen(
             VSpace(20)
             WashCard(accent = VbColors.Mint, wash = VbColors.Surface, modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.VerifiedUser, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(28.dp))
+                    Icon(
+                        Icons.Rounded.VerifiedUser,
+                        contentDescription = null,
+                        tint = VbColors.Mint,
+                        modifier = Modifier.size(28.dp),
+                    )
                     HSpace(12)
                     Text(
                         "Both apps are on this phone, so they checked each other's keys directly — there is no code for you to compare.",
@@ -106,15 +115,30 @@ fun PairAllowScreen(
 
             VSpace(24)
             if (busy) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = VbColors.Mint)
                     HSpace(12)
                     Text("Authorising…", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
                 }
             } else {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DangerButton("No, cancel", onClick = onCancel, leadingIcon = Icons.Rounded.Close, modifier = Modifier.weight(1f))
-                    PrimaryButton("Allow", onClick = onAllow, leadingIcon = Icons.Rounded.Check, fill = VbColors.Mint, modifier = Modifier.weight(1f))
+                    DangerButton(
+                        "No, cancel",
+                        onClick = onCancel,
+                        leadingIcon = Icons.Rounded.Close,
+                        modifier = Modifier.weight(1f),
+                    )
+                    PrimaryButton(
+                        "Allow",
+                        onClick = onAllow,
+                        leadingIcon = Icons.Rounded.Check,
+                        fill = VbColors.Mint,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
             VSpace(12)

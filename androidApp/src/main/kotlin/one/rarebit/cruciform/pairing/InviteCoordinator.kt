@@ -58,7 +58,8 @@ class InviteCoordinator(
         data object Minting : State
 
         /** The invite is live and the handshake job is polling the relay for the new device. */
-        data class Waiting(override val invite: PairInviteDisplay, val relayUrl: String, val deadlineMillis: Long) : State
+        data class Waiting(override val invite: PairInviteDisplay, val relayUrl: String, val deadlineMillis: Long) :
+            State
 
         /** The new device joined and the SAS is derived — show VERIFY. */
         data class Joined(override val invite: PairInviteDisplay, val session: PairSession) : State
@@ -103,14 +104,19 @@ class InviteCoordinator(
          * biometric, with no code to compare. [callerPackage] is the app that fired the
          * intent, when Android told us; [rpScheme] is where to send the human back.
          */
-        data class Verified(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val callerPackage: String?) : SamePhone
+        data class Verified(
+            val report: SamePhonePairCallback.Joined,
+            val rpScheme: String?,
+            val callerPackage: String?,
+        ) : SamePhone
 
         /**
          * The report disagreed with the relay reveal: the invite failed and nothing was
          * signed. Published so the RP can be told (its `<scheme>://pair-done?outcome=refused`
          * leg); it would otherwise wait on its own screen until the relay session expires.
          */
-        data class Refused(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val reason: String) : SamePhone
+        data class Refused(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val reason: String) :
+            SamePhone
     }
 
     private val _state = MutableStateFlow<State>(State.Idle)
@@ -126,7 +132,11 @@ class InviteCoordinator(
      */
     private var earlyReport: Pending? = null
 
-    private data class Pending(val report: SamePhonePairCallback.Joined, val rpScheme: String?, val callerPackage: String?)
+    private data class Pending(
+        val report: SamePhonePairCallback.Joined,
+        val rpScheme: String?,
+        val callerPackage: String?,
+    )
 
     private var job: Job? = null
     private var keptAlive = false
@@ -216,7 +226,8 @@ class InviteCoordinator(
         against: PairSession? = null,
     ) {
         val session = _state.value.invite?.session
-        val revealed = against ?: _state.value.let { (it as? State.Joined)?.session ?: (it as? State.Confirming)?.session }
+        val revealed =
+            against ?: _state.value.let { (it as? State.Joined)?.session ?: (it as? State.Confirming)?.session }
         when (val d = SamePhonePairCallback.decide(report, session, revealed?.peerDeviceKey, revealed?.securityCode)) {
             is SamePhonePairCallback.Decision.Match -> {
                 log("same-phone: ${report.session} verified against the relay (${report.dev.take(16)}…)")
@@ -333,16 +344,23 @@ class InviteCoordinator(
      */
     private fun classifyWait(f: EngineFailure, relay: String, deadlineMillis: Long): EngineFailure = when (f.kind) {
         EngineFailure.Kind.UNREACHABLE -> f.copy(
-            message = "The relay answered when the invite was minted, but stopped answering while waiting for the new device " +
+            message =
+            "The relay answered when the invite was minted, but stopped answering while waiting for the new device " +
                 "(${remainingText(deadlineMillis)}). Check Wi-Fi or your VPN, then start again with a fresh invite.",
         )
 
         EngineFailure.Kind.TIMEOUT -> {
             if (clock() < deadlineMillis - EARLY_TIMEOUT_SLACK_MILLIS) {
                 // The transport gave up before the session did: report it as what it is.
-                f.copy(message = "Stopped waiting early (${remainingText(deadlineMillis)} of the invite were left). Start again with a fresh invite.")
+                f.copy(
+                    message = "Stopped waiting early (${remainingText(
+                        deadlineMillis,
+                    )} of the invite were left). Start again with a fresh invite.",
+                )
             } else {
-                f.copy(message = "The other device didn't join before the invite expired. Start again with a fresh invite.")
+                f.copy(
+                    message = "The other device didn't join before the invite expired. Start again with a fresh invite.",
+                )
             }
         }
 
@@ -378,7 +396,13 @@ class InviteCoordinator(
     } catch (t: Throwable) {
         EngineResult.Failed(
             EngineFailure(
-                message = if (t is IllegalArgumentException || t is IllegalStateException) t.message ?: "Couldn't complete the pairing." else "Couldn't complete the pairing.",
+                message = if (t is IllegalArgumentException ||
+                    t is IllegalStateException
+                ) {
+                    t.message ?: "Couldn't complete the pairing."
+                } else {
+                    "Couldn't complete the pairing."
+                },
                 kind = EngineFailure.Kind.INTERNAL,
                 retryable = false,
             ),

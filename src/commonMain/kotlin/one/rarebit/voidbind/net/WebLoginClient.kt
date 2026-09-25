@@ -35,10 +35,7 @@ class WebLoginHttpException(val status: Int, val op: String) : RuntimeException(
  * shuffled [WebLogin.Challenge.candidates] but never the true number; the human
  * bridges the gap and [approve] carries the chosen number.
  */
-class WebLoginClient(
-    private val http: HttpTransport,
-    private val rpBase: String,
-) {
+class WebLoginClient(private val http: HttpTransport, private val rpBase: String) {
     private fun trimr(s: String) = s.trimEnd('/')
 
     class Created(val id: String, val qr: String)

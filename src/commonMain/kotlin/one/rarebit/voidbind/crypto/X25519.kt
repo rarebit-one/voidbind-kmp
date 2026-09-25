@@ -12,7 +12,14 @@ package one.rarebit.voidbind.crypto
  */
 internal object X25519 {
 
-    private val _121665 = longArrayOf(0xDB41L, 1L).let { init -> LongArray(16).also { for (i in init.indices) it[i] = init[i] } }
+    private val _121665 = longArrayOf(0xDB41L, 1L).let { init ->
+        LongArray(16).also {
+            for (i in init.indices) {
+                it[i] =
+                    init[i]
+            }
+        }
+    }
 
     private fun car25519(o: LongArray) {
         for (i in 0 until 16) {

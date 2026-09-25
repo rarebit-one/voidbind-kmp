@@ -75,12 +75,22 @@ class CoordinatorPairingTest {
     private val now = 1_724_700_000L
 
     /** Run both sides' handshakes concurrently and return (initiator SAS, responder handshake). */
-    private fun pair(auth: DeviceAuthorization, invitation: DeviceAuthorization.Invitation, pairing: DevicePairing): Pair<String, DevicePairing.Handshake> {
+    private fun pair(
+        auth: DeviceAuthorization,
+        invitation: DeviceAuthorization.Invitation,
+        pairing: DevicePairing,
+    ): Pair<String, DevicePairing.Handshake> {
         var sasInitiator = ""
         var responderHandshake: DevicePairing.Handshake? = null
         var responderError: Throwable? = null
         val tA = Thread { runCatching { sasInitiator = auth.handshake(invitation) } }
-        val tB = Thread { runCatching { responderHandshake = pairing.begin(invitation.inviteQr) }.onFailure { responderError = it } }
+        val tB =
+            Thread {
+                runCatching { responderHandshake = pairing.begin(invitation.inviteQr) }.onFailure {
+                    responderError =
+                        it
+                }
+            }
         tA.start()
         tB.start()
         tA.join(15_000)
@@ -135,7 +145,10 @@ class CoordinatorPairingTest {
         val certA = Enrolment.selfEnrol(user, phoneA, issuedAt = now - 60, lifetimeSeconds = 3600)
         val phoneB = softwareDevice(seedByte = 31)
 
-        val auth = DeviceAuthorization(http, phoneA, admittingOp = certA, knownOps = emptyList(), clock = { now }, pollIntervalMillis = 10)
+        val auth =
+            DeviceAuthorization(http, phoneA, admittingOp = certA, knownOps = emptyList(), clock = {
+                now
+            }, pollIntervalMillis = 10)
         val pairing = DevicePairing(http, phoneB, clock = { now }, pollIntervalMillis = 10)
 
         val invitation = auth.invite(relayBase)
@@ -162,7 +175,8 @@ class CoordinatorPairingTest {
 
         // And B, now a member with no secret either, can admit C.
         val phoneC = softwareDevice(seedByte = 41)
-        val authB = DeviceAuthorization(http, phoneB, admission.op, admission.ops, clock = { now + 1 }, pollIntervalMillis = 10)
+        val authB =
+            DeviceAuthorization(http, phoneB, admission.op, admission.ops, clock = { now + 1 }, pollIntervalMillis = 10)
         val pairingC = DevicePairing(http, phoneC, clock = { now + 1 }, pollIntervalMillis = 10)
         val invC = authB.invite(relayBase)
         val (sasB, hsC) = pair(authB, invC, pairingC)

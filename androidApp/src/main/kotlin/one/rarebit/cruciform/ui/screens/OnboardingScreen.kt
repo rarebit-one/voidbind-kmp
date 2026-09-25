@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PhonelinkRing
 import androidx.compose.material.icons.rounded.Shield
@@ -35,14 +36,15 @@ import one.rarebit.cruciform.ui.components.VbCard
 import one.rarebit.cruciform.ui.theme.VbColors
 
 /**
- * Welcome / onboarding: "Your identity, under your control." The three sovereign
- * entry points — create, restore, add-this-device — with the hardware-key promise
- * pinned at the bottom. (Mockup 1.)
+ * Welcome / onboarding: "Your identity, under your control." The sovereign entry
+ * points — create, restore (from the secret, or from recovery shares), add-this-device —
+ * with the hardware-key promise pinned at the bottom. (Mockup 1.)
  */
 @Composable
 fun OnboardingScreen(
     onCreate: () -> Unit,
     onRestore: () -> Unit,
+    onRestoreShares: () -> Unit,
     onAddDevice: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -92,6 +94,14 @@ fun OnboardingScreen(
         )
         VSpace(14)
         OnboardingAction(
+            icon = Icons.Rounded.Groups,
+            accent = VbColors.Mint,
+            title = "Restore from recovery shares",
+            subtitle = "Combine the shares your household keeps",
+            onClick = onRestoreShares,
+        )
+        VSpace(14)
+        OnboardingAction(
             icon = Icons.Rounded.PhonelinkRing,
             accent = VbColors.Blue,
             title = "Add this device",
@@ -125,7 +135,13 @@ private fun OnboardingAction(
                 .padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconCircle(icon = icon, tint = accent, background = accent.copy(alpha = 0.14f), diameter = 52, iconSize = 26)
+            IconCircle(
+                icon = icon,
+                tint = accent,
+                background = accent.copy(alpha = 0.14f),
+                diameter = 52,
+                iconSize = 26,
+            )
             Spacer(Modifier.size(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, color = VbColors.TextPrimary)

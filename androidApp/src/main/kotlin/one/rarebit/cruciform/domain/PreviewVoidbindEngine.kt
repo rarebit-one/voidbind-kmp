@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.policy.ApprovalPolicy
 import one.rarebit.voidbind.policy.ApprovalPolicyManager
 import one.rarebit.voidbind.policy.InMemoryApprovalAuditLog
@@ -17,9 +18,7 @@ import one.rarebit.voidbind.policy.InMemorySitePolicyStore
  * NO I/O — it is scaffolding, and every value here is placeholder content, not a
  * real identity. The real [VoidbindEngine] replaces it as a single DI swap.
  */
-class PreviewVoidbindEngine(
-    initial: IdentityState = SampleData.activeState,
-) : VoidbindEngine {
+class PreviewVoidbindEngine(initial: IdentityState = SampleData.activeState) : VoidbindEngine {
 
     private val _identity = MutableStateFlow(initial)
     override val identity: StateFlow<IdentityState> = _identity.asStateFlow()
@@ -57,9 +56,16 @@ class PreviewVoidbindEngine(
         return EngineResult.Ready(SampleData.recoveryBackup)
     }
 
+    // A throwaway secret split for real, so the preview shows genuine 33-word shares.
+    override suspend fun splitRecoverySecret(): EngineResult<List<String>> {
+        delay(400)
+        return EngineResult.Ready(UserIdentity.create().recovery.splitShares())
+    }
+
     override fun parseScanned(raw: String): ScannedCode = when {
         raw.startsWith("voidbind:login") -> ScannedCode.WebLogin("https://thesim.family", "sample-login-id", raw)
         raw.startsWith("voidbind:pair") -> ScannedCode.PairInvite("wss://relay.thesim.family", "sample-session", raw)
+        raw.lowercase().startsWith("heyarr1") -> ScannedCode.RecoverySecret(raw)
         else -> ScannedCode.Unknown(raw)
     }
 
@@ -102,7 +108,9 @@ class PreviewVoidbindEngine(
         if (code.relay.contains("unreachable")) {
             return EngineResult.Failed(
                 EngineFailure(
-                    "Can't reach the relay at ${code.relay.substringAfter("://").substringBefore("/")}. Check Wi-Fi or your VPN and try again.",
+                    "Can't reach the relay at ${code.relay.substringAfter(
+                        "://",
+                    ).substringBefore("/")}. Check Wi-Fi or your VPN and try again.",
                     EngineFailure.Kind.UNREACHABLE,
                 ),
             )
@@ -142,7 +150,9 @@ class PreviewVoidbindEngine(
     override suspend fun removeDevice(deviceId: String): EngineResult<Unit> {
         delay(400)
         if (previewDevices.firstOrNull { it.id == deviceId }?.isThisDevice == true) {
-            return EngineResult.Failed(EngineFailure("This device can't remove itself.", EngineFailure.Kind.INTERNAL, retryable = false))
+            return EngineResult.Failed(
+                EngineFailure("This device can't remove itself.", EngineFailure.Kind.INTERNAL, retryable = false),
+            )
         }
         previewDevices.removeAll { it.id == deviceId }
         return EngineResult.Ready(Unit)
@@ -200,9 +210,31 @@ object SampleData {
     )
 
     val trustedSites = listOf(
-        TrustedSite("thesim", "thesim.family", "All Thing", "last used today", SiteAccent.BLUE, policy = ApprovalPolicy.TrustedTofu),
-        TrustedSite("cove", "home.cove.lan", "Cove Control", "yesterday", SiteAccent.PURPLE, policy = ApprovalPolicy.AlwaysAsk, pinnedAlwaysAsk = true),
-        TrustedSite("bartley", "bartley.home", "Home Assistant", "6 days ago", SiteAccent.MINT, policy = ApprovalPolicy.TrustedTofu),
+        TrustedSite(
+            "thesim",
+            "thesim.family",
+            "All Thing",
+            "last used today",
+            SiteAccent.BLUE,
+            policy = ApprovalPolicy.TrustedTofu,
+        ),
+        TrustedSite(
+            "cove",
+            "home.cove.lan",
+            "Cove Control",
+            "yesterday",
+            SiteAccent.PURPLE,
+            policy = ApprovalPolicy.AlwaysAsk,
+            pinnedAlwaysAsk = true,
+        ),
+        TrustedSite(
+            "bartley",
+            "bartley.home",
+            "Home Assistant",
+            "6 days ago",
+            SiteAccent.MINT,
+            policy = ApprovalPolicy.TrustedTofu,
+        ),
     )
 
     val activeState = IdentityState.Active(
@@ -215,6 +247,8 @@ object SampleData {
     val recoveryBackup = RecoveryBackup(
         groupedSecret = "heyarr1 r9k7 x4pm 2qvt 8c3n h6wy f0ad j5se u2lz",
         rawSecret = "heyarr1r9k7x4pm2qvt8c3nh6wyf0adj5seu2lz",
+        fingerprint = "PYJI XGNZ K7ZH XHEJ",
+        userId = "ed25519:7c4a91d20e8f00000000000000000000000000000000000000000000000000ff",
     )
 
     val loginRequest = LoginRequest(

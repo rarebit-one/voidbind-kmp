@@ -30,10 +30,7 @@ import one.rarebit.cruciform.domain.valueOrNull
  * engine's in-memory pending login died with the process). The fetched request, the
  * site policy and any error are in-memory only.
  */
-class LoginViewModel(
-    private val engine: VoidbindEngine,
-    private val saved: SavedStateHandle,
-) : ViewModel() {
+class LoginViewModel(private val engine: VoidbindEngine, private val saved: SavedStateHandle) : ViewModel() {
 
     sealed interface Event {
         /** The request is fetched: show the approval sheet. [fromScan] pops the scanner first. */

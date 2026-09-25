@@ -51,11 +51,8 @@ object PossessionProof {
     enum class Reason { MALFORMED, BAD_SIGNATURE, WRONG_CERT, NOT_YET_VALID, EXPIRED, WRONG_TYPE }
 
     /** A refused proof, carrying the server-side [reason]. */
-    class Refused(
-        val reason: Reason,
-        message: String,
-        cause: Throwable? = null,
-    ) : IllegalArgumentException(message, cause)
+    class Refused(val reason: Reason, message: String, cause: Throwable? = null) :
+        IllegalArgumentException(message, cause)
 
     /** The parsed, NOT-yet-verified payload of a proof. Times are unix seconds. */
     data class Payload(
@@ -84,12 +81,7 @@ object PossessionProof {
     )
 
     /** [signingBytes] with an ADR-0009 `typ` (second, after `v`; `""` omits it). */
-    internal fun signingBytesTyped(
-        typ: String,
-        certToken: String,
-        issuedAt: Long,
-        expiresAt: Long,
-    ): ByteArray {
+    internal fun signingBytesTyped(typ: String, certToken: String, issuedAt: Long, expiresAt: Long): ByteArray {
         val fields = listOfNotNull(
             "v" to VERSION,
             if (typ.isNotEmpty()) "typ" to typ else null,
@@ -106,12 +98,8 @@ object PossessionProof {
      * `DeviceKeyStore.asSigner()`, which may block on user presence. A non-positive
      * ttl means [DEFAULT_TTL_SECONDS], as in Go.
      */
-    fun mint(
-        certToken: String,
-        signer: Ed25519Signer,
-        now: Long,
-        ttlSeconds: Long = DEFAULT_TTL_SECONDS,
-    ): String = mintTyped(TokenType.POSSESSION, certToken, signer, now, ttlSeconds)
+    fun mint(certToken: String, signer: Ed25519Signer, now: Long, ttlSeconds: Long = DEFAULT_TTL_SECONDS): String =
+        mintTyped(TokenType.POSSESSION, certToken, signer, now, ttlSeconds)
 
     /**
      * [mint] with an explicit ADR-0009 `typ`. Since phase 2 [mint] passes

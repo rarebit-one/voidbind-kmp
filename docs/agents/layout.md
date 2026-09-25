@@ -8,6 +8,11 @@ src/
     Labels.kt          identity-defining constants (DO NOT rename)
     KeyRef.kt          ed25519:/x25519: hex rendering + parse
     RecoverySecret.kt  256-bit bech32m secret (HRP heyarr)
+    RecoveryShares.kt  the voidbind SLIP-39 profile: split/combine a RecoverySecret as
+                       2-of-3 shares (voidbind-go ADR-0011, recovery.SplitShares/CombineShares)
+    slip39/            SLIP-39 port of voidbind-go recovery/slip39: wordlist (SHA-256 pinned),
+                       RS1024, GF(256) Shamir, PBKDF2 Feistel, typed Slip39Exception;
+                       Trezor's 45 vectors in jvmTest resources vectors/slip39/
     Cert.kt            enrolment cert model + token encode/parse/verify
     MembershipOp.kt    v3 membership op (add/remove) sign/verify/hash; v1/v2 certs read as genesis adds
     Membership.kt      the CRDT evaluator (voidbind-go enrolment.Evaluate, ADR-0007) + merge

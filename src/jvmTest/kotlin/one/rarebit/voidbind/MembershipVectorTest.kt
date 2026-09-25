@@ -41,7 +41,14 @@ class MembershipVectorTest {
         names
     }
 
-    private class Vector(val name: String, val usr: String, val now: Long, val tokens: List<String>, val hashes: List<String>, val expect: Map<String, Any>)
+    private class Vector(
+        val name: String,
+        val usr: String,
+        val now: Long,
+        val tokens: List<String>,
+        val hashes: List<String>,
+        val expect: Map<String, Any>,
+    )
 
     @Suppress("UNCHECKED_CAST")
     private fun load(name: String): Vector {
@@ -172,7 +179,12 @@ class MembershipVectorTest {
         val toks = view.tokens()
         assertEquals(view.accepted.size, toks.size)
         assertEquals(toks.map { MembershipOp.hash(it) }, toks.map { MembershipOp.hash(it) }.sorted())
-        assertTrue(view.rejected.keys.none { h -> toks.any { MembershipOp.hash(it) == h } }, "rejected tokens are not state")
+        assertTrue(
+            view.rejected.keys.none { h ->
+                toks.any { MembershipOp.hash(it) == h }
+            },
+            "rejected tokens are not state",
+        )
     }
 
     private companion object {

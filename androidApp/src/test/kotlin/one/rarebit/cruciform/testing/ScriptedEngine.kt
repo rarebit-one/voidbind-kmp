@@ -28,6 +28,7 @@ class ScriptedEngine : VoidbindEngine {
     var createResult: EngineResult<RecoveryBackup> = EngineResult.Ready(BACKUP)
     var restoreResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var revealResult: EngineResult<RecoveryBackup> = EngineResult.Ready(BACKUP)
+    var splitResult: EngineResult<List<String>> = EngineResult.Ready(SHARES)
     var fetchResult: EngineResult<LoginRequest> = EngineResult.Ready(REQUEST)
     var approveResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var joinResult: EngineResult<PairSession> = EngineResult.Ready(SESSION)
@@ -44,6 +45,9 @@ class ScriptedEngine : VoidbindEngine {
 
     override val identity: StateFlow<IdentityState> = MutableStateFlow(IdentityState.None)
 
+    /** The secret the last [restoreIdentity] was given. */
+    var restoredSecret: String? = null
+
     private fun <T> r(name: String, result: T): T {
         calls += name
         return result
@@ -51,13 +55,19 @@ class ScriptedEngine : VoidbindEngine {
 
     override suspend fun refresh(): EngineResult<Unit> = r("refresh", EngineResult.Ready(Unit))
     override suspend fun createIdentity() = r("createIdentity", createResult)
-    override suspend fun restoreIdentity(recoverySecret: String) = r("restoreIdentity", restoreResult)
+    override suspend fun restoreIdentity(recoverySecret: String): EngineResult<Unit> {
+        restoredSecret = recoverySecret
+        return r("restoreIdentity", restoreResult)
+    }
+
     override suspend fun revealRecoverySecret() = r("revealRecoverySecret", revealResult)
+    override suspend fun splitRecoverySecret() = r("splitRecoverySecret", splitResult)
 
     // Mirrors the real parser's shape closely enough for the flows: login / pair / other.
     override fun parseScanned(raw: String): ScannedCode = when {
         raw.startsWith("voidbind:login") -> ScannedCode.WebLogin("https://rp.example.test", "L1", raw)
         raw.startsWith("voidbind:pair") -> ScannedCode.PairInvite("https://relay.example.test", "s1", raw)
+        raw.lowercase().startsWith("heyarr1") -> ScannedCode.RecoverySecret(raw)
         else -> ScannedCode.Unknown(raw)
     }
 
@@ -88,7 +98,10 @@ class ScriptedEngine : VoidbindEngine {
         val BACKUP = RecoveryBackup(
             groupedSecret = "heya rr1q qqsy qcyq 5rqw zqfp g9sc rgwp ugpz ysnz s23v 9ccr ydpk 8qar c0s6 e0uc u",
             rawSecret = "heyarr1qqqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0s6e0ucu",
+            fingerprint = "PYJI XGNZ K7ZH XHEJ",
+            userId = "ed25519:00",
         )
+        val SHARES = listOf("share one words", "share two words", "share three words")
         val REQUEST = LoginRequest(
             domain = "rp.example.test",
             appName = "",

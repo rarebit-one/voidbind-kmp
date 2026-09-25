@@ -137,6 +137,10 @@ data class RecoveryBackup(
     val rawSecret: String,
     /** Whether this phone also keeps a copy; false means the written copy is the only one. */
     val keptOnDevice: Boolean = false,
+    /** The identity's printable fingerprint (`XXXX XXXX XXXX XXXX`), printed on the sheet. */
+    val fingerprint: String,
+    /** The user identity `ed25519:<hex>` the secret restores, printed on the sheet. */
+    val userId: String,
 )
 
 /**
@@ -173,13 +177,24 @@ data class MembershipHealth(
 )
 
 /**
- * A decoded QR the scanner produced — either a web-login request or a device
- * pairing invite. The library's `LoginQr` parser (commonMain) is the authority on
- * the wire form; this is the app's dispatch shape.
+ * A decoded QR the scanner produced — a web-login request, a device pairing invite,
+ * or the recovery secret printed on a recovery sheet. The library's `LoginQr` and
+ * `RecoverySecret` parsers (commonMain) are the authority on the wire form; this is
+ * the app's dispatch shape.
  */
 sealed interface ScannedCode {
     data class WebLogin(val rpBase: String, val loginId: String, val raw: String) : ScannedCode
     data class PairInvite(val relay: String, val session: String, val raw: String) : ScannedCode
+
+    /**
+     * A recovery secret (`heyarr1…`, the sheet's QR carries it upper-case) that parsed,
+     * checksum and all. [raw] is exactly what was scanned; it is only ever used to fill
+     * the Restore or drill field, and [toString] never prints it.
+     */
+    data class RecoverySecret(val raw: String) : ScannedCode {
+        override fun toString(): String = "RecoverySecret(<redacted>)"
+    }
+
     data class Unknown(val raw: String) : ScannedCode
 }
 
@@ -239,6 +254,14 @@ data class EngineFailure(
          * longer knows (404/410 on the challenge fetch). Scan a fresh QR; not retryable.
          */
         EXPIRED,
+
+        /**
+         * A deliberate refusal the user can resolve: a step that is not allowed yet
+         * (remove the phone's recovery copy before the paper is checked, renew a lapsed
+         * device) or needs something this device does not have (a kept recovery copy, a
+         * strong biometric). The message says what to do instead; not retryable as is.
+         */
+        NOT_YET,
 
         /** Anything else (a bug, a missing precondition such as no identity). */
         INTERNAL,

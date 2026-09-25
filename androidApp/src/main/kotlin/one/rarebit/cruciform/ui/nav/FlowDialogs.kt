@@ -38,11 +38,7 @@ internal fun LoginErrorDialog(error: LoginErrorState, onDismiss: () -> Unit) {
  * "Change relay" → [onChangeRelay].
  */
 @Composable
-internal fun EngineErrorDialog(
-    error: EngineErrorState,
-    onClosed: () -> Unit,
-    onChangeRelay: () -> Unit,
-) {
+internal fun EngineErrorDialog(error: EngineErrorState, onClosed: () -> Unit, onChangeRelay: () -> Unit) {
     val dismiss = {
         error.onDismiss()
         onClosed()
@@ -98,6 +94,7 @@ private fun titleFor(kind: EngineFailure.Kind): String = when (kind) {
     EngineFailure.Kind.PROTOCOL -> "Pairing didn't verify"
     EngineFailure.Kind.CANCELLED -> "Cancelled"
     EngineFailure.Kind.EXPIRED -> "Expired"
+    EngineFailure.Kind.NOT_YET -> "Not yet"
     EngineFailure.Kind.INTERNAL -> "Something went wrong"
 }
 

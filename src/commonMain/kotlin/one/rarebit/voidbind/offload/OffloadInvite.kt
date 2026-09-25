@@ -32,7 +32,8 @@ public object OffloadDeepLink {
     /** A decoded offload pairing invite. */
     public data class PairInvite(val relayBase: String, val session: String, val salt: ByteArray) {
         override fun equals(other: Any?): Boolean =
-            other is PairInvite && relayBase == other.relayBase && session == other.session && salt.contentEquals(other.salt)
+            other is PairInvite && relayBase == other.relayBase && session == other.session &&
+                salt.contentEquals(other.salt)
 
         override fun hashCode(): Int = (31 * relayBase.hashCode() + session.hashCode()) * 31 + salt.contentHashCode()
     }
