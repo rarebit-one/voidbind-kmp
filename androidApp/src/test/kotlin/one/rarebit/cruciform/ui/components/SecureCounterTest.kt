@@ -9,15 +9,15 @@ class SecureCounterTest {
 
     /** Records the window's current protections, as the real window would hold them. */
     private class FakeWindow : SecureWindow {
-        var secure = false
-        var sensitive = false
+        var secureOn = false
+        var sensitiveOn = false
 
         override fun setSecure(secure: Boolean) {
-            this.secure = secure
+            secureOn = secure
         }
 
         override fun setAccessibilityDataSensitive(sensitive: Boolean) {
-            this.sensitive = sensitive
+            sensitiveOn = sensitive
         }
     }
 
@@ -27,12 +27,12 @@ class SecureCounterTest {
         val window = FakeWindow()
 
         counter.acquire(window)
-        assertTrue(window.secure)
-        assertTrue(window.sensitive)
+        assertTrue(window.secureOn)
+        assertTrue(window.sensitiveOn)
 
         counter.release(window)
-        assertFalse(window.secure)
-        assertFalse(window.sensitive)
+        assertFalse(window.secureOn)
+        assertFalse(window.sensitiveOn)
     }
 
     @Test
@@ -45,13 +45,13 @@ class SecureCounterTest {
         counter.acquire(window)
         counter.acquire(window)
         counter.release(window)
-        assertTrue(window.secure)
-        assertTrue(window.sensitive)
+        assertTrue(window.secureOn)
+        assertTrue(window.sensitiveOn)
         assertEquals(1, counter.count)
 
         counter.release(window)
-        assertFalse(window.secure)
-        assertFalse(window.sensitive)
+        assertFalse(window.secureOn)
+        assertFalse(window.sensitiveOn)
     }
 
     @Test
@@ -63,8 +63,8 @@ class SecureCounterTest {
         assertEquals(0, counter.count)
 
         counter.acquire(window)
-        assertTrue(window.secure)
-        assertTrue(window.sensitive)
+        assertTrue(window.secureOn)
+        assertTrue(window.sensitiveOn)
     }
 
     @Test
