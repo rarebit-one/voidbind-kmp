@@ -91,7 +91,11 @@ fun PairConnectScreen(
         Column(Modifier.padding(ScreenPadding).padding(bottom = 24.dp)) {
             Text("1 of 2 · CONNECT", style = VbType.SectionLabel, color = VbColors.Mint)
             VSpace(10)
-            Text("Add another trusted device", style = MaterialTheme.typography.headlineMedium, color = VbColors.TextPrimary)
+            Text(
+                "Add another trusted device",
+                style = MaterialTheme.typography.headlineMedium,
+                color = VbColors.TextPrimary,
+            )
             VSpace(8)
             Text(
                 "On your new device, choose Add this device, then scan this invite.",
@@ -107,22 +111,45 @@ fun PairConnectScreen(
                     Text(invite.inviteId, style = VbType.Mono, color = VbColors.TextPrimary)
                     VSpace(8)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Schedule, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Rounded.Schedule,
+                            contentDescription = null,
+                            tint = VbColors.TextMuted,
+                            modifier = Modifier.size(16.dp),
+                        )
                         HSpace(6)
-                        Text("Expires in ${format(remaining)}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+                        Text(
+                            "Expires in ${format(remaining)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = VbColors.TextSecondary,
+                        )
                     }
                     if (status != null) {
                         VSpace(6)
-                        Text(status, style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center)
+                        Text(
+                            status,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = VbColors.TextMuted,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             }
 
             VSpace(14)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Shield, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Rounded.Shield,
+                    contentDescription = null,
+                    tint = VbColors.Mint,
+                    modifier = Modifier.size(18.dp),
+                )
                 HSpace(8)
-                Text("The invite is encrypted and can be used once.", style = MaterialTheme.typography.bodyMedium, color = VbColors.Mint)
+                Text(
+                    "The invite is encrypted and can be used once.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = VbColors.Mint,
+                )
             }
 
             if (sameDeviceTargets.isNotEmpty()) {
@@ -168,7 +195,11 @@ fun PairConnectScreen(
             VSpace(18)
             VbCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("What happens next?", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
+                    Text(
+                        "What happens next?",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = VbColors.TextPrimary,
+                    )
                     VSpace(12)
                     NextStep(Icons.Rounded.Tag, "Compare a 7-digit security code")
                     VSpace(12)

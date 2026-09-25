@@ -24,7 +24,12 @@ internal expect val ed25519SigningIsDeterministic: Boolean
  * encoding. Our signature must verify under [signerPublicKey], and so must Go's
  * signature, which proves both halves agree on the key and the preimage.
  */
-internal fun assertMatchesGoToken(expected: String, actual: String, signerPublicKey: ByteArray, message: String? = null) {
+internal fun assertMatchesGoToken(
+    expected: String,
+    actual: String,
+    signerPublicKey: ByteArray,
+    message: String? = null,
+) {
     if (ed25519SigningIsDeterministic) {
         assertEquals(expected, actual, message)
         return

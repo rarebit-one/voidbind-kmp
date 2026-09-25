@@ -135,7 +135,13 @@ private fun OnboardingAction(
                 .padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconCircle(icon = icon, tint = accent, background = accent.copy(alpha = 0.14f), diameter = 52, iconSize = 26)
+            IconCircle(
+                icon = icon,
+                tint = accent,
+                background = accent.copy(alpha = 0.14f),
+                diameter = 52,
+                iconSize = 26,
+            )
             Spacer(Modifier.size(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, color = VbColors.TextPrimary)

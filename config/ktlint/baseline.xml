@@ -1,98 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <baseline version="1.0">
-    <file name="src/androidMain/kotlin/one/rarebit/voidbind/crypto/Aead.android.kt">
-        <error line="11" column="120" source="standard:function-signature" />
-        <error line="15" column="121" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/Cert.kt">
-        <error line="97" column="41" source="standard:function-signature" />
-        <error line="99" column="39" source="standard:function-signature" />
-    </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/DeepLink.kt">
         <error line="1" column="1" source="standard:filename" />
-        <error line="65" column="77" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/DeviceKeyStoreExceptions.kt">
-        <error line="18" column="5" source="standard:class-signature" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/MembershipOp.kt">
-        <error line="335" column="62" source="standard:function-signature" />
-        <error line="345" column="19" source="standard:property-naming" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/UserIdentity.kt">
-        <error line="56" column="37" source="standard:function-signature" />
-        <error line="58" column="37" source="standard:function-signature" />
-        <error line="61" column="37" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/auth/DeviceAuthPolicy.kt">
-        <error line="46" column="48" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/auth/DeviceCredential.kt">
-        <error line="110" column="63" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/crypto/Bech32m.kt">
-        <error line="35" column="52" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/crypto/Ed25519Group.kt">
-        <error line="47" column="50" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/crypto/VoidbindEncryption.kt">
-        <error line="97" column="69" source="standard:function-signature" />
+        <error line="358" column="19" source="standard:property-naming" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/crypto/X25519.kt">
         <error line="15" column="17" source="standard:backing-property-naming" />
         <error line="15" column="17" source="standard:backing-property-naming" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/flow/DeviceAuthorization.kt">
-        <error line="135" column="104" source="standard:function-signature" />
-        <error line="143" column="76" source="standard:function-signature" />
-        <error line="150" column="82" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/flow/DevicePairing.kt">
-        <error line="66" column="74" source="standard:function-signature" />
-        <error line="74" column="75" source="standard:function-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/flow/PairingOutcome.kt">
-        <error line="49" column="9" source="standard:class-signature" />
-    </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/net/HttpTransport.kt">
-        <error line="38" column="98" source="standard:function-signature" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/net/Pairflow.kt">
         <error line="12" column="1" source="standard:kdoc" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/offload/OffloadInvite.kt">
         <error line="1" column="1" source="standard:filename" />
-        <error line="34" column="52" source="standard:function-signature" />
     </file>
     <file name="src/commonMain/kotlin/one/rarebit/voidbind/offload/OffloadResponder.kt">
         <error line="8" column="1" source="standard:kdoc" />
     </file>
-    <file name="src/commonMain/kotlin/one/rarebit/voidbind/policy/ApprovalPolicy.kt">
-        <error line="56" column="62" source="standard:function-signature" />
-        <error line="85" column="47" source="standard:function-signature" />
+    <file name="src/commonTest/kotlin/one/rarebit/voidbind/auth/DeviceCredentialTest.kt">
+        <error line="22" column="121" source="standard:max-line-length" />
+        <error line="23" column="121" source="standard:max-line-length" />
     </file>
     <file name="src/commonTest/kotlin/one/rarebit/voidbind/auth/PossessionProofTest.kt">
-        <error line="146" column="69" source="standard:function-signature" />
-    </file>
-    <file name="src/commonTest/kotlin/one/rarebit/voidbind/flow/PairingErrorTest.kt">
-        <error line="58" column="81" source="standard:function-signature" />
-        <error line="67" column="81" source="standard:function-signature" />
-        <error line="69" column="93" source="standard:function-signature" />
-    </file>
-    <file name="src/commonTest/kotlin/one/rarebit/voidbind/net/RelayClientWaitTest.kt">
-        <error line="30" column="64" source="standard:function-signature" />
+        <error line="31" column="121" source="standard:max-line-length" />
+        <error line="32" column="121" source="standard:max-line-length" />
+        <error line="39" column="121" source="standard:max-line-length" />
+        <error line="40" column="121" source="standard:max-line-length" />
     </file>
     <file name="src/commonTest/kotlin/one/rarebit/voidbind/policy/ApprovalPolicyTest.kt">
         <error line="16" column="17" source="standard:property-naming" />
         <error line="17" column="17" source="standard:property-naming" />
     </file>
-    <file name="src/iosMain/kotlin/one/rarebit/voidbind/crypto/Aead.ios.kt">
-        <error line="11" column="120" source="standard:function-signature" />
-        <error line="15" column="121" source="standard:function-signature" />
-    </file>
-    <file name="src/jvmMain/kotlin/one/rarebit/voidbind/net/JdkHttpTransport.kt">
-        <error line="36" column="89" source="standard:function-signature" />
-        <error line="52" column="94" source="standard:function-signature" />
+    <file name="src/jvmTest/kotlin/one/rarebit/voidbind/net/NetworkClientsTest.kt">
+        <error line="97" column="121" source="standard:max-line-length" />
     </file>
 </baseline>

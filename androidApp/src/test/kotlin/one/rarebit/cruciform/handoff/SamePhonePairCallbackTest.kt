@@ -56,10 +56,17 @@ class SamePhonePairCallbackTest {
     @Test
     fun ignoresAnythingThatIsNotOurs() {
         // Not a VIEW; another app's scheme; our own login scheme; a near-miss host.
-        assertNull(SamePhonePairCallback.route("android.intent.action.SEND", "cruciform://pair-joined?session=a&dev=$dev&sas=$sas"))
+        assertNull(
+            SamePhonePairCallback.route(
+                "android.intent.action.SEND",
+                "cruciform://pair-joined?session=a&dev=$dev&sas=$sas",
+            ),
+        )
         assertNull(SamePhonePairCallback.route(SamePhonePairCallback.ACTION_VIEW, "heyarr-mobile://pair?invite=x"))
         assertNull(SamePhonePairCallback.route(SamePhonePairCallback.ACTION_VIEW, "voidbind:login?rp=a&id=b"))
-        assertNull(SamePhonePairCallback.route(SamePhonePairCallback.ACTION_VIEW, "cruciform://pair-joined-x?session=a"))
+        assertNull(
+            SamePhonePairCallback.route(SamePhonePairCallback.ACTION_VIEW, "cruciform://pair-joined-x?session=a"),
+        )
         assertNull(SamePhonePairCallback.route(SamePhonePairCallback.ACTION_VIEW, null))
     }
 
@@ -72,7 +79,10 @@ class SamePhonePairCallbackTest {
                 is SamePhonePairCallback.Malformed,
         )
         assertTrue(
-            SamePhonePairCallback.route(SamePhonePairCallback.ACTION_VIEW, "cruciform://pair-joined?session=&dev=$dev&sas=$sas")
+            SamePhonePairCallback.route(
+                SamePhonePairCallback.ACTION_VIEW,
+                "cruciform://pair-joined?session=&dev=$dev&sas=$sas",
+            )
                 is SamePhonePairCallback.Malformed,
         )
         assertTrue(
@@ -97,7 +107,10 @@ class SamePhonePairCallbackTest {
 
     @Test
     fun theDeviceKeyIsComparedCaseInsensitivelyAndTrimmed() {
-        assertEquals(Decision.Match, SamePhonePairCallback.decide(Joined("s1", " ${dev.uppercase()} ", sas), "s1", dev, sas))
+        assertEquals(
+            Decision.Match,
+            SamePhonePairCallback.decide(Joined("s1", " ${dev.uppercase()} ", sas), "s1", dev, sas),
+        )
     }
 
     @Test
@@ -118,7 +131,9 @@ class SamePhonePairCallbackTest {
     @Test
     fun anEmptySasNeverMatchesEvenAgainstAnEmptyOne() {
         // A degenerate "both sides have nothing" must not read as agreement.
-        assertTrue(SamePhonePairCallback.decide(Joined("s1", dev, "no digits"), "s1", dev, "also none") is Decision.Mismatch)
+        assertTrue(
+            SamePhonePairCallback.decide(Joined("s1", dev, "no digits"), "s1", dev, "also none") is Decision.Mismatch,
+        )
     }
 
     @Test
@@ -148,7 +163,10 @@ class SamePhonePairCallbackTest {
 
     @Test
     fun buildsTheRpsDoneUri() {
-        assertEquals("heyarr-mobile://pair-done?session=abc123", SamePhonePairCallback.doneUri("heyarr-mobile", "abc123"))
+        assertEquals(
+            "heyarr-mobile://pair-done?session=abc123",
+            SamePhonePairCallback.doneUri("heyarr-mobile", "abc123"),
+        )
     }
 
     @Test

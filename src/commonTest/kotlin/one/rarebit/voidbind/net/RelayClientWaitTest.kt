@@ -13,7 +13,10 @@ import kotlin.test.assertTrue
 class RelayClientWaitTest {
 
     /** 404 until [appearAfterPolls] polls have happened, then 200 with [body]. Sleeps are counted, not taken. */
-    private class ScriptedTransport(private val appearAfterPolls: Int, private val body: ByteArray = "peer".encodeToByteArray()) : HttpTransport {
+    private class ScriptedTransport(
+        private val appearAfterPolls: Int,
+        private val body: ByteArray = "peer".encodeToByteArray(),
+    ) : HttpTransport {
         var polls = 0
         var sleptMillis = 0L
         override fun get(url: String): HttpResponse {
@@ -27,14 +30,28 @@ class RelayClientWaitTest {
         }
     }
 
-    private fun client(t: HttpTransport, maxWaitMillis: Long) =
-        RelayClient(t, "http://relay.test/pair", "sess", RelayClient.ROLE_INITIATOR, pollIntervalMillis = 1_000, maxWaitMillis = maxWaitMillis)
+    private fun client(t: HttpTransport, maxWaitMillis: Long) = RelayClient(
+        t,
+        "http://relay.test/pair",
+        "sess",
+        RelayClient.ROLE_INITIATOR,
+        pollIntervalMillis = 1_000,
+        maxWaitMillis = maxWaitMillis,
+    )
 
     @Test
     fun theDefaultBoundIsSixtySeconds() {
         assertEquals(60_000L, RelayClient.DEFAULT_MAX_WAIT_MILLIS)
         val t = ScriptedTransport(appearAfterPolls = Int.MAX_VALUE)
-        assertFailsWith<RelayTimeout> { RelayClient(t, "http://relay.test", "s", RelayClient.ROLE_INITIATOR, pollIntervalMillis = 1_000).fetch("commit") }
+        assertFailsWith<RelayTimeout> {
+            RelayClient(
+                t,
+                "http://relay.test",
+                "s",
+                RelayClient.ROLE_INITIATOR,
+                pollIntervalMillis = 1_000,
+            ).fetch("commit")
+        }
         assertEquals(60_000L, t.sleptMillis)
     }
 

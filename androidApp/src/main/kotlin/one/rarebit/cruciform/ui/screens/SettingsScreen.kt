@@ -159,7 +159,11 @@ fun SettingsScreen(
                 CruciformMark(size = 40.dp)
                 HSpace(14)
                 Column(Modifier.weight(1f)) {
-                    Text("${state.identity.label} · ${state.identity.fingerprint}", style = VbType.Mono, color = VbColors.TextPrimary)
+                    Text(
+                        "${state.identity.label} · ${state.identity.fingerprint}",
+                        style = VbType.Mono,
+                        color = VbColors.TextPrimary,
+                    )
                     VSpace(8)
                     StatusPill("Hardware-backed", accent = VbColors.Mint, leadingIcon = Icons.Rounded.Shield)
                 }
@@ -175,9 +179,17 @@ fun SettingsScreen(
                     title = "Device name",
                     subtitle = state.device.name,
                     onClick = onRename,
-                    leading = { IconCircle(Icons.Rounded.Fingerprint, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) },
+                    leading = {
+                        IconCircle(
+                            Icons.Rounded.Fingerprint,
+                            tint = VbColors.Blue,
+                            background = VbColors.Blue.copy(alpha = 0.12f),
+                        )
+                    },
                     trailing = {
-                        IconButton(onClick = onRename) { Icon(Icons.Rounded.Edit, contentDescription = "Rename", tint = VbColors.TextSecondary) }
+                        IconButton(onClick = onRename) {
+                            Icon(Icons.Rounded.Edit, contentDescription = "Rename", tint = VbColors.TextSecondary)
+                        }
                     },
                 )
                 VbHairline(Modifier.padding(horizontal = 16.dp))
@@ -185,19 +197,43 @@ fun SettingsScreen(
                     title = "Devices",
                     subtitle = "Every member of this identity · add or remove",
                     onClick = onDevices,
-                    leading = { IconCircle(Icons.Rounded.Devices, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) },
-                    trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
+                    leading = {
+                        IconCircle(
+                            Icons.Rounded.Devices,
+                            tint = VbColors.Blue,
+                            background = VbColors.Blue.copy(alpha = 0.12f),
+                        )
+                    },
+                    trailing = {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = VbColors.TextMuted,
+                        )
+                    },
                 )
                 VbHairline(Modifier.padding(horizontal = 16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconCircle(Icons.Rounded.Fingerprint, tint = VbColors.Mint, background = VbColors.Mint.copy(alpha = 0.12f))
+                    IconCircle(
+                        Icons.Rounded.Fingerprint,
+                        tint = VbColors.Mint,
+                        background = VbColors.Mint.copy(alpha = 0.12f),
+                    )
                     HSpace(14)
                     Column(Modifier.weight(1f)) {
-                        Text("Biometric approval", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
-                        Text("Required for every signature", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+                        Text(
+                            "Biometric approval",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = VbColors.TextPrimary,
+                        )
+                        Text(
+                            "Required for every signature",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = VbColors.TextSecondary,
+                        )
                     }
                     Switch(
                         checked = state.biometricApproval,
@@ -209,7 +245,12 @@ fun SettingsScreen(
                         ),
                     )
                     HSpace(8)
-                    Icon(Icons.Rounded.Lock, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Rounded.Lock,
+                        contentDescription = null,
+                        tint = VbColors.TextMuted,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             }
         }
@@ -266,8 +307,16 @@ fun SettingsScreen(
                         SiteAvatar(site.accent, diameter = 40)
                         HSpace(14)
                         Column(Modifier.weight(1f)) {
-                            Text(site.domain, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
-                            Text("${site.appName} · ${site.lastUsed}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+                            Text(
+                                site.domain,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = VbColors.TextPrimary,
+                            )
+                            Text(
+                                "${site.appName} · ${site.lastUsed}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = VbColors.TextSecondary,
+                            )
                             VSpace(6)
                             PolicyPill(site)
                         }
@@ -280,15 +329,33 @@ fun SettingsScreen(
                     title = "Approval activity",
                     subtitle = "Who you approved, and when",
                     onClick = onApprovalActivity,
-                    leading = { IconCircle(Icons.Rounded.History, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) },
-                    trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
+                    leading = {
+                        IconCircle(
+                            Icons.Rounded.History,
+                            tint = VbColors.Blue,
+                            background = VbColors.Blue.copy(alpha = 0.12f),
+                        )
+                    },
+                    trailing = {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = VbColors.TextMuted,
+                        )
+                    },
                 )
                 VbHairline(Modifier.padding(horizontal = 16.dp))
                 RowItem(
                     title = "Manage all ${state.trustedSites.size} trusted sites",
                     titleColor = VbColors.Mint,
                     onClick = onManageSites,
-                    trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Mint) },
+                    trailing = {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = VbColors.Mint,
+                        )
+                    },
                 )
             }
         }
@@ -306,7 +373,13 @@ fun SettingsScreen(
                         else -> state.backup.lastCheckedLabel ?: "Never checked on this device"
                     },
                     onClick = onTestRecovery,
-                    leading = { IconCircle(Icons.Rounded.VpnKey, tint = VbColors.Amber, background = VbColors.Amber.copy(alpha = 0.12f)) },
+                    leading = {
+                        IconCircle(
+                            Icons.Rounded.VpnKey,
+                            tint = VbColors.Amber,
+                            background = VbColors.Amber.copy(alpha = 0.12f),
+                        )
+                    },
                     trailing = { Chevron(VbColors.Amber) },
                 )
                 // Only a device that keeps a copy can re-show or remove it.
@@ -316,7 +389,13 @@ fun SettingsScreen(
                         title = "Recovery backup",
                         subtitle = "Re-show your recovery secret",
                         onClick = onRecoveryBackup,
-                        leading = { IconCircle(Icons.Rounded.VpnKey, tint = VbColors.Amber, background = VbColors.Amber.copy(alpha = 0.12f)) },
+                        leading = {
+                            IconCircle(
+                                Icons.Rounded.VpnKey,
+                                tint = VbColors.Amber,
+                                background = VbColors.Amber.copy(alpha = 0.12f),
+                            )
+                        },
                         trailing = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 StatusPill(
@@ -325,7 +404,11 @@ fun SettingsScreen(
                                     leadingIcon = Icons.Rounded.Lock,
                                 )
                                 HSpace(8)
-                                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.Amber)
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = VbColors.Amber,
+                                )
                             }
                         },
                     )
@@ -354,7 +437,12 @@ fun SettingsScreen(
             Column {
                 AboutRow(Icons.Rounded.Info, "About Cruciform", "Version ${BuildConfig.VERSION_NAME}", onAbout)
                 VbHairline(Modifier.padding(horizontal = 16.dp))
-                AboutRow(Icons.Rounded.Security, "Security & protocol", "Voidbind protocol · hardware-bound device keys", onSecurity)
+                AboutRow(
+                    Icons.Rounded.Security,
+                    "Security & protocol",
+                    "Voidbind protocol · hardware-bound device keys",
+                    onSecurity,
+                )
                 VbHairline(Modifier.padding(horizontal = 16.dp))
                 AboutRow(Icons.Rounded.Code, "Open-source licenses", null, onLicenses)
             }
@@ -366,9 +454,19 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Rounded.Shield, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.Rounded.Shield,
+                contentDescription = null,
+                tint = VbColors.TextMuted,
+                modifier = Modifier.size(16.dp),
+            )
             HSpace(8)
-            Text("Your keys never leave your devices.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center)
+            Text(
+                "Your keys never leave your devices.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = VbColors.TextMuted,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -463,7 +561,8 @@ private fun EndpointField(
         )
         VSpace(8)
         Text(
-            error ?: if (defaultUrl.isBlank()) "No default in this build — enter a URL to use one." else "Default: $defaultUrl",
+            error
+                ?: if (defaultUrl.isBlank()) "No default in this build — enter a URL to use one." else "Default: $defaultUrl",
             style = MaterialTheme.typography.bodyMedium,
             color = if (error != null) VbColors.Coral else VbColors.TextMuted,
         )
@@ -521,7 +620,9 @@ private fun AboutRow(icon: ImageVector, title: String, subtitle: String?, onClic
         subtitle = subtitle,
         onClick = onClick,
         leading = { IconCircle(icon, tint = VbColors.Mint, background = VbColors.SurfaceElevated) },
-        trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
+        trailing = {
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted)
+        },
     )
 }
 

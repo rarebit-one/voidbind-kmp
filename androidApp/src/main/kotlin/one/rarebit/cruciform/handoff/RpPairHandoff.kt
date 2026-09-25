@@ -43,11 +43,7 @@ data class RpPairTarget(
  * `<meta-data>`. Pure data so the mapping to targets/identity below is JVM-tested with
  * no Android runtime; [RpPairLauncher.adverts] is the sole producer on-device.
  */
-data class RpHandoffAdvert(
-    val packageName: String,
-    val label: String?,
-    val pairScheme: String?,
-)
+data class RpHandoffAdvert(val packageName: String, val label: String?, val pairScheme: String?)
 
 object RpPairHandoff {
 
@@ -134,7 +130,9 @@ object RpPairHandoff {
         for (b in bytes) {
             val c = b.toInt() and 0xFF
             val ch = c.toChar()
-            if (ch in 'A'..'Z' || ch in 'a'..'z' || ch in '0'..'9' || ch == '-' || ch == '_' || ch == '.' || ch == '~') {
+            if (ch in 'A'..'Z' || ch in 'a'..'z' || ch in '0'..'9' || ch == '-' || ch == '_' || ch == '.' ||
+                ch == '~'
+            ) {
                 out.append(ch)
             } else {
                 out.append('%').append(HEX[c ushr 4]).append(HEX[c and 0x0F])

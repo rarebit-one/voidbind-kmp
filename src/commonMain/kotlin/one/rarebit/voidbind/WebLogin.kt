@@ -69,7 +69,12 @@ object WebLogin {
      * part of the signed assertion because each op is signed on its own. [cert] is the
      * device's ADMITTING op — a v3 add, or a v1/v2 cert, which is one.
      */
-    data class Assertion(val cert: String, val sig: String, val matchNumber: Int? = null, val ops: List<String> = emptyList())
+    data class Assertion(
+        val cert: String,
+        val sig: String,
+        val matchNumber: Int? = null,
+        val ops: List<String> = emptyList(),
+    )
 
     /** The most membership ops an RP accepts beside a credential (voidbind-go `rp.MaxPresentedOps`). */
     const val MAX_PRESENTED_OPS = 64

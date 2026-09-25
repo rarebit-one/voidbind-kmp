@@ -55,7 +55,12 @@ data class RpAppIdentity(
                     ?: pm.appLabelOrNull(callerPackage)
                 return RpAppIdentity(label ?: "This app", scheme, callerPackage, icon)
             }
-            return RpAppIdentity(pm.appLabelOrNull(callerPackage) ?: "This app", scheme = null, packageName = callerPackage, icon = icon)
+            return RpAppIdentity(
+                pm.appLabelOrNull(callerPackage) ?: "This app",
+                scheme = null,
+                packageName = callerPackage,
+                icon = icon,
+            )
         }
 
         private fun android.content.pm.PackageManager.appLabelOrNull(pkg: String): String? =
@@ -72,10 +77,18 @@ data class RpAppIdentity(
         fun openDone(context: Context, scheme: String?, session: String, refusedFor: String? = null): Boolean {
             val uri = runCatching {
                 val s = scheme ?: return false
-                if (refusedFor == null) SamePhonePairCallback.doneUri(s, session) else SamePhonePairCallback.refusedUri(s, session, refusedFor)
+                if (refusedFor ==
+                    null
+                ) {
+                    SamePhonePairCallback.doneUri(s, session)
+                } else {
+                    SamePhonePairCallback.refusedUri(s, session, refusedFor)
+                }
             }.getOrNull() ?: return false
             return try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
                 true
             } catch (e: Exception) {
                 // ActivityNotFound / SecurityException: the RP is enrolled either way, it
@@ -92,8 +105,4 @@ data class RpAppIdentity(
  * said, who Android says said it, and a [seq] so two identical callbacks are distinct
  * and the second one re-fires the flow.
  */
-data class SamePhoneJoin(
-    val report: SamePhonePairCallback.Joined,
-    val rp: RpAppIdentity,
-    val seq: Int,
-)
+data class SamePhoneJoin(val report: SamePhonePairCallback.Joined, val rp: RpAppIdentity, val seq: Int)

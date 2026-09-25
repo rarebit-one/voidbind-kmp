@@ -23,10 +23,7 @@ import one.rarebit.voidbind.crypto.MiniJson
  * public ntfy topic URL and nothing else. This client never sees a private key, a
  * challenge, or a match number — those live in [WebLoginClient] / [WebLogin].
  */
-class NotifyClient(
-    private val http: HttpTransport,
-    private val base: String,
-) {
+class NotifyClient(private val http: HttpTransport, private val base: String) {
     private fun trimr(s: String) = s.trimEnd('/')
     private fun url() = trimr(base) + "/v1/subscriptions"
 
@@ -42,12 +39,7 @@ class NotifyClient(
      * the [channel], and the unix-seconds [expiresAt] after which the device must
      * re-register.
      */
-    class Subscription(
-        val userId: String,
-        val deviceKey: String,
-        val channel: String,
-        val expiresAt: Long,
-    )
+    class Subscription(val userId: String, val deviceKey: String, val channel: String, val expiresAt: Long)
 
     /**
      * Register [endpoint] (this device's ntfy topic URL) as a wake address on

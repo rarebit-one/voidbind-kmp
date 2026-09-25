@@ -167,7 +167,12 @@ class LoginApproval(
         require(chosenNumber in request.candidates) {
             "chosen number $chosenNumber is not one of the candidates shown"
         }
-        val assertion = WebLogin.signAssertionV2(request.challenge, chosenNumber, enrolmentCert, ops = knownOps) { message ->
+        val assertion = WebLogin.signAssertionV2(
+            request.challenge,
+            chosenNumber,
+            enrolmentCert,
+            ops = knownOps,
+        ) { message ->
             device.sign(message)
         }
         WebLoginClient(http, request.rp).approve(request.loginId, assertion)

@@ -49,7 +49,9 @@ class RpPairManifestQueriesTest {
 
     private fun attrsOf(intent: org.w3c.dom.Element, tag: String, attr: String): List<String> {
         val els = intent.getElementsByTagName(tag)
-        return (0 until els.length).mapNotNull { (els.item(it) as org.w3c.dom.Element).getAttributeNS(android, attr).ifEmpty { null } }
+        return (0 until els.length).mapNotNull {
+            (els.item(it) as org.w3c.dom.Element).getAttributeNS(android, attr).ifEmpty { null }
+        }
     }
 
     @Test

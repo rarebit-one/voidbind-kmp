@@ -141,15 +141,34 @@ class MembershipOpTest {
             }.failure,
         )
         // A remove carries no denc and no exp; prev is sorted + de-duplicated.
-        val rm = MembershipOp.sign(g, gp, usr, MembershipOp.Kind.REMOVE, aId, "ignored?", listOf(addBHash, addAHash, addAHash), 1_788_264_400L)
+        val rm = MembershipOp.sign(
+            g,
+            gp,
+            usr,
+            MembershipOp.Kind.REMOVE,
+            aId,
+            "ignored?",
+            listOf(addBHash, addAHash, addAHash),
+            1_788_264_400L,
+        )
         val op = MembershipOp.verify(rm)
         assertEquals(MembershipOp.Kind.REMOVE, op.kind)
         assertEquals("", op.deviceEnc)
         assertEquals(0L, op.expiresAt)
         assertEquals(listOf(addBHash, addAHash).sorted(), op.prev)
         // Junk.
-        assertEquals(MembershipOp.Failure.MALFORMED, assertFailsWith<MembershipOp.OpException> { MembershipOp.verify("not-an-op") }.failure)
-        assertEquals(MembershipOp.Failure.MALFORMED, assertFailsWith<MembershipOp.OpException> { MembershipOp.verify("AAAA.BBBB") }.failure)
+        assertEquals(
+            MembershipOp.Failure.MALFORMED,
+            assertFailsWith<MembershipOp.OpException> {
+                MembershipOp.verify("not-an-op")
+            }.failure,
+        )
+        assertEquals(
+            MembershipOp.Failure.MALFORMED,
+            assertFailsWith<MembershipOp.OpException> {
+                MembershipOp.verify("AAAA.BBBB")
+            }.failure,
+        )
         assertFailsWith<MembershipOp.OpException> { MembershipOp.user("nope") }
     }
 

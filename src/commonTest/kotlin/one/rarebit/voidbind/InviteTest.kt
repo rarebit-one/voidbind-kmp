@@ -52,9 +52,10 @@ class InviteTest {
     @Test
     fun decodeIsKeyOrderIndependent() {
         // Same fields, keys in a different order than Encode emits.
-        val reordered = "voidbind:pair?v=3&usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4" +
-            "&session=sess123&relay=http%3A%2F%2Frelay.local%3A8090" +
-            "&salt=3333333333333333333333333333333333333333333333333333333333333333"
+        val reordered =
+            "voidbind:pair?v=3&usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4" +
+                "&session=sess123&relay=http%3A%2F%2Frelay.local%3A8090" +
+                "&salt=3333333333333333333333333333333333333333333333333333333333333333"
         val p = Invite.decode(reordered)
         assertEquals(relay, p.relay)
         assertEquals(session, p.session)
@@ -71,10 +72,20 @@ class InviteTest {
         }
         assertFailsWith<IllegalArgumentException> {
             // A v2 invite (no usr) is refused: the responder needs the identity to evaluate.
-            Invite.decode(golden.replaceFirst("v=3", "v=2").replaceFirst("&usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4", ""))
+            Invite.decode(
+                golden.replaceFirst(
+                    "v=3",
+                    "v=2",
+                ).replaceFirst("&usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4", ""),
+            )
         }
         assertFailsWith<IllegalArgumentException> {
-            Invite.decode(golden.replaceFirst("&usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4", ""))
+            Invite.decode(
+                golden.replaceFirst(
+                    "&usr=ed25519%3Af947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4",
+                    "",
+                ),
+            )
         }
         assertFailsWith<IllegalArgumentException> {
             Invite.decode("voidbind:pair?v=3&relay=http://r&session=s&salt=33&usr=$usr")

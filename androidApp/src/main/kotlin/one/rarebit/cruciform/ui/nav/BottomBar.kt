@@ -30,12 +30,7 @@ import one.rarebit.cruciform.ui.theme.VbColors
 
 /** The three-slot bottom bar: Home, a centered Scan action, Settings. */
 @Composable
-fun CruciformBottomBar(
-    currentRoute: String?,
-    onHome: () -> Unit,
-    onScan: () -> Unit,
-    onSettings: () -> Unit,
-) {
+fun CruciformBottomBar(currentRoute: String?, onHome: () -> Unit, onScan: () -> Unit, onSettings: () -> Unit) {
     Surface(color = VbColors.Background) {
         Row(
             modifier = Modifier
@@ -46,7 +41,12 @@ fun CruciformBottomBar(
         ) {
             BarItem(Icons.Rounded.Home, "Home", selected = currentRoute == Routes.HOME, onClick = onHome)
             ScanButton(onScan)
-            BarItem(Icons.Rounded.Settings, "Settings", selected = currentRoute == Routes.SETTINGS, onClick = onSettings)
+            BarItem(
+                Icons.Rounded.Settings,
+                "Settings",
+                selected = currentRoute == Routes.SETTINGS,
+                onClick = onSettings,
+            )
         }
     }
 }
@@ -62,7 +62,12 @@ private fun BarItem(icon: ImageVector, label: String, selected: Boolean, onClick
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(26.dp))
-        Text(label, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = tint, textAlign = TextAlign.Center)
+        Text(
+            label,
+            style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+            color = tint,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -78,7 +83,12 @@ private fun ScanButton(onClick: () -> Unit) {
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Rounded.QrCodeScanner, contentDescription = "Scan", tint = VbColors.Blue, modifier = Modifier.size(28.dp))
+            Icon(
+                Icons.Rounded.QrCodeScanner,
+                contentDescription = "Scan",
+                tint = VbColors.Blue,
+                modifier = Modifier.size(28.dp),
+            )
         }
         Text("Scan", style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = VbColors.Blue)
     }

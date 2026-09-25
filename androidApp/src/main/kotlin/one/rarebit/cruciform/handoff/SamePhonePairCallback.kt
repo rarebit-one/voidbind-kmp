@@ -119,17 +119,14 @@ sealed interface SamePhonePairCallback {
          * on its DIGITS only — Cruciform groups it `NNN NNNN` for the eye and an RP may
          * not, and the digits are the whole of the value.
          */
-        fun decide(
-            report: Joined,
-            liveSession: String?,
-            revealedDev: String?,
-            revealedSas: String?,
-        ): Decision {
+        fun decide(report: Joined, liveSession: String?, revealedDev: String?, revealedSas: String?): Decision {
             if (liveSession.isNullOrEmpty()) {
                 return Decision.OtherSession("no invite is live on this device")
             }
             if (!report.session.equals(liveSession, ignoreCase = true)) {
-                return Decision.OtherSession("the callback names session ${report.session}, this device is running $liveSession")
+                return Decision.OtherSession(
+                    "the callback names session ${report.session}, this device is running $liveSession",
+                )
             }
             if (revealedDev.isNullOrEmpty() || revealedSas.isNullOrEmpty()) return Decision.TooEarly
             if (!report.dev.trim().equals(revealedDev.trim(), ignoreCase = true)) {
@@ -162,8 +159,16 @@ sealed interface SamePhonePairCallback {
             return buildString {
                 append(rpScheme).append("://").append(DONE_HOST).append('?').append(PARAM_SESSION).append('=')
                 append(RpPairHandoff.percentEncode(session))
-                if (outcome != null) append('&').append(PARAM_OUTCOME).append('=').append(RpPairHandoff.percentEncode(outcome))
-                if (reason != null) append('&').append(PARAM_REASON).append('=').append(RpPairHandoff.percentEncode(reason))
+                if (outcome !=
+                    null
+                ) {
+                    append('&').append(PARAM_OUTCOME).append('=').append(RpPairHandoff.percentEncode(outcome))
+                }
+                if (reason !=
+                    null
+                ) {
+                    append('&').append(PARAM_REASON).append('=').append(RpPairHandoff.percentEncode(reason))
+                }
             }
         }
 

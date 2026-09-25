@@ -101,22 +101,22 @@ class AndroidBiometricAuthenticator(private val activity: FragmentActivity) : Bi
                 .canAuthenticate(PresencePolicy.DESTRUCTIVE) == BiometricManager.BIOMETRIC_SUCCESS
             if (!canStrong) return@withContext StrongAuth.UNAVAILABLE
 
-        suspendCancellableCoroutine { cont ->
-            val prompt = prompt { ok ->
-                if (cont.isActive) cont.resume(if (ok) StrongAuth.SUCCESS else StrongAuth.CANCELLED)
+            suspendCancellableCoroutine { cont ->
+                val prompt = prompt { ok ->
+                    if (cont.isActive) cont.resume(if (ok) StrongAuth.SUCCESS else StrongAuth.CANCELLED)
+                }
+                val info = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(title)
+                    .setSubtitle(subtitle)
+                    .setAllowedAuthenticators(PresencePolicy.DESTRUCTIVE)
+                    // A negative button is REQUIRED when DEVICE_CREDENTIAL is not among
+                    // the allowed authenticators; without it PromptInfo.build() throws.
+                    .setNegativeButtonText("Cancel")
+                    .setConfirmationRequired(true)
+                    .build()
+                prompt.authenticate(info)
             }
-            val info = BiometricPrompt.PromptInfo.Builder()
-                .setTitle(title)
-                .setSubtitle(subtitle)
-                .setAllowedAuthenticators(PresencePolicy.DESTRUCTIVE)
-                // A negative button is REQUIRED when DEVICE_CREDENTIAL is not among
-                // the allowed authenticators; without it PromptInfo.build() throws.
-                .setNegativeButtonText("Cancel")
-                .setConfirmationRequired(true)
-                .build()
-            prompt.authenticate(info)
         }
-    }
 
     private inline fun prompt(crossinline onDone: (Boolean) -> Unit): BiometricPrompt = BiometricPrompt(
         activity,

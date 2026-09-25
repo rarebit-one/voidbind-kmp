@@ -118,22 +118,86 @@ class PossessionProofTest {
         val pub = devicePub(certA)
         // honoured 1s before expiry; expired AT ttl (strict); honoured half a skew early; refused 2 skews early
         PossessionProof.verify(proofA, pub, certA, nowA + 119, verifier)
-        assertEquals(PossessionProof.Reason.EXPIRED, refused { PossessionProof.verify(proofA, pub, certA, nowA + 120, verifier) })
+        assertEquals(
+            PossessionProof.Reason.EXPIRED,
+            refused {
+                PossessionProof.verify(proofA, pub, certA, nowA + 120, verifier)
+            },
+        )
         PossessionProof.verify(proofA, pub, certA, nowA - 15, verifier)
         PossessionProof.verify(proofA, pub, certA, nowA - 30, verifier)
-        assertEquals(PossessionProof.Reason.NOT_YET_VALID, refused { PossessionProof.verify(proofA, pub, certA, nowA - 31, verifier) })
-        assertEquals(PossessionProof.Reason.NOT_YET_VALID, refused { PossessionProof.verify(proofA, pub, certA, nowA - 60, verifier) })
+        assertEquals(
+            PossessionProof.Reason.NOT_YET_VALID,
+            refused {
+                PossessionProof.verify(
+                    proofA,
+                    pub,
+                    certA,
+                    nowA - 31,
+                    verifier,
+                )
+            },
+        )
+        assertEquals(
+            PossessionProof.Reason.NOT_YET_VALID,
+            refused {
+                PossessionProof.verify(
+                    proofA,
+                    pub,
+                    certA,
+                    nowA - 60,
+                    verifier,
+                )
+            },
+        )
     }
 
     @Test
     fun verifyRefusesWrongCertTamperingAndGarbage() {
         val pub = devicePub(certA)
-        assertEquals(PossessionProof.Reason.WRONG_CERT, refused { PossessionProof.verify(proofA, pub, certB, nowA + 1, verifier) })
-        assertEquals(PossessionProof.Reason.BAD_SIGNATURE, refused { PossessionProof.verify(proofA, devicePub(certB), certA, nowA + 1, verifier) })
+        assertEquals(
+            PossessionProof.Reason.WRONG_CERT,
+            refused {
+                PossessionProof.verify(proofA, pub, certB, nowA + 1, verifier)
+            },
+        )
+        assertEquals(
+            PossessionProof.Reason.BAD_SIGNATURE,
+            refused {
+                PossessionProof.verify(
+                    proofA,
+                    devicePub(certB),
+                    certA,
+                    nowA + 1,
+                    verifier,
+                )
+            },
+        )
         val flipped = proofA.substring(0, 5) + (if (proofA[5] == 'A') 'B' else 'A') + proofA.substring(6)
-        assertEquals(PossessionProof.Reason.BAD_SIGNATURE, refused { PossessionProof.verify(flipped, pub, certA, nowA + 1, verifier) })
-        assertEquals(PossessionProof.Reason.MALFORMED, refused { PossessionProof.verify("no-dot", pub, certA, nowA + 1, verifier) })
-        assertEquals(PossessionProof.Reason.MALFORMED, refused { PossessionProof.verify("!!.!!", pub, certA, nowA + 1, verifier) })
+        assertEquals(
+            PossessionProof.Reason.BAD_SIGNATURE,
+            refused {
+                PossessionProof.verify(
+                    flipped,
+                    pub,
+                    certA,
+                    nowA + 1,
+                    verifier,
+                )
+            },
+        )
+        assertEquals(
+            PossessionProof.Reason.MALFORMED,
+            refused {
+                PossessionProof.verify("no-dot", pub, certA, nowA + 1, verifier)
+            },
+        )
+        assertEquals(
+            PossessionProof.Reason.MALFORMED,
+            refused {
+                PossessionProof.verify("!!.!!", pub, certA, nowA + 1, verifier)
+            },
+        )
         assertEquals(PossessionProof.Reason.MALFORMED, refused { PossessionProof.parse("no-dot") })
     }
 

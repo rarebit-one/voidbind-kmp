@@ -68,7 +68,9 @@ class PairingConfirmErrorTest {
     private fun device(): DeviceIdentity {
         val seed = ByteArray(32) { (it + 11).toByte() }
         val enc = DeviceIdentity.generateEncryptionKey()
-        return DeviceIdentity(Ed25519Group.publicKeyFromSeed(seed), enc.publicKey, enc.privateKey) { Ed25519Engine.sign(seed, it) }
+        return DeviceIdentity(Ed25519Group.publicKeyFromSeed(seed), enc.publicKey, enc.privateKey) {
+            Ed25519Engine.sign(seed, it)
+        }
     }
 
     private class Handshook(
@@ -149,7 +151,9 @@ class PairingConfirmErrorTest {
         val h = handshook()
         val ops = assertIs<PairingOutcome.Ready<List<String>>>(h.auth.authoriseCatching(h.invitation)).value
         assertEquals(1, ops.size, "genesis held no ops; after authorising it holds the one add")
-        val admission = assertIs<PairingOutcome.Ready<one.rarebit.voidbind.net.Admission>>(h.pairing.confirmCatching(h.handshake)).value
+        val admission = assertIs<PairingOutcome.Ready<one.rarebit.voidbind.net.Admission>>(
+            h.pairing.confirmCatching(h.handshake),
+        ).value
         assertEquals(ops, admission.ops)
         assertEquals(true, one.rarebit.voidbind.MembershipOp.verify(admission.op).genesis)
     }

@@ -59,7 +59,12 @@ class ApprovalPolicyStore(private val prefs: SharedPreferences) :
 
     private fun writePolicies(values: Collection<SitePolicy>) {
         val blob = values.joinToString(REC) {
-            listOf(it.rp, it.policy.name, it.pinnedAlwaysAsk.toString(), it.firstTrustedAt?.toString() ?: "").joinToString(SEP)
+            listOf(
+                it.rp,
+                it.policy.name,
+                it.pinnedAlwaysAsk.toString(),
+                it.firstTrustedAt?.toString() ?: "",
+            ).joinToString(SEP)
         }
         prefs.edit().putString(KEY_POLICIES, blob).apply()
     }

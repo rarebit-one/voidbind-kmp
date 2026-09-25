@@ -38,11 +38,7 @@ internal fun LoginErrorDialog(error: LoginErrorState, onDismiss: () -> Unit) {
  * "Change relay" → [onChangeRelay].
  */
 @Composable
-internal fun EngineErrorDialog(
-    error: EngineErrorState,
-    onClosed: () -> Unit,
-    onChangeRelay: () -> Unit,
-) {
+internal fun EngineErrorDialog(error: EngineErrorState, onClosed: () -> Unit, onChangeRelay: () -> Unit) {
     val dismiss = {
         error.onDismiss()
         onClosed()

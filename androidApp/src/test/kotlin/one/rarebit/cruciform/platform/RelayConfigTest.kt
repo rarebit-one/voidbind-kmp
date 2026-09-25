@@ -30,15 +30,27 @@ class RelayConfigTest {
 
     @Test
     fun `accepts http and https bases with a host, and a path mount`() {
-        assertEquals(Validation.Valid("https://relay.thesim.family"), RelayConfig.validate("https://relay.thesim.family"))
-        assertEquals(Validation.Valid("http://192.168.16.224:8080/pair"), RelayConfig.validate("http://192.168.16.224:8080/pair"))
+        assertEquals(
+            Validation.Valid("https://relay.thesim.family"),
+            RelayConfig.validate("https://relay.thesim.family"),
+        )
+        assertEquals(
+            Validation.Valid("http://192.168.16.224:8080/pair"),
+            RelayConfig.validate("http://192.168.16.224:8080/pair"),
+        )
         assertEquals(Validation.Valid("HTTPS://relay.example"), RelayConfig.validate("HTTPS://relay.example"))
     }
 
     @Test
     fun `normalises whitespace and trailing slashes so the client's slash-v1 join cannot double up`() {
-        assertEquals(Validation.Valid("http://192.168.16.224:7777/pair"), RelayConfig.validate("  http://192.168.16.224:7777/pair/  "))
-        assertEquals(Validation.Valid("https://relay.thesim.family"), RelayConfig.validate("https://relay.thesim.family///"))
+        assertEquals(
+            Validation.Valid("http://192.168.16.224:7777/pair"),
+            RelayConfig.validate("  http://192.168.16.224:7777/pair/  "),
+        )
+        assertEquals(
+            Validation.Valid("https://relay.thesim.family"),
+            RelayConfig.validate("https://relay.thesim.family///"),
+        )
         assertEquals("https://relay.thesim.family", RelayConfig.normalizeOrNull("https://relay.thesim.family/"))
     }
 

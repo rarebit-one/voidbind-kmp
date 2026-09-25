@@ -105,9 +105,8 @@ object RecoveryShares {
  * backup, say), so they are not a voidbind recovery secret. Refused rather than
  * padded into an identity.
  */
-class NotARecoverySecretException(
-    val secretLength: Int,
-) : IllegalArgumentException(
-    "recovery: these shares hold a $secretLength-byte secret, so they are not a voidbind recovery secret " +
-        "(a wallet backup?)",
-)
+class NotARecoverySecretException(val secretLength: Int) :
+    IllegalArgumentException(
+        "recovery: these shares hold a $secretLength-byte secret, so they are not a voidbind recovery secret " +
+            "(a wallet backup?)",
+    )

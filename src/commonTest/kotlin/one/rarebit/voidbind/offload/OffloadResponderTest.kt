@@ -50,16 +50,30 @@ class OffloadResponderTest {
         relay.slots["initiator:reveal"] =
             MiniJson.encodeObject(listOf("sign" to KeyRef.ed25519(transport.publicKey).render())).encodeToByteArray()
 
-        val responder = OffloadPairingResponder(signer(phone.privateSeed), phone.publicKey, phoneEnc, Ed25519Engine.verifier())
+        val responder =
+            OffloadPairingResponder(signer(phone.privateSeed), phone.publicKey, phoneEnc, Ed25519Engine.verifier())
         val h = responder.handshake(relay.view("responder", "initiator"), invite)
 
         // The desktop opens the phone's commitment and derives the SAME SAS.
-        assertTrue(Pairing.opens(relay.slots["responder:commit"]!!, phone.publicKey, phoneEnc), "desktop opens phone commit")
-        val desktopSas = Pairing.deriveSas(Pairing.Keys(transport.publicKey), Pairing.Keys(phone.publicKey, phoneEnc), salt)
+        assertTrue(
+            Pairing.opens(relay.slots["responder:commit"]!!, phone.publicKey, phoneEnc),
+            "desktop opens phone commit",
+        )
+        val desktopSas = Pairing.deriveSas(
+            Pairing.Keys(transport.publicKey),
+            Pairing.Keys(phone.publicKey, phoneEnc),
+            salt,
+        )
         assertTrue(desktopSas == h.sas, "both sides derive one SAS")
 
         // Human matched → the desktop stages its confirm; the phone confirms and pins.
-        val transcript = OffloadProtocol.pairConfirmTranscript(invite.session, salt, transport.publicKey, phone.publicKey, phoneEnc)
+        val transcript = OffloadProtocol.pairConfirmTranscript(
+            invite.session,
+            salt,
+            transport.publicKey,
+            phone.publicKey,
+            phoneEnc,
+        )
         relay.slots["initiator:confirm"] =
             OffloadProtocol.encodeConfirm(Ed25519Engine.sign(transport.privateSeed, transcript)).encodeToByteArray()
 
@@ -86,7 +100,8 @@ class OffloadResponderTest {
         relay.slots["initiator:reveal"] =
             MiniJson.encodeObject(listOf("sign" to KeyRef.ed25519(wrong.publicKey).render())).encodeToByteArray()
 
-        val responder = OffloadPairingResponder(signer(phone.privateSeed), phone.publicKey, phoneEnc, Ed25519Engine.verifier())
+        val responder =
+            OffloadPairingResponder(signer(phone.privateSeed), phone.publicKey, phoneEnc, Ed25519Engine.verifier())
         assertFailsWith<IllegalArgumentException> { responder.handshake(relay.view("responder", "initiator"), invite) }
     }
 
@@ -139,7 +154,12 @@ class OffloadResponderTest {
             OffloadProtocol.signRequest(signer(attacker.privateSeed), wrapped, ephPub, nonce)
 
         assertFailsWith<OffloadProtocol.OffloadWireException> {
-            OffloadUnwrapResponder(signer(phone.privateSeed), phoneEncSeed, transport.publicKey, Ed25519Engine.verifier())
+            OffloadUnwrapResponder(
+                signer(phone.privateSeed),
+                phoneEncSeed,
+                transport.publicKey,
+                Ed25519Engine.verifier(),
+            )
                 .serveOnce(relay.view("responder", "initiator"))
         }
     }

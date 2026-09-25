@@ -194,7 +194,14 @@ class InviteCoordinatorTest {
         val c = coordinator(engine)
         c.ensureInvite()
         advanceUntilIdle()
-        engine.handshake.complete(EngineResult.Failed(EngineFailure("Can't reach the relay at relay.test. Check Wi-Fi or your VPN and try again.", EngineFailure.Kind.UNREACHABLE)))
+        engine.handshake.complete(
+            EngineResult.Failed(
+                EngineFailure(
+                    "Can't reach the relay at relay.test. Check Wi-Fi or your VPN and try again.",
+                    EngineFailure.Kind.UNREACHABLE,
+                ),
+            ),
+        )
         advanceUntilIdle()
         val f = c.state.value as InviteCoordinator.State.Failed
         assertEquals(InviteCoordinator.Phase.WAIT, f.phase)
@@ -266,7 +273,8 @@ class InviteCoordinatorTest {
         advanceUntilIdle()
         engine.handshake.complete(EngineResult.Ready(session))
         advanceUntilIdle()
-        engine.confirmResult = EngineResult.Failed(EngineFailure("cancelled", EngineFailure.Kind.CANCELLED, retryable = false))
+        engine.confirmResult =
+            EngineResult.Failed(EngineFailure("cancelled", EngineFailure.Kind.CANCELLED, retryable = false))
         c.confirm()
         advanceUntilIdle()
         c.dismissFailure()
@@ -296,7 +304,8 @@ class InviteCoordinatorTest {
         assertEquals(InviteCoordinator.Phase.MINT, f.phase)
         assertEquals("http://relay.test/pair", f.relayUrl)
         assertEquals(0, keep.begins) // nothing to hold: no invite was minted
-        engine.mintResult = EngineResult.Ready(PairInviteDisplay("INV · CCCC DDDD", "voidbind:pair?v=3&session=s2", 600))
+        engine.mintResult =
+            EngineResult.Ready(PairInviteDisplay("INV · CCCC DDDD", "voidbind:pair?v=3&session=s2", 600))
         c.retry()
         advanceUntilIdle()
         assertEquals(2, engine.mints)
@@ -363,12 +372,21 @@ class InviteCoordinatorTest {
 
         var verdictWhenJoined: InviteCoordinator.SamePhone? = null
         val watcher = c.state
-            .onEach { if (it is InviteCoordinator.State.Joined && verdictWhenJoined == null) verdictWhenJoined = c.samePhone.value }
+            .onEach {
+                if (it is InviteCoordinator.State.Joined &&
+                    verdictWhenJoined == null
+                ) {
+                    verdictWhenJoined = c.samePhone.value
+                }
+            }
             .launchIn(CoroutineScope(Dispatchers.Unconfined))
         engine.handshake.complete(EngineResult.Ready(session))
         advanceUntilIdle()
         watcher.cancel()
-        assertTrue("Joined was observed with $verdictWhenJoined", verdictWhenJoined is InviteCoordinator.SamePhone.Verified)
+        assertTrue(
+            "Joined was observed with $verdictWhenJoined",
+            verdictWhenJoined is InviteCoordinator.SamePhone.Verified,
+        )
         c.cancel()
     }
 
@@ -404,7 +422,10 @@ class InviteCoordinatorTest {
 
         c.samePhoneJoined(report(session = "someone-elses"), rpScheme = "heyarr-mobile")
 
-        assertTrue("a stale callback must not tear down the live invite", c.state.value is InviteCoordinator.State.Joined)
+        assertTrue(
+            "a stale callback must not tear down the live invite",
+            c.state.value is InviteCoordinator.State.Joined,
+        )
         assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
         c.cancel()
     }

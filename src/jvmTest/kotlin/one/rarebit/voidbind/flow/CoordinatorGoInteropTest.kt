@@ -81,7 +81,11 @@ class CoordinatorGoInteropTest {
     }
 
     /** Both handshakes concurrently: (initiator SAS, responder handshake). */
-    private fun pair(auth: DeviceAuthorization, invitation: DeviceAuthorization.Invitation, pairing: DevicePairing): Pair<String, DevicePairing.Handshake> {
+    private fun pair(
+        auth: DeviceAuthorization,
+        invitation: DeviceAuthorization.Invitation,
+        pairing: DevicePairing,
+    ): Pair<String, DevicePairing.Handshake> {
         var sasInitiator = ""
         var handshake: DevicePairing.Handshake? = null
         var err: Throwable? = null
@@ -107,7 +111,14 @@ class CoordinatorGoInteropTest {
         val now = System.currentTimeMillis() / 1000
         val (device, cert) = softwareDevice(user, seedByte = 13, now = now)
 
-        val proc = ProcessBuilder(cli.absolutePath, "login-serve", "--addr", "127.0.0.1:$port", "--pin", user.userId.render())
+        val proc = ProcessBuilder(
+            cli.absolutePath,
+            "login-serve",
+            "--addr",
+            "127.0.0.1:$port",
+            "--pin",
+            user.userId.render(),
+        )
             .redirectErrorStream(true).start()
         try {
             val http = JdkHttpTransport()
@@ -184,15 +195,30 @@ class CoordinatorGoInteropTest {
         val (phoneA, certA) = softwareDevice(user, seedByte = 23, now = now - 60)
         val (phoneB, _) = softwareDevice(user, seedByte = 29, now = now)
 
-        val relay = ProcessBuilder(cli.absolutePath, "relay", "--addr", "127.0.0.1:$relayPort").redirectErrorStream(true).start()
-        val rp = ProcessBuilder(cli.absolutePath, "login-serve", "--addr", "127.0.0.1:$rpPort", "--pin", usr).redirectErrorStream(true).start()
+        val relay = ProcessBuilder(
+            cli.absolutePath,
+            "relay",
+            "--addr",
+            "127.0.0.1:$relayPort",
+        ).redirectErrorStream(true).start()
+        val rp = ProcessBuilder(
+            cli.absolutePath,
+            "login-serve",
+            "--addr",
+            "127.0.0.1:$rpPort",
+            "--pin",
+            usr,
+        ).redirectErrorStream(true).start()
         try {
             val http = JdkHttpTransport()
             waitReady { http.post("$relayBase/v1/sessions").status == 200 }
             waitReady { http.post("$rpBase/login").status == 200 }
 
             // --- phone → phone through the Go relay ---------------------------------
-            val auth = DeviceAuthorization(http, phoneA, admittingOp = certA, knownOps = emptyList(), clock = { now }, pollIntervalMillis = 20)
+            val auth =
+                DeviceAuthorization(http, phoneA, admittingOp = certA, knownOps = emptyList(), clock = {
+                    now
+                }, pollIntervalMillis = 20)
             val pairing = DevicePairing(http, phoneB, clock = { now }, pollIntervalMillis = 20)
             val invitation = auth.invite(relayBase)
             assertEquals(usr, invitation.userId)
@@ -204,7 +230,9 @@ class CoordinatorGoInteropTest {
             assertEquals(KeyRef.ed25519(phoneA.signPublicKey).render(), opB.by, "B's add is signed by phone A")
             assertEquals(listOf(MembershipOp.hash(certA)), opB.prev)
             assertEquals(opsA, admission.ops)
-            assertTrue(Membership.evaluate(usr, admission.ops, now).isMember(KeyRef.ed25519(phoneB.signPublicKey).render()))
+            assertTrue(
+                Membership.evaluate(usr, admission.ops, now).isMember(KeyRef.ed25519(phoneB.signPublicKey).render()),
+            )
 
             // --- the Go RP, which pinned only the genesis key, must honour B ---------
             val web = WebLoginClient(http, rpBase)
@@ -251,7 +279,12 @@ class CoordinatorGoInteropTest {
         val (phoneA, certA) = softwareDevice(user, seedByte = 37, now = now - 60)
         val goStore = Files.createTempDirectory("vb-go-device").toFile()
 
-        val relay = ProcessBuilder(cli.absolutePath, "relay", "--addr", "127.0.0.1:$relayPort").redirectErrorStream(true).start()
+        val relay = ProcessBuilder(
+            cli.absolutePath,
+            "relay",
+            "--addr",
+            "127.0.0.1:$relayPort",
+        ).redirectErrorStream(true).start()
         try {
             val http = JdkHttpTransport()
             waitReady { http.post("$relayBase/v1/sessions").status == 200 }

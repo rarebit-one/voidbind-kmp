@@ -17,9 +17,7 @@ import one.rarebit.voidbind.policy.InMemorySitePolicyStore
  * NO I/O — it is scaffolding, and every value here is placeholder content, not a
  * real identity. The real [VoidbindEngine] replaces it as a single DI swap.
  */
-class PreviewVoidbindEngine(
-    initial: IdentityState = SampleData.activeState,
-) : VoidbindEngine {
+class PreviewVoidbindEngine(initial: IdentityState = SampleData.activeState) : VoidbindEngine {
 
     private val _identity = MutableStateFlow(initial)
     override val identity: StateFlow<IdentityState> = _identity.asStateFlow()
@@ -103,7 +101,9 @@ class PreviewVoidbindEngine(
         if (code.relay.contains("unreachable")) {
             return EngineResult.Failed(
                 EngineFailure(
-                    "Can't reach the relay at ${code.relay.substringAfter("://").substringBefore("/")}. Check Wi-Fi or your VPN and try again.",
+                    "Can't reach the relay at ${code.relay.substringAfter(
+                        "://",
+                    ).substringBefore("/")}. Check Wi-Fi or your VPN and try again.",
                     EngineFailure.Kind.UNREACHABLE,
                 ),
             )
@@ -143,7 +143,9 @@ class PreviewVoidbindEngine(
     override suspend fun removeDevice(deviceId: String): EngineResult<Unit> {
         delay(400)
         if (previewDevices.firstOrNull { it.id == deviceId }?.isThisDevice == true) {
-            return EngineResult.Failed(EngineFailure("This device can't remove itself.", EngineFailure.Kind.INTERNAL, retryable = false))
+            return EngineResult.Failed(
+                EngineFailure("This device can't remove itself.", EngineFailure.Kind.INTERNAL, retryable = false),
+            )
         }
         previewDevices.removeAll { it.id == deviceId }
         return EngineResult.Ready(Unit)
@@ -201,9 +203,31 @@ object SampleData {
     )
 
     val trustedSites = listOf(
-        TrustedSite("thesim", "thesim.family", "All Thing", "last used today", SiteAccent.BLUE, policy = ApprovalPolicy.TrustedTofu),
-        TrustedSite("cove", "home.cove.lan", "Cove Control", "yesterday", SiteAccent.PURPLE, policy = ApprovalPolicy.AlwaysAsk, pinnedAlwaysAsk = true),
-        TrustedSite("bartley", "bartley.home", "Home Assistant", "6 days ago", SiteAccent.MINT, policy = ApprovalPolicy.TrustedTofu),
+        TrustedSite(
+            "thesim",
+            "thesim.family",
+            "All Thing",
+            "last used today",
+            SiteAccent.BLUE,
+            policy = ApprovalPolicy.TrustedTofu,
+        ),
+        TrustedSite(
+            "cove",
+            "home.cove.lan",
+            "Cove Control",
+            "yesterday",
+            SiteAccent.PURPLE,
+            policy = ApprovalPolicy.AlwaysAsk,
+            pinnedAlwaysAsk = true,
+        ),
+        TrustedSite(
+            "bartley",
+            "bartley.home",
+            "Home Assistant",
+            "6 days ago",
+            SiteAccent.MINT,
+            policy = ApprovalPolicy.TrustedTofu,
+        ),
     )
 
     val activeState = IdentityState.Active(

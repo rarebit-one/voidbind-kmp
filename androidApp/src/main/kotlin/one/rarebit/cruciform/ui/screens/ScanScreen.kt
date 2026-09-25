@@ -133,7 +133,12 @@ fun ScanScreen(
                 l(size.width, size.height, size.width - corner, size.height)
                 l(size.width, size.height, size.width, size.height - corner)
                 // scan line
-                drawLine(VbColors.Mint, Offset(0f, size.height / 2f), Offset(size.width, size.height / 2f), strokeWidth = 4f)
+                drawLine(
+                    VbColors.Mint,
+                    Offset(0f, size.height / 2f),
+                    Offset(size.width, size.height / 2f),
+                    strokeWidth = 4f,
+                )
             }
         }
 
@@ -201,7 +206,11 @@ fun ScanScreen(
 }
 
 @Composable
-private fun ModeHint(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier = Modifier) {
+private fun ModeHint(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier.padding(vertical = 14.dp),
         horizontalArrangement = Arrangement.Center,

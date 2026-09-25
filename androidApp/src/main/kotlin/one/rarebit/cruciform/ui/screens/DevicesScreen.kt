@@ -106,7 +106,12 @@ fun DevicesScreen(
             PrimaryButton(text = "Add a device", onClick = onAddDevice, modifier = Modifier.fillMaxWidth())
             VSpace(12)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Lock, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(16.dp))
+                Icon(
+                    Icons.Rounded.Lock,
+                    contentDescription = null,
+                    tint = VbColors.TextMuted,
+                    modifier = Modifier.size(16.dp),
+                )
                 HSpace(8)
                 Text(
                     "Adding and removing are signed by this device's hardware key. No recovery secret is used.",
@@ -129,7 +134,11 @@ private fun DeviceRow(d: MemberDevice, onRemove: () -> Unit) {
         HSpace(14)
         Column(Modifier.weight(1f)) {
             Text("dev · ${d.fingerprint}", style = VbType.Mono, color = VbColors.TextPrimary)
-            Text("admitted ${d.admittedLabel} by ${d.admittedByLabel}", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+            Text(
+                "admitted ${d.admittedLabel} by ${d.admittedByLabel}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = VbColors.TextSecondary,
+            )
             Text(d.expiresLabel, style = MaterialTheme.typography.bodySmall, color = VbColors.TextMuted)
             if (d.isThisDevice) {
                 VSpace(6)
@@ -147,7 +156,12 @@ private fun DeviceRow(d: MemberDevice, onRemove: () -> Unit) {
 private fun EmptyDevices() {
     VbCard(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Rounded.Devices, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(36.dp))
+            Icon(
+                Icons.Rounded.Devices,
+                contentDescription = null,
+                tint = VbColors.TextMuted,
+                modifier = Modifier.size(36.dp),
+            )
             VSpace(10)
             Text(
                 "No members found — this device's ops don't evaluate to a membership. Restore from the recovery secret.",

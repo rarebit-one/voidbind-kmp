@@ -71,11 +71,8 @@ enum class Slip39Error(val message: String) {
  * An [IllegalArgumentException], so it crosses to Swift as a catchable error where
  * a caller declares it, and reads as bad input everywhere else.
  */
-class Slip39Exception(
-    val error: Slip39Error,
-    val detail: String? = null,
-    val mnemonicIndex: Int? = null,
-) : IllegalArgumentException(render(error, detail, mnemonicIndex)) {
+class Slip39Exception(val error: Slip39Error, val detail: String? = null, val mnemonicIndex: Int? = null) :
+    IllegalArgumentException(render(error, detail, mnemonicIndex)) {
 
     /** The same refusal, attributed to the mnemonic at [index]. */
     internal fun at(index: Int): Slip39Exception = Slip39Exception(error, detail, index)
