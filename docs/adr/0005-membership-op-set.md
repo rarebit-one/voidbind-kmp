@@ -23,7 +23,7 @@ party's pin is unchanged, and a v1/v2 cert *is* a v3 add signed by genesis with 
 
 ## Decision
 
-This library mirrors the Go side exactly, as CLAUDE.md's first rule demands:
+This library mirrors the Go side exactly, as AGENTS.md's first rule demands:
 
 1. **`MembershipOp`** — the v3 op token (`sign` / `verify` / `hash` / `user`), the
    same `base64url(payload).base64url(sig)` shape as the cert so the `Device

@@ -133,7 +133,7 @@ the encodings stay backend-free and portable.
 
 Identity/signing = **Ed25519**; device encryption = **X25519**. Certain constants
 (the HKDF label, the `heyarr` HRP, the pairing labels) are **identity-defining** —
-see [`CLAUDE.md`](CLAUDE.md); changing them silently breaks wire compatibility.
+see [`AGENTS.md`](AGENTS.md); changing them silently breaks wire compatibility.
 
 ## Consuming `voidbind-client` as a dependency
 
@@ -340,7 +340,7 @@ exported (`UserIdentity`, `DeviceIdentity`, `Enrolment`, `LoginQr`/`VoidbindQr`,
 
 ## Layout
 
-See [`CLAUDE.md`](CLAUDE.md) for the full source map and the wire-contract rules.
+See [`docs/agents/layout.md`](docs/agents/layout.md) for the full source map and [`AGENTS.md`](AGENTS.md) for the wire-contract rules.
 
 ## Releases — signed APKs, published per tag
 
