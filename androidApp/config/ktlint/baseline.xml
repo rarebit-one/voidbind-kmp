@@ -115,6 +115,7 @@
         <error line="70" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/nav/CruciformNavHost.kt">
+        <error line="102" column="5" source="standard:function-naming" />
         <error line="97" column="5" source="standard:function-naming" />
         <error line="89" column="5" source="standard:function-naming" />
         <error line="92" column="5" source="standard:function-naming" />
@@ -192,6 +193,7 @@
         <error line="168" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/RestoreScreen.kt">
+        <error line="46" column="5" source="standard:function-naming" />
         <error line="44" column="5" source="standard:function-naming" />
         <error line="38" column="5" source="standard:function-naming" />
         <error line="40" column="5" source="standard:function-naming" />
