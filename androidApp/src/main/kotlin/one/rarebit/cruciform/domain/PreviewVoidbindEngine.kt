@@ -60,6 +60,7 @@ class PreviewVoidbindEngine(
     override fun parseScanned(raw: String): ScannedCode = when {
         raw.startsWith("voidbind:login") -> ScannedCode.WebLogin("https://thesim.family", "sample-login-id", raw)
         raw.startsWith("voidbind:pair") -> ScannedCode.PairInvite("wss://relay.thesim.family", "sample-session", raw)
+        raw.lowercase().startsWith("heyarr1") -> ScannedCode.RecoverySecret(raw)
         else -> ScannedCode.Unknown(raw)
     }
 
@@ -215,6 +216,8 @@ object SampleData {
     val recoveryBackup = RecoveryBackup(
         groupedSecret = "heyarr1 r9k7 x4pm 2qvt 8c3n h6wy f0ad j5se u2lz",
         rawSecret = "heyarr1r9k7x4pm2qvt8c3nh6wyf0adj5seu2lz",
+        fingerprint = "PYJI XGNZ K7ZH XHEJ",
+        userId = "ed25519:7c4a91d20e8f00000000000000000000000000000000000000000000000000ff",
     )
 
     val loginRequest = LoginRequest(

@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,12 +36,16 @@ import com.google.mlkit.vision.common.InputImage
  * [onQr] once with the first raw payload it reads. Handles the runtime camera
  * permission itself; renders [noPermission] if the user declines. The caller is
  * responsible for stopping navigation to this composable once a code is handled.
+ *
+ * Changing [rescanKey] re-arms it: the next code read is reported too (after the
+ * caller refused the last one, e.g. "Not a Voidbind code").
  */
 @Composable
 fun QrScanner(
     onQr: (String) -> Unit,
     modifier: Modifier = Modifier,
     noPermission: @Composable () -> Unit = {},
+    rescanKey: Int = 0,
 ) {
     val context = LocalContext.current
     var granted by remember {
@@ -62,7 +67,11 @@ fun QrScanner(
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    var handled by remember { mutableStateOf(false) }
+    // The analyzer below is built once, so it reads the latest callback and a latch that
+    // outlives recomposition; [rescanKey] resets the latch.
+    val currentOnQr by rememberUpdatedState(onQr)
+    val handled = remember { mutableStateOf(false) }
+    LaunchedEffect(rescanKey) { handled.value = false }
 
     AndroidView(
         modifier = modifier.fillMaxSize(),
@@ -87,9 +96,9 @@ fun QrScanner(
                     .also { ia ->
                         ia.setAnalyzer(ContextCompat.getMainExecutor(ctx)) { proxy ->
                             analyze(scanner, proxy) { raw ->
-                                if (!handled) {
-                                    handled = true
-                                    onQr(raw)
+                                if (!handled.value) {
+                                    handled.value = true
+                                    currentOnQr(raw)
                                 }
                             }
                         }

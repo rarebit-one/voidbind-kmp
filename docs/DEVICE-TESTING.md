@@ -124,6 +124,48 @@ iOS; the Android onboarding screens).
    - adding a device from it still works (member-signed); re-admitting a REMOVED
      device now needs the paper (Restore on that device).
 
+## Test 2d — print the recovery sheet; scan it back (voidbind-go#52)
+
+The sheet mirrors voidbind-go `recovery/sheet` (`voidbind recovery sheet --out …`):
+the secret as an upper-case QR code (alphanumeric, version 4, medium error
+correction), the secret in four-character groups, the fingerprint and user ID, four
+numbered instructions, corner cut marks and a 50 mm calibration bar. The app draws it
+as a one-page PDF and hands it straight to the print framework; nothing of
+Cruciform's is written to disk. The layout is unit-tested (`RecoverySheetTest`); the
+print, the paper and the camera are what this test proves.
+
+1. **Print.** On the recovery backup screen (during Create, and from Settings →
+   Recovery backup) tap **Print recovery sheet**. The system print dialog opens with
+   A4 and black-and-white preselected. Choose a real printer (not "Save as PDF", which
+   writes the secret to storage) and print at **100% / actual size**, with any "fit
+   to page" option off. Letter paper also works: the card is Letter-safe and the page
+   follows the paper chosen in the dialog.
+2. **Measure the bar.** With a ruler, the bar under "This bar must measure exactly
+   50 mm" must be 50 mm (±0.5 mm), and the QR code 58 mm square including its white
+   margin (about 47 mm of modules inside it). If the bar is off, the print was scaled:
+   reprint at 100% and note the printer/driver. Compare with the Go sheet for the same
+   secret: same groups, same fingerprint (`XXXX XXXX XXXX XXXX`, also on Home), same
+   user ID (`ed25519:…`).
+3. **Scan into Restore.** On a phone with no identity (or after clearing app data):
+   Onboarding → Restore → **Scan recovery sheet**, and point the camera at the code.
+   The field fills with the upper-case secret and nothing happens until **Restore
+   identity**; the restored identity's fingerprint must equal the sheet's. The general
+   scanner (Onboarding → **Add this device**) on the sheet also lands in Restore with
+   the field filled.
+4. **Scan into the drill.** On an enrolled phone: Settings → **Test recovery secret** →
+   **Scan recovery sheet**. The field fills; **Check** shows "It matches this identity:
+   <fingerprint>" and the row then reads "Checked <date>". The bottom-bar scanner on
+   the sheet opens the same drill, filled. Another identity's sheet is refused, naming
+   both fingerprints.
+5. **Wrong codes say so.** In the bottom-bar scanner, a non-Voidbind QR (any URL) shows
+   "Not a Voidbind code" with **Scan again**, which re-arms the camera. In the Restore /
+   drill scanner, a login or pairing QR shows "Not a recovery secret…"; **Type it
+   instead** returns to the field.
+6. **Nothing lingers.** Screenshots are blocked on the scanner, as on the backup
+   screen. After printing, `adb shell run-as one.rarebit.cruciform ls -R cache files`
+   shows no PDF. (The print spooler holds its own copy of the job until it completes;
+   that is the system's, not the app's.)
+
 ## Test 2b — membership renewal (a device renews itself before its add lapses)
 
 An add lasts 90 days. Inside the last 30 the device renews itself: silently right

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.VpnKey
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import one.rarebit.cruciform.domain.RecoveryBackup
 import one.rarebit.cruciform.ui.components.AppTopBar
 import one.rarebit.cruciform.ui.components.HSpace
+import one.rarebit.cruciform.ui.components.OutlineButton
 import one.rarebit.cruciform.ui.components.PrimaryButton
 import one.rarebit.cruciform.ui.components.ScreenPadding
 import one.rarebit.cruciform.ui.components.SecureScreen
@@ -43,12 +45,17 @@ import one.rarebit.cruciform.ui.components.WashCard
 import one.rarebit.cruciform.ui.theme.VbColors
 import one.rarebit.cruciform.ui.theme.VbType
 
-/** Recovery backup (Mockup 7): show, warn, gate behind two acknowledgements. */
+/**
+ * Recovery backup (Mockup 7): show, warn, gate behind two acknowledgements. [onPrint]
+ * opens the system print dialog for the recovery sheet (QR code + groups, voidbind-go
+ * `recovery/sheet`), an alternative to copying the groups by hand.
+ */
 @Composable
 fun RecoveryBackupScreen(
     backup: RecoveryBackup,
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    onPrint: () -> Unit,
     stepLabel: String = "1 of 3 · BACKUP REQUIRED",
     modifier: Modifier = Modifier,
 ) {
@@ -125,10 +132,26 @@ fun RecoveryBackupScreen(
             }
 
             VSpace(12)
+            OutlineButton(
+                text = "Print recovery sheet",
+                onClick = onPrint,
+                accent = VbColors.Mint,
+                leadingIcon = Icons.Rounded.Print,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            VSpace(8)
+            Text(
+                "Prints the secret as a QR code and in groups. Print at 100% to a printer you trust; " +
+                    "don't choose \"Save as PDF\".",
+                style = MaterialTheme.typography.bodyMedium,
+                color = VbColors.TextMuted,
+            )
+
+            VSpace(12)
             Text("Store offline. Do not save in screenshots, email, or cloud notes.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted)
 
             VSpace(16)
-            AckRow("I wrote down the complete secret", wroteDown) { wroteDown = it }
+            AckRow("I wrote down or printed the complete secret", wroteDown) { wroteDown = it }
             AckRow("I can read every group clearly", canRead) { canRead = it }
 
             VSpace(20)
