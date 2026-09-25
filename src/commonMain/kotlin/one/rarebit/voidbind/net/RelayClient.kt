@@ -78,6 +78,50 @@ class RelayClient(
             }
         }
     }
+
+    /**
+     * Like [fetch], but each poll round also reads the peer's [watch] slot, and hands its
+     * bytes to [onWatch] the first time it is present. [onWatch] may throw to end the wait
+     * (a verified refusal, voidbind-go ADR-0012); if it returns, the slot is write-once, so
+     * it is not read again. A [watch] slot the relay does not have (any status but 200 or
+     * 404, e.g. a relay that predates the slot answers 400) is dropped silently: the wait
+     * then behaves exactly like [fetch].
+     */
+    fun fetchWatching(type: String, watch: String, onWatch: (ByteArray) -> Unit): ByteArray {
+        val p = peer()
+        var watching = true
+        var waited = 0L
+        while (true) {
+            val resp = http.get(slotUrl(p, type))
+            when (resp.status) {
+                200 -> return resp.body
+
+                404 -> {
+                    if (watching) watching = pollWatch(slotUrl(p, watch), onWatch)
+                    if (waited >= maxWaitMillis) throw RelayTimeout("relay: timed out waiting for $p/$type")
+                    http.sleep(pollIntervalMillis)
+                    waited += pollIntervalMillis
+                }
+
+                else -> throw RelayHttpException(resp.status, "fetch $p/$type")
+            }
+        }
+    }
+
+    /** One read of a watched slot; returns whether to keep watching it. */
+    private fun pollWatch(url: String, onWatch: (ByteArray) -> Unit): Boolean {
+        val w = http.get(url)
+        return when (w.status) {
+            200 -> {
+                onWatch(w.body)
+                false
+            }
+
+            404 -> true
+
+            else -> false
+        }
+    }
 }
 
 /** Thrown when [RelayClient.fetch] gives up waiting for a peer slot. */

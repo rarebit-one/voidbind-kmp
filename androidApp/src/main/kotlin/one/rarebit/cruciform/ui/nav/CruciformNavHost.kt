@@ -797,6 +797,11 @@ fun CruciformNavHost(
                             invites.cancel()
                             decided(false)
                         },
+                        // The codes differ: tell the new device (signed refusal, biometric).
+                        onDecline = {
+                            invites.decline()
+                            decided(false)
+                        },
                         // confirm() → Admitted (decided(true) above) or Failed (the dialog,
                         // Retry re-confirms the SAME session — no re-mint).
                         onConfirm = { invites.confirm() },

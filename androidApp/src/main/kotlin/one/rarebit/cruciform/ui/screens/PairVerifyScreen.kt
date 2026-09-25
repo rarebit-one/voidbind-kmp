@@ -49,6 +49,8 @@ import one.rarebit.cruciform.ui.theme.VbType
 fun PairVerifyScreen(
     session: PairSession,
     onCancel: () -> Unit,
+    /** "No, cancel": the codes differ. Defaults to [onCancel] (the joining side has nothing to send). */
+    onDecline: () -> Unit = onCancel,
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -141,7 +143,7 @@ fun PairVerifyScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 DangerButton(
                     "No, cancel",
-                    onClick = onCancel,
+                    onClick = onDecline,
                     leadingIcon = Icons.Rounded.Close,
                     modifier = Modifier.weight(1f),
                 )

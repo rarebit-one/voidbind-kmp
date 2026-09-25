@@ -1,5 +1,6 @@
 package one.rarebit.voidbind.flow
 
+import one.rarebit.voidbind.PairingRefusedException
 import one.rarebit.voidbind.net.RelayHttpException
 import one.rarebit.voidbind.net.RelayTimeout
 
@@ -26,6 +27,12 @@ enum class PairingFailureKind {
      *  open (a rushing attacker), a cert that does not verify or binds another device,
      *  or a malformed envelope. Do NOT retry the same session — start again. */
     PROTOCOL,
+
+    /** The other device REFUSED the pairing: its human said the numbers did not match,
+     *  or cancelled (voidbind-go ADR-0012). The refusal is signed by the key the SAS
+     *  bound, so it really came from that device. Nothing was admitted. Retry = a fresh
+     *  invite; if the numbers keep differing, suspect the network. */
+    REFUSED,
 }
 
 /**
@@ -65,6 +72,13 @@ object PairingFailures {
     fun classify(e: Throwable, relayBase: String): PairingOutcome.Failed {
         val host = hostOf(relayBase)
         return when (e) {
+            is PairingRefusedException -> PairingOutcome.Failed(
+                PairingFailureKind.REFUSED,
+                "The other device declined this pairing. If the numbers didn't match, start again " +
+                    "with a fresh invite; if they keep differing, something on the network may be interfering.",
+                host,
+            )
+
             is RelayTimeout -> PairingOutcome.Failed(
                 PairingFailureKind.TIMEOUT,
                 "The other device didn't join in time. Start the pairing again with a fresh invite.",

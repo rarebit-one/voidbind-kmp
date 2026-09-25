@@ -5,7 +5,9 @@ import one.rarebit.voidbind.KeyRef
 import one.rarebit.voidbind.Labels
 import one.rarebit.voidbind.Membership
 import one.rarebit.voidbind.MembershipOp
+import one.rarebit.voidbind.PairRefusal
 import one.rarebit.voidbind.Pairing
+import one.rarebit.voidbind.PairingRefusedException
 import one.rarebit.voidbind.crypto.Base64Url
 import one.rarebit.voidbind.crypto.MiniJson
 
@@ -32,6 +34,12 @@ import one.rarebit.voidbind.crypto.MiniJson
  * the responder's X25519 key plus the ADMISSION `{"op":…,"ops":[…]}` encrypted under
  * it. The X25519 SEAL/UNSEAL crypto ([CertSealer]) is implemented by
  * [VoidbindCertSealer] (voidbind-go/encryption, byte-for-byte, KAT-verified).
+ *
+ * Instead of authorising, the initiator may [PairflowInitiator.refuse] (voidbind-go
+ * ADR-0012): a [PairRefusal] signed by its key and bound to the session salt, posted to
+ * the `refuse` slot. [PairflowResponder.receive] watches that slot while it waits for
+ * the cert and throws [PairingRefusedException] for a refusal that verifies, instead of
+ * timing out; anything else there is ignored.
  */
 
 /** The X25519-sealed admission as it crosses the relay. */
@@ -121,6 +129,10 @@ class PairflowInitiator(
     private var respSign: ByteArray = ByteArray(0)
     private var respEnc: ByteArray = ByteArray(0)
     private var handshook = false
+
+    // A pairing ends admitted or refused, never both.
+    private var authorised = false
+    private var refused = false
 
     init {
         require(salt.size >= Pairing.MIN_SALT_LEN) { "pairflow: salt is too short" }
@@ -214,6 +226,7 @@ class PairflowInitiator(
      */
     fun authorise(sealer: CertSealer = VoidbindCertSealer) {
         check(handshook) { "pairflow: authorise before a successful handshake" }
+        check(!refused) { "pairflow: authorise after refuse" }
         val view = Membership.evaluate(userId, ops, now)
         val opToken = MembershipOp.sign(
             signer, signPub, userId, MembershipOp.Kind.ADD,
@@ -224,6 +237,7 @@ class PairflowInitiator(
             lifetimeSeconds = lifetimeSeconds,
         )
         ops = Membership.merge(ops, listOf(opToken))
+        authorised = true
         val admission = MiniJson.encodeObject(
             buildList<Pair<String, Any>> {
                 add("op" to opToken)
@@ -238,6 +252,27 @@ class PairflowInitiator(
             ),
         )
         relay.post("cert", msg.encodeToByteArray())
+    }
+
+    /**
+     * Tell the new device the pairing is refused (voidbind-go ADR-0012) — the human said
+     * the strings differ, or cancelled. Posts a [PairRefusal] signed by this initiator's
+     * key and bound to the session salt; a responder waiting in [PairflowResponder.receive]
+     * stops at once. Signs no op and admits nobody. Mirrors voidbind-go
+     * `Initiator.Refuse`.
+     *
+     * It fails after [authorise], and [authorise] fails after it. The post is advisory: a
+     * relay without the `refuse` slot answers 400 ([RelayHttpException]) and an older
+     * responder never reads it — either way it simply times out, as before.
+     *
+     * The signer is this device's key, so on a hardware keystore signing the refusal
+     * passes the same biometric gate as [authorise].
+     */
+    fun refuse() {
+        check(!authorised) { "pairflow: refuse after authorise" }
+        val token = PairRefusal.sign(signer, signPub, salt)
+        refused = true
+        relay.post(PairRefusal.SLOT, token.encodeToByteArray())
     }
 }
 
@@ -313,10 +348,18 @@ class PairflowResponder(
      * device's keys, signed by the initiator whose key is bound in the SAS, and
      * evaluating the ops it came with must find this device a member of the invite's
      * identity. Returns the [Admission] to persist.
+     *
+     * While it waits it also watches the initiator's `refuse` slot (voidbind-go
+     * ADR-0012): a [PairRefusal] signed by the SAS-bound initiator for this session
+     * throws [PairingRefusedException] at once. Anything else there — a forgery, another
+     * session's refusal, a relay without the slot — is ignored and the wait goes on.
      */
     fun receive(deviceEncPriv: ByteArray, sealer: CertSealer = VoidbindCertSealer): Admission {
         check(handshook) { "pairflow: receive before a successful handshake" }
-        val obj = MiniJson.parseObject(relay.fetch("cert").decodeToString())
+        val cert = relay.fetchWatching("cert", PairRefusal.SLOT) { refusal ->
+            if (PairRefusal.verify(refusal.decodeToString(), initSign, salt)) throw PairingRefusedException()
+        }
+        val obj = MiniJson.parseObject(cert.decodeToString())
         val sealed = SealedCert(
             Base64Url.decode(obj["wrapped"] as String),
             Base64Url.decode(obj["cipher"] as String),

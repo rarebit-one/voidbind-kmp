@@ -118,6 +118,8 @@ class PreviewVoidbindEngine(initial: IdentityState = SampleData.activeState) : V
         return EngineResult.Ready(SampleData.pairSession)
     }
 
+    override suspend fun refusePairing(): EngineResult<Unit> = EngineResult.Ready(Unit)
+
     override suspend fun confirmPairing(): EngineResult<Unit> {
         delay(600)
         return EngineResult.Ready(Unit)

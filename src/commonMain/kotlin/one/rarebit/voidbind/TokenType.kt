@@ -21,6 +21,9 @@ object TokenType {
     const val POSSESSION = "voidbind.possession"
     const val OP = "voidbind.op"
 
+    /** The pairing refusal (voidbind-go ADR-0012), typed from its first version; see [PairRefusal]. */
+    const val PAIR_REFUSAL = PairRefusal.TYP
+
     /** Why a `typ` claim was refused. */
     enum class Failure {
         /** A present `typ` that names a kind this verifier does not accept. */
