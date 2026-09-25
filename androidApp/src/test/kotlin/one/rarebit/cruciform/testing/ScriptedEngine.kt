@@ -81,6 +81,7 @@ class ScriptedEngine : VoidbindEngine {
     override suspend fun awaitPairHandshake(): EngineResult<PairSession> = r("awaitPairHandshake", UNUSED)
     override suspend fun joinPairInvite(code: ScannedCode.PairInvite) = r("joinPairInvite:${code.raw}", joinResult)
     override suspend fun confirmPairing() = r("confirmPairing", confirmResult)
+    override suspend fun refusePairing() = r("refusePairing", EngineResult.Ready(Unit))
     override suspend fun devices() = r("devices", devicesResult)
     override suspend fun removeDevice(deviceId: String) = r("removeDevice:$deviceId", removeResult)
     override suspend fun renewMembership() = r("renewMembership", renewResult)

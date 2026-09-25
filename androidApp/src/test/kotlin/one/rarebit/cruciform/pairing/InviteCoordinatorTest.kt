@@ -61,6 +61,17 @@ class InviteCoordinatorTest {
             return confirmResult
         }
 
+        var refusals = 0
+        var refuseResult: EngineResult<Unit> = EngineResult.Ready(Unit)
+
+        /** When set, the refusal (biometric + send) blocks until the test completes it. */
+        var refuseGate: CompletableDeferred<Unit>? = null
+        override suspend fun refusePairing(): EngineResult<Unit> {
+            refusals++
+            refuseGate?.await()
+            return refuseResult
+        }
+
         // Unused by the coordinator.
         override val identity: StateFlow<IdentityState> = MutableStateFlow(IdentityState.Loading)
         override suspend fun refresh(): EngineResult<Unit> = EngineResult.Ready(Unit)
@@ -471,5 +482,93 @@ class InviteCoordinatorTest {
         assertTrue(c.samePhone.value is InviteCoordinator.SamePhone.Verified)
         c.reset()
         assertEquals(InviteCoordinator.SamePhone.None, c.samePhone.value)
+    }
+
+    // --- "No, cancel": the codes differ (voidbind-go ADR-0012) -----------------------
+
+    private fun TestScope.joined(engine: FakeEngine, keep: CountingKeepAlive): InviteCoordinator {
+        val c = coordinator(engine, keep)
+        c.ensureInvite()
+        advanceUntilIdle()
+        engine.handshake.complete(EngineResult.Ready(session))
+        advanceUntilIdle()
+        assertTrue(c.state.value is InviteCoordinator.State.Joined)
+        return c
+    }
+
+    @Test
+    fun declineSendsTheRefusalAndDropsTheInvite() = runTest(StandardTestDispatcher()) {
+        val engine = FakeEngine()
+        val keep = CountingKeepAlive()
+        val c = joined(engine, keep)
+        c.decline()
+        assertEquals(InviteCoordinator.State.Idle, c.state.value)
+        advanceUntilIdle()
+        assertEquals(1, engine.refusals)
+        assertEquals(0, engine.confirms)
+        assertEquals(InviteCoordinator.State.Idle, c.state.value)
+        assertEquals(keep.begins, keep.ends)
+    }
+
+    @Test
+    fun aCancelledBiometricStillDeclinesLocally() = runTest(StandardTestDispatcher()) {
+        // The engine sends nothing when the prompt is cancelled; the invite is dropped all
+        // the same, and the other device just waits out its own timeout.
+        val engine = FakeEngine()
+        engine.refuseResult = EngineResult.Failed(EngineFailure("Cancelled.", EngineFailure.Kind.CANCELLED))
+        val c = joined(engine, CountingKeepAlive())
+        c.decline()
+        advanceUntilIdle()
+        assertEquals(1, engine.refusals)
+        assertEquals(0, engine.confirms)
+        assertEquals(InviteCoordinator.State.Idle, c.state.value)
+    }
+
+    @Test
+    fun aFailedSendStillDeclinesLocally() = runTest(StandardTestDispatcher()) {
+        val engine = FakeEngine()
+        engine.refuseResult = EngineResult.Failed(EngineFailure("No route.", EngineFailure.Kind.UNREACHABLE))
+        val c = joined(engine, CountingKeepAlive())
+        c.decline()
+        advanceUntilIdle()
+        assertEquals(InviteCoordinator.State.Idle, c.state.value)
+        assertFalse(
+            "a failed refusal must not surface as an invite failure",
+            c.state.value is InviteCoordinator.State.Failed,
+        )
+    }
+
+    @Test
+    fun declineBeforeTheNewDeviceJoinedIsAPlainCancel() = runTest(StandardTestDispatcher()) {
+        val engine = FakeEngine()
+        val c = coordinator(engine)
+        c.ensureInvite()
+        advanceUntilIdle()
+        c.decline()
+        advanceUntilIdle()
+        assertEquals(0, engine.refusals)
+        assertEquals(InviteCoordinator.State.Idle, c.state.value)
+    }
+
+    @Test
+    fun theNextInviteWaitsForTheRefusalOfTheLastOne() = runTest(StandardTestDispatcher()) {
+        // The engine holds one invite: a new mint must not replace it while the refusal
+        // (still behind the biometric) has yet to sign it.
+        val engine = FakeEngine()
+        val gate = CompletableDeferred<Unit>()
+        engine.refuseGate = gate
+        val c = joined(engine, CountingKeepAlive())
+        c.decline()
+        advanceUntilIdle()
+        engine.handshake = CompletableDeferred()
+        c.ensureInvite()
+        advanceUntilIdle()
+        assertEquals(1, engine.mints)
+        assertTrue(c.state.value is InviteCoordinator.State.Minting)
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(2, engine.mints)
+        assertTrue(c.state.value is InviteCoordinator.State.Waiting)
+        c.cancel()
     }
 }

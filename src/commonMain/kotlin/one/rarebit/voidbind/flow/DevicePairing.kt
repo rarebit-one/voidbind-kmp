@@ -69,7 +69,9 @@ class DevicePairing(
     /**
      * Like [confirm], but a failed delivery (relay unreachable / refused / the initiator
      * never posted the admission) or an admission that does not verify / does not
-     * admit this device resolves to a [PairingOutcome.Failed] instead of throwing.
+     * admit this device resolves to a [PairingOutcome.Failed] instead of throwing. A
+     * signed refusal from the existing device resolves to [PairingFailureKind.REFUSED]
+     * at once, instead of a timeout (voidbind-go ADR-0012).
      */
     fun confirmCatching(handshake: Handshake): PairingOutcome<Admission> =
         PairingFailures.catching(handshake.relayBase) { confirm(handshake) }
@@ -104,7 +106,9 @@ class DevicePairing(
      * it with this device's X25519 key, re-evaluate it, and return the [Admission]
      * (this device's admitting op + the ops that authorise it) to store. Throws if the
      * delivered op does not verify, binds a different device/user, or does not make
-     * this device a member. `@Throws` so a delivery/verify failure is catchable in Swift.
+     * this device a member, and throws [one.rarebit.voidbind.PairingRefusedException] as
+     * soon as the existing device posts a verified refusal (voidbind-go ADR-0012).
+     * `@Throws` so a delivery/verify failure is catchable in Swift.
      */
     @Throws(Exception::class)
     fun confirm(handshake: Handshake): Admission = handshake.responder.receive(device.encPrivateKey)

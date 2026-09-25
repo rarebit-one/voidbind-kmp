@@ -43,3 +43,9 @@ Moved verbatim from the old `CLAUDE.md` ("Wire formats"). The rule that governs 
   device / recovery): the invite is v3 (`usr`), the initiator's reveal carries its
   `ops`, the responder EVALUATES them and refuses a non-member before any SAS
   exists, and the sealed `cert` message carries the admission `{op, ops}`.
+  Instead of authorising, the initiator may post a signed **refusal**
+  (`PairRefusal`, voidbind-go ADR-0012) to its `refuse` slot. The token is
+  `{v:1, typ:"voidbind.pair-refusal", by, ses}`, where `ses` binds the session salt.
+  `PairflowResponder.receive` watches that slot (`RelayClient.fetchWatching`) and
+  throws `PairingRefusedException` for a refusal that verifies, instead of timing
+  out. It ignores anything else there.

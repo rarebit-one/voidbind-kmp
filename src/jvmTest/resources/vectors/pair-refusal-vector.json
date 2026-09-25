@@ -1,0 +1,118 @@
+{
+  "name": "pair-refusal",
+  "description": "ADR-0012: the initiator's signed refusal of a pairing, posted to its \"refuse\" relay slot. A responder honours only a refusal signed by the SAS-bound initiator, typed voidbind.pair-refusal at v 1, whose by is that initiator and whose ses binds this session's salt.",
+  "typ": "voidbind.pair-refusal",
+  "session_label": "voidbind/pairflow/refusal/session/v1",
+  "keys": {
+    "initiator": {
+      "sign_seed": "f8f537efb6153e3125c41f5b2d4720aa84db265027ccab3f0aa86b9fe55da6d6",
+      "id": "ed25519:d5ebffa32ae5efd559364ccb69c4eb2641958252444cda7dcc100e3ad0ee019d"
+    },
+    "third_party": {
+      "sign_seed": "85f2d156f30f4c18125967433141c0943e9af3967b4f7672dcf8622775f058fb",
+      "id": "ed25519:fc1c2062949aa01e5cbf06ace3befe2ddb849101527f225e39dd34cede636033"
+    }
+  },
+  "salts": {
+    "other_session": "1ea46b56a9e3844622bf31a6bf7555fdf3d7488028abfb56918bbae2cb699f0c",
+    "session": "5a04596f0b14b5139729eb2e4e2faf40c3c4b5d6757d7ea35db69a3a21623edd"
+  },
+  "ses": {
+    "other_session": "ICCoSlV1Ly3CVEyRtwKmnyglcuFtOA-P0deIpakRcWs",
+    "session": "rJS5zjzBSwW82tMuGuBWmTRTxmepJLJnmx55mDiAgz8"
+  },
+  "bodies": {
+    "bad_signature": "{\"v\":1,\"typ\":\"voidbind.pair-refusal\",\"by\":\"ed25519:d5ebffa32ae5efd559364ccb69c4eb2641958252444cda7dcc100e3ad0ee019d\",\"ses\":\"rJS5zjzBSwW82tMuGuBWmTRTxmepJLJnmx55mDiAgz8\"}",
+    "claims_initiator_signed_by_third_party": "{\"v\":1,\"typ\":\"voidbind.pair-refusal\",\"by\":\"ed25519:d5ebffa32ae5efd559364ccb69c4eb2641958252444cda7dcc100e3ad0ee019d\",\"ses\":\"rJS5zjzBSwW82tMuGuBWmTRTxmepJLJnmx55mDiAgz8\"}",
+    "refusal": "{\"v\":1,\"typ\":\"voidbind.pair-refusal\",\"by\":\"ed25519:d5ebffa32ae5efd559364ccb69c4eb2641958252444cda7dcc100e3ad0ee019d\",\"ses\":\"rJS5zjzBSwW82tMuGuBWmTRTxmepJLJnmx55mDiAgz8\"}",
+    "unknown_version": "{\"v\":2,\"typ\":\"voidbind.pair-refusal\",\"by\":\"ed25519:d5ebffa32ae5efd559364ccb69c4eb2641958252444cda7dcc100e3ad0ee019d\",\"ses\":\"rJS5zjzBSwW82tMuGuBWmTRTxmepJLJnmx55mDiAgz8\"}",
+    "untyped": "{\"v\":1,\"by\":\"ed25519:d5ebffa32ae5efd559364ccb69c4eb2641958252444cda7dcc100e3ad0ee019d\",\"ses\":\"rJS5zjzBSwW82tMuGuBWmTRTxmepJLJnmx55mDiAgz8\"}",
+    "wrong_case_typ": "{\"v\":1,\"typ\":\"Voidbind.pair-refusal\",\"by\":\"ed25519:d5ebffa32ae5efd559364ccb69c4eb2641958252444cda7dcc100e3ad0ee019d\",\"ses\":\"rJS5zjzBSwW82tMuGuBWmTRTxmepJLJnmx55mDiAgz8\"}",
+    "wrong_typ": "{\"v\":1,\"typ\":\"voidbind.op\",\"by\":\"ed25519:d5ebffa32ae5efd559364ccb69c4eb2641958252444cda7dcc100e3ad0ee019d\",\"ses\":\"rJS5zjzBSwW82tMuGuBWmTRTxmepJLJnmx55mDiAgz8\"}"
+  },
+  "tokens": {
+    "bad_signature": "eyJ2IjoxLCJ0eXAiOiJ2b2lkYmluZC5wYWlyLXJlZnVzYWwiLCJieSI6ImVkMjU1MTk6ZDVlYmZmYTMyYWU1ZWZkNTU5MzY0Y2NiNjljNGViMjY0MTk1ODI1MjQ0NGNkYTdkY2MxMDBlM2FkMGVlMDE5ZCIsInNlcyI6InJKUzV6anpCU3dXODJ0TXVHdUJXbVRSVHhtZXBKTEpubXg1NW1EaUFnejgifQ.1Rjb3Wd0YfbrfOixlqMP-ez7ZrPBBiAaPY-7H3uZntTSdtc86gYktG3Tq7PNvcnmi4Cq0a_315ZTp2SVRdFNBA",
+    "claims_initiator_signed_by_third_party": "eyJ2IjoxLCJ0eXAiOiJ2b2lkYmluZC5wYWlyLXJlZnVzYWwiLCJieSI6ImVkMjU1MTk6ZDVlYmZmYTMyYWU1ZWZkNTU5MzY0Y2NiNjljNGViMjY0MTk1ODI1MjQ0NGNkYTdkY2MxMDBlM2FkMGVlMDE5ZCIsInNlcyI6InJKUzV6anpCU3dXODJ0TXVHdUJXbVRSVHhtZXBKTEpubXg1NW1EaUFnejgifQ.YXs3sbdeZNZdQ8UfKw3odwstZ0z4QXbI01iL3ymSOSNKYM1eaaOYytSDZGN-UuECndBKYvhc7Rfr0QxiY47wBw",
+    "other_session_refusal": "eyJ2IjoxLCJ0eXAiOiJ2b2lkYmluZC5wYWlyLXJlZnVzYWwiLCJieSI6ImVkMjU1MTk6ZDVlYmZmYTMyYWU1ZWZkNTU5MzY0Y2NiNjljNGViMjY0MTk1ODI1MjQ0NGNkYTdkY2MxMDBlM2FkMGVlMDE5ZCIsInNlcyI6IklDQ29TbFYxTHkzQ1ZFeVJ0d0ttbnlnbGN1RnRPQS1QMGRlSXBha1JjV3MifQ.1Rjb3Wd0YfbrfOixlqMP-ez7ZrPBBiAaPY-7H3uZntTSdtc86gYktG3Tq7PNvcnmi4Cq0a_315ZTp2SVRdFNBA",
+    "refusal": "eyJ2IjoxLCJ0eXAiOiJ2b2lkYmluZC5wYWlyLXJlZnVzYWwiLCJieSI6ImVkMjU1MTk6ZDVlYmZmYTMyYWU1ZWZkNTU5MzY0Y2NiNjljNGViMjY0MTk1ODI1MjQ0NGNkYTdkY2MxMDBlM2FkMGVlMDE5ZCIsInNlcyI6InJKUzV6anpCU3dXODJ0TXVHdUJXbVRSVHhtZXBKTEpubXg1NW1EaUFnejgifQ.sh_ImScaW-B_gcl86vsJDqKcCeIULpN7toQf9zCCIjVrkqnx1StdoFyAwUeIXJsiMznD7sVHT4OoVHP_6utSCw",
+    "third_party_refusal": "eyJ2IjoxLCJ0eXAiOiJ2b2lkYmluZC5wYWlyLXJlZnVzYWwiLCJieSI6ImVkMjU1MTk6ZmMxYzIwNjI5NDlhYTAxZTVjYmYwNmFjZTNiZWZlMmRkYjg0OTEwMTUyN2YyMjVlMzlkZDM0Y2VkZTYzNjAzMyIsInNlcyI6InJKUzV6anpCU3dXODJ0TXVHdUJXbVRSVHhtZXBKTEpubXg1NW1EaUFnejgifQ.hc-R7qmwKOJPVRb7ciwkmxKhS0xcji0LCMyEkSUU7WOteB1aY0mQ6ZD96_3nBmkAAgKMmzwBCp1YC_h1AvrIBQ",
+    "unknown_version": "eyJ2IjoyLCJ0eXAiOiJ2b2lkYmluZC5wYWlyLXJlZnVzYWwiLCJieSI6ImVkMjU1MTk6ZDVlYmZmYTMyYWU1ZWZkNTU5MzY0Y2NiNjljNGViMjY0MTk1ODI1MjQ0NGNkYTdkY2MxMDBlM2FkMGVlMDE5ZCIsInNlcyI6InJKUzV6anpCU3dXODJ0TXVHdUJXbVRSVHhtZXBKTEpubXg1NW1EaUFnejgifQ.Gkcvas1Mr4jZy6FLCjxNiyED_sCY-W7PdkZj-FO5CZ5cIainI0wKlrz_EKzZAjGB0O7yIlgOkvaug2t8IK7VDQ",
+    "untyped": "eyJ2IjoxLCJieSI6ImVkMjU1MTk6ZDVlYmZmYTMyYWU1ZWZkNTU5MzY0Y2NiNjljNGViMjY0MTk1ODI1MjQ0NGNkYTdkY2MxMDBlM2FkMGVlMDE5ZCIsInNlcyI6InJKUzV6anpCU3dXODJ0TXVHdUJXbVRSVHhtZXBKTEpubXg1NW1EaUFnejgifQ.duYUmcpHNVkrr234g8DmL_Y2vDSW9RXqZrSIDqd3n_e9rpVIQ2lkOMoHxipu8IsmXjYwaR_9xb92YYk5-ALyAA",
+    "wrong_case_typ": "eyJ2IjoxLCJ0eXAiOiJWb2lkYmluZC5wYWlyLXJlZnVzYWwiLCJieSI6ImVkMjU1MTk6ZDVlYmZmYTMyYWU1ZWZkNTU5MzY0Y2NiNjljNGViMjY0MTk1ODI1MjQ0NGNkYTdkY2MxMDBlM2FkMGVlMDE5ZCIsInNlcyI6InJKUzV6anpCU3dXODJ0TXVHdUJXbVRSVHhtZXBKTEpubXg1NW1EaUFnejgifQ.oA2bgGspcqNDmBUsYVn8JGDbdfhdsZOBxtTvTt3K47istuziMPhuPHF3FCY7lX5Y4JFt362jFmdHrzSN_h63Bw",
+    "wrong_typ": "eyJ2IjoxLCJ0eXAiOiJ2b2lkYmluZC5vcCIsImJ5IjoiZWQyNTUxOTpkNWViZmZhMzJhZTVlZmQ1NTkzNjRjY2I2OWM0ZWIyNjQxOTU4MjUyNDQ0Y2RhN2RjYzEwMGUzYWQwZWUwMTlkIiwic2VzIjoickpTNXpqekJTd1c4MnRNdUd1QldtVFJUeG1lcEpMSm5teDU1bURpQWd6OCJ9.LEccHJNZL8XfyXtMiQBFpg5eg2HpyR0DVtxszNKIqMvg6HLVmdqQIrFX5bKc4T2I6BOvPjwevYuiIa1nboheAQ"
+  },
+  "checks": [
+    {
+      "token": "refusal",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "refused"
+    },
+    {
+      "token": "third_party_refusal",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "ignored"
+    },
+    {
+      "token": "third_party_refusal",
+      "initiator": "third_party",
+      "salt": "session",
+      "expect": "refused"
+    },
+    {
+      "token": "claims_initiator_signed_by_third_party",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "ignored"
+    },
+    {
+      "token": "other_session_refusal",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "ignored"
+    },
+    {
+      "token": "other_session_refusal",
+      "initiator": "initiator",
+      "salt": "other_session",
+      "expect": "refused"
+    },
+    {
+      "token": "refusal",
+      "initiator": "initiator",
+      "salt": "other_session",
+      "expect": "ignored"
+    },
+    {
+      "token": "untyped",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "ignored"
+    },
+    {
+      "token": "wrong_typ",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "ignored"
+    },
+    {
+      "token": "wrong_case_typ",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "ignored"
+    },
+    {
+      "token": "unknown_version",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "ignored"
+    },
+    {
+      "token": "bad_signature",
+      "initiator": "initiator",
+      "salt": "session",
+      "expect": "ignored"
+    }
+  ]
+}
