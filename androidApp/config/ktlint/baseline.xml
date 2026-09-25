@@ -4,6 +4,10 @@
         <error line="64" column="63" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/domain/DeviceVoidbindEngine.kt">
+        <error line="881" column="53" source="standard:function-signature" />
+        <error line="872" column="49" source="standard:function-signature" />
+        <error line="869" column="59" source="standard:function-signature" />
+        <error line="701" column="55" source="standard:function-signature" />
         <error line="519" column="72" source="standard:function-signature" />
         <error line="589" column="72" source="standard:function-signature" />
         <error line="652" column="55" source="standard:function-signature" />
@@ -23,6 +27,7 @@
         <error line="6" column="1" source="standard:kdoc" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/domain/PreviewVoidbindEngine.kt">
+        <error line="183" column="94" source="standard:function-signature" />
         <error line="165" column="94" source="standard:function-signature" />
         <error line="170" column="94" source="standard:function-signature" />
         <error line="182" column="94" source="standard:function-signature" />
@@ -110,6 +115,7 @@
         <error line="70" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/nav/CruciformNavHost.kt">
+        <error line="97" column="5" source="standard:function-naming" />
         <error line="89" column="5" source="standard:function-naming" />
         <error line="92" column="5" source="standard:function-naming" />
     </file>
@@ -119,6 +125,7 @@
         <error line="105" column="14" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/scan/QrScanner.kt">
+        <error line="44" column="5" source="standard:function-naming" />
         <error line="40" column="5" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/ApprovalActivityScreen.kt">
@@ -174,15 +181,21 @@
         <error line="138" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/RecoveryBackupScreen.kt">
+        <error line="186" column="13" source="standard:function-naming" />
+        <error line="54" column="5" source="standard:function-naming" />
         <error line="48" column="5" source="standard:function-naming" />
         <error line="52" column="5" source="standard:function-naming" />
         <error line="163" column="13" source="standard:function-naming" />
         <error line="168" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/RestoreScreen.kt">
+        <error line="44" column="5" source="standard:function-naming" />
         <error line="38" column="5" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/ScanScreen.kt">
+        <error line="204" column="13" source="standard:function-naming" />
+        <error line="124" column="68" source="standard:function-signature" />
+        <error line="52" column="5" source="standard:function-naming" />
         <error line="45" column="5" source="standard:function-naming" />
         <error line="107" column="68" source="standard:function-signature" />
         <error line="161" column="13" source="standard:function-naming" />
@@ -216,6 +229,11 @@
         <error line="310" column="97" source="standard:function-signature" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/RecoveryCheckScreen.kt">
+        <error line="53" column="5" source="standard:function-naming" />
         <error line="47" column="5" source="standard:function-naming" />
+    </file>
+    <file name="src/main/kotlin/one/rarebit/cruciform/ui/components/ScanSheet.kt">
+        <error line="37" column="5" source="standard:function-naming" />
+        <error line="17" column="5" source="standard:function-naming" />
     </file>
 </baseline>

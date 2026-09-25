@@ -12,7 +12,9 @@ import one.rarebit.cruciform.testing.SoftwareDeviceKeys
 import one.rarebit.voidbind.AuthenticationRequiredException
 import one.rarebit.voidbind.DeviceIdentity
 import one.rarebit.voidbind.Enrolment
+import one.rarebit.voidbind.Invite
 import one.rarebit.voidbind.KeyRef
+import one.rarebit.voidbind.LoginQr
 import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.crypto.Base64Url
 import one.rarebit.voidbind.net.HttpResponse
@@ -396,6 +398,52 @@ class DeviceVoidbindEngineTest {
     @Test
     fun `parseScanned never throws on junk`() {
         assertEquals(ScannedCode.Unknown("not a voidbind code"), engine().parseScanned("not a voidbind code"))
+    }
+
+    @Test
+    fun `parseScanned reads a recovery sheet's secret in either case, or grouped`() {
+        val raw = UserIdentity.create().recovery.format()
+        val engine = engine()
+
+        for (scanned in listOf(raw, raw.uppercase(), raw.chunked(4).joinToString(" "))) {
+            assertEquals(ScannedCode.RecoverySecret(scanned), engine.parseScanned(scanned))
+        }
+    }
+
+    @Test
+    fun `parseScanned refuses a secret with a broken checksum`() {
+        val raw = UserIdentity.create().recovery.format()
+        val last = raw.last()
+        val typo = raw.dropLast(1) + (if (last == 'q') 'p' else 'q')
+
+        assertEquals(ScannedCode.Unknown(typo.uppercase()), engine().parseScanned(typo.uppercase()))
+    }
+
+    @Test
+    fun `login and pairing codes keep precedence over the recovery-secret reading`() {
+        val engine = engine()
+        val login = LoginQr.encode(RP, "L1")
+        val usr = UserIdentity.create().userId.render()
+        val invite = Invite.encode(RELAY, "sess1", ByteArray(32) { it.toByte() }, usr)
+
+        assertIs<ScannedCode.WebLogin>(engine.parseScanned(login))
+        assertIs<ScannedCode.PairInvite>(engine.parseScanned(invite))
+    }
+
+    @Test
+    fun `a scanned secret never prints itself`() {
+        val raw = UserIdentity.create().recovery.format()
+
+        assertFalse(ScannedCode.RecoverySecret(raw).toString().contains(raw))
+    }
+
+    @Test
+    fun `the backup carries the fingerprint and user id the sheet prints`() = runTest {
+        val backup = ready(engine().createIdentity())
+
+        val user = UserIdentity.restore(backup.rawSecret)
+        assertEquals(user.fingerprint, backup.fingerprint)
+        assertEquals(user.userId.render(), backup.userId)
     }
 
     // --- web login -----------------------------------------------------------------

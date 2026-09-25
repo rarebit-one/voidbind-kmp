@@ -33,11 +33,13 @@ import one.rarebit.cruciform.handoff.RpPairLauncher
 import one.rarebit.cruciform.handoff.SamePhoneJoin
 import one.rarebit.cruciform.pairing.InviteCoordinator
 import one.rarebit.cruciform.platform.NotifySettings
+import one.rarebit.cruciform.platform.RecoverySheetPrinter
 import one.rarebit.cruciform.platform.RelaySettings
 import one.rarebit.cruciform.ui.flow.EngineErrorState
 import one.rarebit.cruciform.ui.flow.LoginViewModel
 import one.rarebit.cruciform.ui.flow.OnboardingViewModel
 import one.rarebit.cruciform.ui.flow.PairViewModel
+import one.rarebit.cruciform.ui.flow.ScannedSecretViewModel
 import one.rarebit.cruciform.ui.flow.SettingsViewModel
 import one.rarebit.cruciform.ui.screens.ApprovalActivityScreen
 import one.rarebit.cruciform.ui.screens.DevicesScreen
@@ -63,6 +65,9 @@ object Routes {
     const val HOME = "home"
     const val SETTINGS = "settings"
     const val SCAN = "scan"
+
+    /** The scanner the Restore / drill fields open: reads a recovery sheet, hands the secret back. */
+    const val SCAN_SECRET = "scan_secret"
     const val LOGIN = "login"
     const val PAIR_CONNECT = "pair_connect"
     const val PAIR_VERIFY = "pair_verify"
@@ -125,6 +130,7 @@ fun CruciformNavHost(
     val settingsVm: SettingsViewModel = viewModel {
         SettingsViewModel(engine, RelaySettings(appContext), NotifySettings(appContext), createSavedStateHandle())
     }
+    val scannedSecretVm: ScannedSecretViewModel = viewModel { ScannedSecretViewModel() }
 
     // The initiator's invite lifecycle (ADR-0007): app-scoped, observed here, never
     // restarted by a screen. Its handshake keeps polling the relay while the user is in
@@ -205,6 +211,40 @@ fun CruciformNavHost(
     fun startInvite() {
         invites.ensureInvite()
         if (route != Routes.PAIR_CONNECT && route != Routes.PAIR_VERIFY) nav.navigate(Routes.PAIR_CONNECT)
+    }
+
+    /**
+     * Act on one scanned code (see [scanAction]). A recovery secret travels to its field
+     * through [scannedSecretVm] (memory only); a code this scanner doesn't read goes to
+     * [reject], which shows it with "Scan again".
+     */
+    fun onScanned(raw: String, mode: ScanMode, reject: (String) -> Unit) {
+        val hasIdentity = identityState is IdentityState.Active
+        when (val action = scanAction(engine.parseScanned(raw), mode, hasIdentity)) {
+            is ScanAction.OpenLogin -> loginVm.open(action.code, fromScan = true)
+
+            // Join as the new device; on failure the scanner stays up under the error
+            // dialog so Retry re-joins the same invite without rescanning.
+            is ScanAction.JoinPair -> pairVm.join(action.code, fromScan = true)
+
+            // A recovery sheet in the general scanner: restore (onboarding) or the drill.
+            is ScanAction.Restore -> {
+                scannedSecretVm.deliver(action.secret)
+                nav.navigate(Routes.RESTORE) { popUpTo(Routes.SCAN) { inclusive = true } }
+            }
+
+            is ScanAction.Drill -> {
+                scannedSecretVm.deliver(action.secret)
+                nav.navigate(Routes.RECOVERY_DRILL) { popUpTo(Routes.SCAN) { inclusive = true } }
+            }
+
+            is ScanAction.ReturnSecret -> {
+                scannedSecretVm.deliver(action.secret)
+                nav.popBackStack()
+            }
+
+            is ScanAction.Reject -> reject(action.message)
+        }
     }
 
     // Flow events → navigation.
@@ -357,7 +397,8 @@ fun CruciformNavHost(
             // no route to the relay, most likely — is a dialog with Retry, never a crash.
             is ScannedCode.PairInvite -> pairVm.join(code, fromScan = false)
 
-            is ScannedCode.Unknown -> loginVm.showError("Not a Voidbind code.")
+            // A recovery secret is never taken from another app or a push.
+            is ScannedCode.RecoverySecret, is ScannedCode.Unknown -> loginVm.showError("Not a Voidbind code.")
         }
     }
 
@@ -423,12 +464,14 @@ fun CruciformNavHost(
                 if (b == null) {
                     Loading()
                 } else {
+                    val context = LocalContext.current
                     RecoveryBackupScreen(
                         backup = b,
                         onBack = {
                             onboardingVm.finished()
                             nav.popBackStack()
                         },
+                        onPrint = { RecoverySheetPrinter.print(context, b) },
                         // Written down: now prove it by re-entering a few groups.
                         onSaved = { nav.navigate(Routes.BACKUP_CONFIRM) },
                         stepLabel = "BACKUP REQUIRED",
@@ -460,22 +503,31 @@ fun CruciformNavHost(
             }
 
             composable(Routes.RECOVERY_DRILL) {
+                val scanned by scannedSecretVm.secret.collectAsStateWithLifecycle()
                 RecoveryCheckScreen(
                     title = "Test recovery secret",
-                    intro = "Type your written recovery secret, spaces and all. It is checked against this " +
-                        "identity and nothing is signed or stored. A single wrong character is caught.",
+                    intro = "Type your written recovery secret, spaces and all, or scan your printed sheet. " +
+                        "It is checked against this identity and nothing is signed or stored. " +
+                        "A single wrong character is caught.",
                     fields = listOf("Recovery secret"),
                     onCheck = { settingsVm.checkRecoverySecret(it.single()) },
                     onDone = { nav.popBackStack() },
                     onBack = { nav.popBackStack() },
+                    onScan = { nav.navigate(Routes.SCAN_SECRET) },
+                    scanned = scanned,
+                    onScannedConsumed = scannedSecretVm::consume,
                 )
             }
 
             composable(Routes.RESTORE) {
+                val scanned by scannedSecretVm.secret.collectAsStateWithLifecycle()
                 RestoreScreen(
                     onBack = { nav.popBackStack() },
                     onRestore = onboardingVm::restore,
                     onDone = { goHome() },
+                    onScan = { nav.navigate(Routes.SCAN_SECRET) },
+                    scanned = scanned,
+                    onScannedConsumed = scannedSecretVm::consume,
                 )
             }
 
@@ -544,20 +596,36 @@ fun CruciformNavHost(
             }
 
             composable(Routes.SCAN) {
+                var rejection by remember { mutableStateOf<String?>(null) }
+                var rescan by remember { mutableIntStateOf(0) }
                 ScanScreen(
                     onClose = { nav.popBackStack() },
                     onEnterManually = { /* manual entry sheet — later */ },
-                    onCode = { raw ->
-                        when (val c = engine.parseScanned(raw)) {
-                            is ScannedCode.WebLogin -> loginVm.open(c, fromScan = true)
-
-                            // Join as the new device; on failure the scanner stays up under the
-                            // error dialog so Retry re-joins the same invite without rescanning.
-                            is ScannedCode.PairInvite -> pairVm.join(c, fromScan = true)
-
-                            is ScannedCode.Unknown -> { /* not a Voidbind code — surfaced later */ }
-                        }
+                    onCode = { raw -> onScanned(raw, ScanMode.ANY) { rejection = it } },
+                    rejection = rejection,
+                    onRetry = {
+                        rejection = null
+                        rescan++
                     },
+                    rescanKey = rescan,
+                )
+            }
+
+            composable(Routes.SCAN_SECRET) {
+                var rejection by remember { mutableStateOf<String?>(null) }
+                var rescan by remember { mutableIntStateOf(0) }
+                ScanScreen(
+                    onClose = { nav.popBackStack() },
+                    // Back to the field, to type it.
+                    onEnterManually = { nav.popBackStack() },
+                    onCode = { raw -> onScanned(raw, ScanMode.RECOVERY_SECRET) { rejection = it } },
+                    forRecoverySecret = true,
+                    rejection = rejection,
+                    onRetry = {
+                        rejection = null
+                        rescan++
+                    },
+                    rescanKey = rescan,
                 )
             }
 
@@ -744,10 +812,12 @@ fun CruciformNavHost(
                 if (b == null) {
                     LaunchedEffect(Unit) { nav.popBackStack() }
                 } else {
+                    val context = LocalContext.current
                     RecoveryBackupScreen(
                         backup = b,
                         onBack = close,
                         onSaved = close,
+                        onPrint = { RecoverySheetPrinter.print(context, b) },
                         stepLabel = "RECOVERY SECRET",
                     )
                 }

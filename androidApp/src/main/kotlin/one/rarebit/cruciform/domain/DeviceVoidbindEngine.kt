@@ -165,14 +165,14 @@ class DeviceVoidbindEngine(
         val device = DeviceIdentity(ks.publicKey, enc.publicKey, enc.privateKey) { ks.sign(it) }
         val cert = Enrolment.selfEnrol(user, device, clock())
         store.saveOwner(cert, user.userPublicKey, enc.publicKey, enc.privateKey, defaultDeviceName())
-        return backup(user.recovery).copy(keptOnDevice = recovery.offerToKeep(user.recovery))
+        return backup(user).copy(keptOnDevice = recovery.offerToKeep(user.recovery))
     }
 
     override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> = ioResult("Couldn't show the recovery secret.") {
         check(store.hasUserKey()) { "This device keeps no copy of the recovery secret." }
         when (val genesis = recovery.unsealGenesis("Show recovery secret")) {
             is EngineResult.Failed -> genesis
-            is EngineResult.Ready -> EngineResult.Ready(backup(genesis.value.recovery).copy(keptOnDevice = true))
+            is EngineResult.Ready -> EngineResult.Ready(backup(genesis.value).copy(keptOnDevice = true))
         }
     }
 
@@ -202,7 +202,10 @@ class DeviceVoidbindEngine(
             is one.rarebit.voidbind.VoidbindQr.Pair -> ScannedCode.PairInvite(qr.invite.relay, qr.invite.session, raw)
         }
     } catch (_: Exception) {
-        ScannedCode.Unknown(raw)
+        // Not a login or pairing code: perhaps the recovery sheet's QR (the secret in
+        // upper case; the parser folds case and ignores whitespace, checksum included).
+        val isSecret = runCatching { RecoverySecret.parse(raw) }.isSuccess
+        if (isSecret) ScannedCode.RecoverySecret(raw) else ScannedCode.Unknown(raw)
     }
 
     // --- Web login ------------------------------------------------------------
@@ -853,9 +856,14 @@ class DeviceVoidbindEngine(
         }
     }
 
-    private fun backup(secret: RecoverySecret): RecoveryBackup {
-        val rendered = secret.format()
-        return RecoveryBackup(groupedSecret = rendered.chunked(4).joinToString(" "), rawSecret = rendered)
+    private fun backup(user: UserIdentity): RecoveryBackup {
+        val rendered = user.recovery.format()
+        return RecoveryBackup(
+            groupedSecret = rendered.chunked(4).joinToString(" "),
+            rawSecret = rendered,
+            fingerprint = user.fingerprint,
+            userId = user.userId.render(),
+        )
     }
 
     private fun shortFingerprint(pub: ByteArray): String =
