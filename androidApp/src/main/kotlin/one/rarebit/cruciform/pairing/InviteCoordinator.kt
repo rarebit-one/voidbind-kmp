@@ -139,6 +139,9 @@ class InviteCoordinator(
     )
 
     private var job: Job? = null
+
+    /** A refusal still being signed/sent for the invite just declined; the next mint waits for it. */
+    private var declineJob: Job? = null
     private var keptAlive = false
 
     /**
@@ -187,6 +190,32 @@ class InviteCoordinator(
         release()
         clearSamePhone()
         _state.value = State.Idle
+    }
+
+    /**
+     * The human said the codes DON'T match (Verify → "No, cancel"). Tell the new device —
+     * a signed refusal behind a biometric prompt (voidbind-go ADR-0012) — so it stops at
+     * once instead of timing out, then drop the invite like [cancel]. A cancelled prompt
+     * or a failed send still declines locally; only the other device's wait differs.
+     * Only meaningful from [State.Joined]; otherwise it is [cancel].
+     */
+    fun decline() {
+        val joined = _state.value as? State.Joined
+        if (joined == null) {
+            cancel()
+            return
+        }
+        job?.cancel()
+        job = null
+        release()
+        clearSamePhone()
+        _state.value = State.Idle
+        declineJob = scope.launch {
+            when (val r = engineStep { engine.refusePairing() }) {
+                is EngineResult.Ready -> log("${joined.invite.inviteId}: declined; the new device was told")
+                is EngineResult.Failed -> log("${joined.invite.inviteId}: declined locally (${r.failure.kind})")
+            }
+        }
     }
 
     /** After [State.Admitted] was acted on. */
@@ -295,7 +324,11 @@ class InviteCoordinator(
         clearSamePhone()
         val relay = relayUrl()
         _state.value = State.Minting
+        val pendingDecline = declineJob
         job = scope.launch {
+            // The engine holds one invite at a time: let a refusal of the previous one
+            // finish before a new invite replaces it, so it can never refuse the new one.
+            pendingDecline?.join()
             val minted = engineStep { engine.startPairInvite() }
             val invite = when (minted) {
                 is EngineResult.Failed -> {

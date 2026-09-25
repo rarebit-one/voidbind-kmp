@@ -170,6 +170,15 @@ interface VoidbindEngine {
     /** After the human confirms the SAS matches: authorise/receive the sealed cert. */
     suspend fun confirmPairing(): EngineResult<Unit>
 
+    /**
+     * As the existing device, when the human says the numbers DON'T match: behind a
+     * biometric prompt, sign a refusal with this device's key and post it, so the new
+     * device stops at once instead of waiting out its timeout (voidbind-go ADR-0012).
+     * Signs no op. A cancelled prompt is a `Failed` of kind CANCELLED and sends nothing.
+     * Either way the invite is over: [confirmPairing] fails afterwards.
+     */
+    suspend fun refusePairing(): EngineResult<Unit>
+
     // --- Devices (membership, ADR-0005) ---------------------------------------
 
     /**

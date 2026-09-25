@@ -28,7 +28,6 @@ import one.rarebit.voidbind.crypto.MiniJson
 import one.rarebit.voidbind.flow.DeviceAuthorization
 import one.rarebit.voidbind.flow.DevicePairing
 import one.rarebit.voidbind.flow.LoginApproval
-import one.rarebit.voidbind.flow.PairingFailureKind
 import one.rarebit.voidbind.flow.PairingFailures
 import one.rarebit.voidbind.flow.PairingOutcome
 import one.rarebit.voidbind.net.HttpTransport
@@ -600,20 +599,19 @@ class DeviceVoidbindEngine(
         }
     }
 
-    private fun PairingOutcome.Failed.toEngineFailure(): EngineFailure = EngineFailure(
-        message = message,
-        kind = when (kind) {
-            PairingFailureKind.UNREACHABLE -> EngineFailure.Kind.UNREACHABLE
-            PairingFailureKind.TIMEOUT -> EngineFailure.Kind.TIMEOUT
-            PairingFailureKind.REJECTED -> EngineFailure.Kind.REJECTED
-            PairingFailureKind.PROTOCOL -> EngineFailure.Kind.PROTOCOL
-            PairingFailureKind.REFUSED -> EngineFailure.Kind.REJECTED // declined (ADR-0012): the message says so
-        },
-        // Unreachable: retry the same step once the network is back. Timeout/rejected:
-        // a fresh invite is needed, so the UI's retry re-mints/re-scans (still "retryable"
-        // from the human's point of view). Protocol: never against the same session.
-        retryable = kind != PairingFailureKind.PROTOCOL,
-    )
+    // Declining signs with this device's key, so it is gated like any signature. A
+    // cancelled prompt still ends the invite, locally only: the other device then waits
+    // out its own timeout, as before ADR-0012.
+    override suspend fun refusePairing(): EngineResult<Unit> = ioResult(PAIRING_FAILED, inviteRelay ?: relayBase) {
+        val (authorization, invitation) = pendingAuthorization
+            ?: return@ioResult internalFailure("No pairing invite is in progress.")
+        pendingAuthorization = null
+        if (!biometric.authenticate("Decline new device", "Tell the other device the codes didn't match")) {
+            return@ioResult cancelledFailure()
+        }
+        val sent = withDeviceAuth { authorization.refuseCatching(invitation) }
+        if (sent is PairingOutcome.Failed) EngineResult.Failed(sent.toEngineFailure()) else EngineResult.Ready(Unit)
+    }
 
     // --- Devices (membership, ADR-0005) ---------------------------------------
 

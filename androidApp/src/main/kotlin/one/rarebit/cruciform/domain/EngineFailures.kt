@@ -1,5 +1,8 @@
 package one.rarebit.cruciform.domain
 
+import one.rarebit.voidbind.flow.PairingFailureKind
+import one.rarebit.voidbind.flow.PairingOutcome
+
 /** A declined or dismissed prompt. */
 internal val CANCELLED_FAILURE =
     EngineFailure("Authentication cancelled.", EngineFailure.Kind.CANCELLED, retryable = false)
@@ -37,4 +40,20 @@ internal fun <T> strongBiometricRequiredFailure(): EngineResult<T> = EngineResul
         EngineFailure.Kind.NOT_YET,
         retryable = false,
     ),
+)
+
+/** A classified pairing failure from the library, as the app shows it. */
+internal fun PairingOutcome.Failed.toEngineFailure(): EngineFailure = EngineFailure(
+    message = message,
+    kind = when (kind) {
+        PairingFailureKind.UNREACHABLE -> EngineFailure.Kind.UNREACHABLE
+        PairingFailureKind.TIMEOUT -> EngineFailure.Kind.TIMEOUT
+        PairingFailureKind.REJECTED -> EngineFailure.Kind.REJECTED
+        PairingFailureKind.PROTOCOL -> EngineFailure.Kind.PROTOCOL
+        PairingFailureKind.REFUSED -> EngineFailure.Kind.REJECTED // declined (ADR-0012): the message says so
+    },
+    // Unreachable: retry the same step once the network is back. Timeout/rejected:
+    // a fresh invite is needed, so the UI's retry re-mints/re-scans (still "retryable"
+    // from the human's point of view). Protocol: never against the same session.
+    retryable = kind != PairingFailureKind.PROTOCOL,
 )
