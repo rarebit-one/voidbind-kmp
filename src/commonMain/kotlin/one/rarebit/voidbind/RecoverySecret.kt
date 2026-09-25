@@ -26,6 +26,18 @@ class RecoverySecret private constructor(val bytes: ByteArray) {
 
     override fun toString(): String = format()
 
+    /**
+     * Split this secret into [count] SLIP-39 shares, any [threshold] of which rebuild
+     * it, per the voidbind profile ([RecoveryShares.split]; voidbind-go
+     * `recovery.SplitShares`). Splitting revokes nothing: this secret still works.
+     */
+    @Throws(IllegalArgumentException::class)
+    fun splitShares(
+        threshold: Int = RecoveryShares.DEFAULT_THRESHOLD,
+        count: Int = RecoveryShares.DEFAULT_COUNT,
+        passphrase: String = "",
+    ): List<String> = RecoveryShares.split(this, threshold, count, passphrase)
+
     override fun equals(other: Any?): Boolean = other is RecoverySecret && bytes.contentEquals(other.bytes)
 
     override fun hashCode(): Int = bytes.contentHashCode()
@@ -51,6 +63,18 @@ class RecoverySecret private constructor(val bytes: ByteArray) {
             }
             val bytes = Bech32m.intsToBytes(Bech32m.convertBits(decoded.data, 5, 8, pad = false))
             return RecoverySecret(bytes)
+        }
+
+        /**
+         * Rebuild a secret from SLIP-39 share [mnemonics] ([RecoveryShares.combine];
+         * voidbind-go `recovery.CombineShares`). A bad share, a mixed set or the wrong
+         * number of shares is a typed [one.rarebit.voidbind.slip39.Slip39Exception];
+         * shares holding anything but 32 bytes are a [NotARecoverySecretException].
+         */
+        @Throws(IllegalArgumentException::class)
+        fun fromShares(mnemonics: List<String>, passphrase: String = ""): RecoverySecret {
+            val secret = RecoveryShares.combine(mnemonics, passphrase)
+            return secret
         }
     }
 }

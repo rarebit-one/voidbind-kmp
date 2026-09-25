@@ -41,6 +41,7 @@ import one.rarebit.cruciform.ui.flow.OnboardingViewModel
 import one.rarebit.cruciform.ui.flow.PairViewModel
 import one.rarebit.cruciform.ui.flow.ScannedSecretViewModel
 import one.rarebit.cruciform.ui.flow.SettingsViewModel
+import one.rarebit.cruciform.ui.flow.ShareRestoreViewModel
 import one.rarebit.cruciform.ui.screens.ApprovalActivityScreen
 import one.rarebit.cruciform.ui.screens.DevicesScreen
 import one.rarebit.cruciform.ui.screens.HomeScreen
@@ -53,6 +54,7 @@ import one.rarebit.cruciform.ui.screens.PairVerifyScreen
 import one.rarebit.cruciform.ui.screens.RecoveryBackupScreen
 import one.rarebit.cruciform.ui.screens.RecoveryCheckScreen
 import one.rarebit.cruciform.ui.screens.RestoreScreen
+import one.rarebit.cruciform.ui.screens.RestoreSharesScreen
 import one.rarebit.cruciform.ui.screens.ScanScreen
 import one.rarebit.cruciform.ui.screens.SettingsScreen
 import one.rarebit.cruciform.ui.theme.VbColors
@@ -62,6 +64,9 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val CREATE = "create"
     const val RESTORE = "restore"
+
+    /** Restore from SLIP-39 recovery shares, typed one at a time (voidbind-go ADR-0011). */
+    const val RESTORE_SHARES = "restore_shares"
     const val HOME = "home"
     const val SETTINGS = "settings"
     const val SCAN = "scan"
@@ -127,6 +132,9 @@ fun CruciformNavHost(
     val loginVm: LoginViewModel = viewModel { LoginViewModel(engine, createSavedStateHandle()) }
     val pairVm: PairViewModel = viewModel { PairViewModel(engine, createSavedStateHandle()) }
     val onboardingVm: OnboardingViewModel = viewModel { OnboardingViewModel(engine, createSavedStateHandle()) }
+
+    // No SavedStateHandle: the shares are secret and live in memory only.
+    val shareRestoreVm: ShareRestoreViewModel = viewModel { ShareRestoreViewModel(engine) }
     val settingsVm: SettingsViewModel = viewModel {
         SettingsViewModel(engine, RelaySettings(appContext), NotifySettings(appContext), createSavedStateHandle())
     }
@@ -451,6 +459,7 @@ fun CruciformNavHost(
                 OnboardingScreen(
                     onCreate = { nav.navigate(Routes.CREATE) },
                     onRestore = { nav.navigate(Routes.RESTORE) },
+                    onRestoreShares = { nav.navigate(Routes.RESTORE_SHARES) },
                     onAddDevice = { nav.navigate(Routes.SCAN) },
                 )
             }
@@ -528,6 +537,29 @@ fun CruciformNavHost(
                     onScan = { nav.navigate(Routes.SCAN_SECRET) },
                     scanned = scanned,
                     onScannedConsumed = scannedSecretVm::consume,
+                    onUseShares = {
+                        nav.navigate(Routes.RESTORE_SHARES) { popUpTo(Routes.RESTORE) { inclusive = true } }
+                    },
+                )
+            }
+
+            composable(Routes.RESTORE_SHARES) {
+                val shareState by shareRestoreVm.state.collectAsStateWithLifecycle()
+                // Leaving, by the top bar or the system back, drops the shares entered so
+                // far; a rotation keeps them (the ViewModel outlives it, in memory only).
+                val leave = {
+                    shareRestoreVm.startOver()
+                    nav.popBackStack()
+                    Unit
+                }
+                BackHandler(onBack = leave)
+                RestoreSharesScreen(
+                    state = shareState,
+                    onAdd = shareRestoreVm::add,
+                    onRestore = shareRestoreVm::restore,
+                    onStartOver = shareRestoreVm::startOver,
+                    onBack = leave,
+                    onDone = { goHome() },
                 )
             }
 

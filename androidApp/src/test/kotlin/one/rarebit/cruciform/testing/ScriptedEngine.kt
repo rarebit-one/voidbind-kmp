@@ -44,6 +44,9 @@ class ScriptedEngine : VoidbindEngine {
 
     override val identity: StateFlow<IdentityState> = MutableStateFlow(IdentityState.None)
 
+    /** The secret the last [restoreIdentity] was given. */
+    var restoredSecret: String? = null
+
     private fun <T> r(name: String, result: T): T {
         calls += name
         return result
@@ -51,7 +54,11 @@ class ScriptedEngine : VoidbindEngine {
 
     override suspend fun refresh(): EngineResult<Unit> = r("refresh", EngineResult.Ready(Unit))
     override suspend fun createIdentity() = r("createIdentity", createResult)
-    override suspend fun restoreIdentity(recoverySecret: String) = r("restoreIdentity", restoreResult)
+    override suspend fun restoreIdentity(recoverySecret: String): EngineResult<Unit> {
+        restoredSecret = recoverySecret
+        return r("restoreIdentity", restoreResult)
+    }
+
     override suspend fun revealRecoverySecret() = r("revealRecoverySecret", revealResult)
 
     // Mirrors the real parser's shape closely enough for the flows: login / pair / other.

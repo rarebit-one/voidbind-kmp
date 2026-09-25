@@ -50,3 +50,13 @@ ADR-0009 phase 2: the same keys and clocks as `device-scheme-vector.json`, with
 voidbind-go. `DeviceSchemeVectorTest` checks two things:
 - this library's public minters produce exactly this file;
 - the legacy file still reproduces through the untyped mint path.
+
+## `slip39/vectors.json`
+
+Trezor's official SLIP-39 test vectors (45 cases), copied verbatim from voidbind-go
+`testvectors/vectors/slip39/`, itself a verbatim copy of python-shamir-mnemonic's
+`vectors.json` (provenance, and the file's SHA-256, in voidbind-go's
+`testvectors/vectors/slip39/README.md`; ADR-0011). Every case uses the passphrase
+`TREZOR`; an empty master secret means the mnemonics must be refused.
+`Slip39VectorTest` pins the SHA-256, reproduces every valid case's master secret and
+refuses every invalid one for the reason its description names.

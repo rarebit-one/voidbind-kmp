@@ -25,6 +25,7 @@ This is the runbook, plus the map of what still has to be built to reach the ful
 | Same-device app-to-app deep link (`voidbind:login?…` from an RP app) | ✅ approval sheet proven on-device via `adb am start` against a live heyarr node (Test 5) |
 | Reverse same-device handoff (ADR-0006): "Send to `<app>` on this phone" from the invite screen | ✅ buttons resolve per installed RP; **end-to-end (RP joins → SAS on both apps → confirm here) needs the human finger (Test 6)** |
 | Membership op-set (ADR-0005): any member adds the next; Devices list + Remove | ✅ library proven vs live voidbind-go (14/14 vectors, phone→phone through the Go relay, Go RP honours `ops`); **on-device: upgrade-in-place + Devices list proven; a real second-phone pair/remove needs a second phone (Test 4b)** |
+| Recovery shares (SLIP-39, voidbind-go ADR-0011): restore from 2-of-3 shares, typed | ✅ library passes Trezor's 45 vectors + combines Go-made shares (JVM); **on-device restore from Go-made shares: Test 2e** |
 
 The commonMain "device brain" (identity derivation, self-enrolment, the
 `LoginApproval` / `DevicePairing` / `DeviceAuthorization` coordinators, the QR
@@ -165,6 +166,46 @@ print, the paper and the camera are what this test proves.
    screen. After printing, `adb shell run-as one.rarebit.cruciform ls -R cache files`
    shows no PDF. (The print spooler holds its own copy of the job until it completes;
    that is the system's, not the app's.)
+
+## Test 2e — restore from recovery shares (voidbind-go ADR-0011)
+
+The shares come from voidbind-go, so this also proves the SLIP-39 port against the
+Go implementation on real hardware (the JVM tests prove the maths; this proves the
+phone's PBKDF2 provider and the typing flow). Use a throwaway secret, or the
+identity's own secret on a wiped phone.
+
+1. **Make the shares.** In a voidbind-go checkout (ADR-0011 or later), split the
+   secret you will restore:
+   `echo heyarr1… | go run ./cmd/voidbind recovery split --secret-file -`. It prints
+   the user ID, the fingerprint (`XXXX XXXX XXXX XXXX`) and three 33-word shares, any
+   2 of which rebuild it. (`--sheets <dir>` also writes printable sheets.) Note the
+   fingerprint.
+2. **Reach the screen.** On a phone with no identity (reinstall the app, or use a
+   second device), tap **Restore from recovery shares** on the
+   welcome screen. Also check the other door: **Restore from a recovery secret** →
+   **I have recovery shares instead** lands on the same screen, and Back from it
+   returns to the welcome screen.
+3. **Refusals, one share at a time.** Type share 1 and tap **Add share**: the screen
+   reads "1 of 2 needed" and the field clears for share 2. Then check that each of
+   these is refused **inline, naming the share, and not counted** (the count stays
+   "1 of 2"):
+   - share 1 again ("Share 2 is one you've already entered");
+   - share 2 with one word changed ("Share 2 has a mistake");
+   - a share from a second `recovery split` of the same secret ("Share 2 is from a
+     different set of shares");
+   - a truncated share (drop the last word).
+   **Start over** clears the count back to "No shares entered yet".
+4. **Restore.** Enter any two different shares, in either order: the screen reads "2
+   of 2 shares entered: ready to restore". Tap **Restore identity** and approve the
+   device-key biometric. Assert Home shows the SAME identity: the fingerprint and
+   user ID from step 1 (Settings / the Home identity card), and no "Check your
+   recovery secret" card (a restore from shares counts as a check, as in 2c.3).
+   Declining the biometric leaves the shares in place with the reason shown; tapping
+   **Restore identity** again retries.
+5. **Memory only.** Enter one share, rotate the phone: the count survives (the
+   ViewModel outlives the rotation). Then enter one share, background the app and
+   kill it (`adb shell am kill one.rarebit.cruciform`), reopen: the count is gone, as
+   the shares were never saved. Leaving the screen (Back) also forgets them.
 
 ## Test 2b — membership renewal (a device renews itself before its add lapses)
 
