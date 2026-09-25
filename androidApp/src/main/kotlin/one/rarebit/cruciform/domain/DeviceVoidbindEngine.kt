@@ -604,6 +604,7 @@ class DeviceVoidbindEngine(
             PairingFailureKind.TIMEOUT -> EngineFailure.Kind.TIMEOUT
             PairingFailureKind.REJECTED -> EngineFailure.Kind.REJECTED
             PairingFailureKind.PROTOCOL -> EngineFailure.Kind.PROTOCOL
+            PairingFailureKind.REFUSED -> EngineFailure.Kind.REJECTED // declined (ADR-0012): the message says so
         },
         // Unreachable: retry the same step once the network is back. Timeout/rejected:
         // a fresh invite is needed, so the UI's retry re-mints/re-scans (still "retryable"

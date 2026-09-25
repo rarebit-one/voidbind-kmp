@@ -173,6 +173,25 @@ class DeviceAuthorization private constructor(
         return invitation.initiator.ops
     }
 
+    /**
+     * The human said the strings DIFFER (or cancelled): tell the new device, so it stops
+     * waiting instead of timing out (voidbind-go ADR-0012). Signs a refusal with this
+     * device's key — on a hardware keystore that is the same biometric gate as
+     * [authorise] — and posts it. Admits nobody; [authorise] fails afterwards.
+     */
+    @Throws(Exception::class)
+    fun refuse(invitation: Invitation) {
+        invitation.initiator.refuse()
+    }
+
+    /**
+     * Like [refuse], but a failure to deliver the refusal (no route, a relay without the
+     * `refuse` slot) resolves to a [PairingOutcome.Failed] instead of throwing. The
+     * pairing is abandoned either way; the new device then just times out.
+     */
+    fun refuseCatching(invitation: Invitation): PairingOutcome<Unit> =
+        PairingFailures.catching(invitation.relayBase) { refuse(invitation) }
+
     private companion object {
         /** 32 bytes of salt — comfortably above [Pairing.MIN_SALT_LEN]. */
         fun randomSalt(): ByteArray = CryptographyRandom.Default.nextBytes(maxOf(32, Pairing.MIN_SALT_LEN))

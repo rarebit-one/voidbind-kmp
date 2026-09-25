@@ -60,3 +60,17 @@ Trezor's official SLIP-39 test vectors (45 cases), copied verbatim from voidbind
 `TREZOR`; an empty master secret means the mnemonics must be refused.
 `Slip39VectorTest` pins the SHA-256, reproduces every valid case's master secret and
 refuses every invalid one for the reason its description names.
+
+## `pair-refusal-vector.json`
+
+The pairing refusal of voidbind-go ADR-0012 (proposed; voidbind-go#64). It pins
+the exact token an initiator posts to its `refuse` relay slot. It also gives the
+verdict a responder must reach for each token: `refused` (Receive stops with
+`PairingRefusedException`) or `ignored` (Receive keeps waiting for the cert).
+The file is minted by voidbind-go `testvectors.TestPairRefusalVector` and
+replayed by `PairRefusalVectorTest`.
+
+## `recovery-wrap/`
+
+Copied for completeness, so the whole directory matches voidbind-go. No test
+here replays it yet.
