@@ -44,6 +44,8 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
+        with:
+          cache-disabled: true # release path: no Gradle cache restore (zizmor cache-poisoning; cold build measured)
       - name: tag must equal the build.gradle.kts version
         env:
           # A Release carries its tag in the event; a tag push (or a dispatch run
