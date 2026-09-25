@@ -42,6 +42,7 @@
         <error line="37" column="5" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/components/SecureScreen.kt">
+        <error line="36" column="5" source="standard:function-naming" />
         <error line="26" column="5" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/components/TopBars.kt">
