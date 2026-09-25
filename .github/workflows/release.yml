@@ -106,6 +106,8 @@ jobs:
         run: yes | "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
 
       - uses: gradle/actions/setup-gradle@48b5f213c81028ace310571dc5ec0fbbca0b2947 # v4
+        with:
+          cache-disabled: true # release path: no Gradle cache restore (zizmor cache-poisoning; cold build measured)
 
       - name: Assemble the signed release APK
         env:
