@@ -1,4 +1,4 @@
 # voidbind-go commit whose testvectors/vectors/ these files are copied from.
 # Checked by scripts/check-vector-drift.sh (CI job vector-drift). Bump it in the
 # same change that re-copies the vectors.
-399a512e66c58d82050224efdca5dba15ea15df5
+20cb512b8c0ff431cc641e8a60bfe374bf6a943a
