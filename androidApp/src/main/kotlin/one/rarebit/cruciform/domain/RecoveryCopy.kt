@@ -44,10 +44,34 @@ internal class RecoveryCopy(
 
             StrongAuth.SUCCESS -> store.recoverySecret()
                 ?.let { EngineResult.Ready(UserIdentity.fromSecret(RecoverySecret.of(it))) }
-                ?: internalFailure(
-                    "This phone's copy of the recovery secret is gone — enrolling a new fingerprint " +
-                        "or face erases it. Use your written recovery secret instead.",
-                )
+                ?: notYetFailure(COPY_GONE)
+        }
+    }
+
+    /**
+     * Split the kept secret into SLIP-39 recovery shares (voidbind-go ADR-0011: any 2
+     * of 3, no passphrase), behind a **strong biometric**, as [unsealGenesis]. The
+     * shares are returned for one showing and never stored; splitting revokes nothing,
+     * so the written secret keeps working. A phone that keeps no copy is refused before
+     * any prompt.
+     */
+    suspend fun split(): EngineResult<List<String>> {
+        if (!store.hasUserKey()) return notYetFailure(NO_COPY)
+        return when (biometric.authenticateStrong(SPLIT_TITLE, STRONG_SUBTITLE)) {
+            StrongAuth.CANCELLED -> cancelledFailure()
+
+            StrongAuth.UNAVAILABLE -> strongBiometricRequiredFailure()
+
+            StrongAuth.SUCCESS -> store.recoverySecret()
+                ?.let { raw ->
+                    val shares = try {
+                        RecoverySecret.of(raw).splitShares()
+                    } finally {
+                        raw.fill(0)
+                    }
+                    EngineResult.Ready(shares)
+                }
+                ?: notYetFailure(COPY_GONE)
         }
     }
 
@@ -77,7 +101,7 @@ internal class RecoveryCopy(
      */
     suspend fun forget(lapsed: Boolean): EngineResult<Unit> {
         val refusal = when {
-            !store.hasUserKey() -> "This phone keeps no copy of the recovery secret."
+            !store.hasUserKey() -> NO_COPY
 
             store.backupCheckedAt() == null ->
                 "Check your written recovery secret first (Settings → Test recovery secret): " +
@@ -88,7 +112,7 @@ internal class RecoveryCopy(
             else -> null
         }
         return when {
-            refusal != null -> internalFailure(refusal)
+            refusal != null -> notYetFailure(refusal)
 
             else -> when (biometric.authenticateStrong("Remove the recovery copy", STRONG_SUBTITLE)) {
                 StrongAuth.CANCELLED -> cancelledFailure()
@@ -116,6 +140,11 @@ internal class RecoveryCopy(
     companion object {
         const val STRONG_SUBTITLE = "Confirm with your fingerprint or face"
         private const val KEEP_TITLE = "Keep a recovery copy on this phone"
+        private const val SPLIT_TITLE = "Split into recovery shares"
+        private const val NO_COPY = "This phone keeps no copy of the recovery secret."
+        private const val COPY_GONE =
+            "This phone's copy of the recovery secret is gone — enrolling a new fingerprint " +
+                "or face erases it. Use your written recovery secret instead."
 
         /** Suggest checking the written secret again once a year. */
         private const val DRILL_INTERVAL_SECONDS = 365L * 24 * 60 * 60

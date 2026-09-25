@@ -67,6 +67,7 @@ class InviteCoordinatorTest {
         override suspend fun createIdentity(): EngineResult<RecoveryBackup> = error("unused")
         override suspend fun restoreIdentity(recoverySecret: String): EngineResult<Unit> = error("unused")
         override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> = error("unused")
+        override suspend fun splitRecoverySecret(): EngineResult<List<String>> = error("unused")
         override fun parseScanned(raw: String): ScannedCode = ScannedCode.Unknown(raw)
         override suspend fun fetchLoginRequest(code: ScannedCode.WebLogin): EngineResult<LoginRequest> = error("unused")
         override suspend fun approveLogin(code: ScannedCode.WebLogin): EngineResult<Unit> = error("unused")

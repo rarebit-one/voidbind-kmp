@@ -53,6 +53,7 @@ import one.rarebit.cruciform.ui.screens.PairConnectScreen
 import one.rarebit.cruciform.ui.screens.PairVerifyScreen
 import one.rarebit.cruciform.ui.screens.RecoveryBackupScreen
 import one.rarebit.cruciform.ui.screens.RecoveryCheckScreen
+import one.rarebit.cruciform.ui.screens.RecoverySharesScreen
 import one.rarebit.cruciform.ui.screens.RestoreScreen
 import one.rarebit.cruciform.ui.screens.RestoreSharesScreen
 import one.rarebit.cruciform.ui.screens.ScanScreen
@@ -80,6 +81,7 @@ object Routes {
     /** The same-phone one-tap sheet (ADR-0008) — shown instead of PAIR_VERIFY when the RP checked out. */
     const val PAIR_ALLOW = "pair_allow"
     const val RECOVERY = "recovery"
+    const val RECOVERY_SHARES = "recovery_shares"
     const val BACKUP_CONFIRM = "backup_confirm"
     const val RECOVERY_DRILL = "recovery_drill"
     const val ACTIVITY = "activity"
@@ -298,6 +300,8 @@ fun CruciformNavHost(
         settingsVm.eventFlow.collect { e ->
             when (e) {
                 SettingsViewModel.Event.ShowRecovery -> nav.navigate(Routes.RECOVERY)
+
+                SettingsViewModel.Event.ShowShares -> nav.navigate(Routes.RECOVERY_SHARES)
 
                 SettingsViewModel.Event.ShowActivity -> nav.navigate(Routes.ACTIVITY)
 
@@ -629,6 +633,7 @@ fun CruciformNavHost(
                         onRecoveryBackup = settingsVm::revealRecovery,
                         onTestRecovery = { nav.navigate(Routes.RECOVERY_DRILL) },
                         onForgetRecovery = settingsVm::forgetRecoverySecret,
+                        onSplitShares = settingsVm::splitIntoShares,
                         onApprovalActivity = { settingsVm.loadActivity(open = true) },
                         onDevices = { settingsVm.loadDevices(open = true) },
                         onAbout = { },
@@ -847,14 +852,18 @@ fun CruciformNavHost(
                 // this screen closes (the user re-authenticates to see it again).
                 val revealed by settingsVm.revealed.collectAsStateWithLifecycle()
                 val b = revealed
+                // Pop by route, so the clear-then-recompose below can't pop Settings too.
                 val close = {
                     settingsVm.clearRecovery()
-                    nav.popBackStack()
+                    nav.popBackStack(Routes.RECOVERY, inclusive = true)
                     Unit
                 }
                 if (b == null) {
-                    LaunchedEffect(Unit) { nav.popBackStack() }
+                    LaunchedEffect(Unit) { nav.popBackStack(Routes.RECOVERY, inclusive = true) }
                 } else {
+                    // The system back must forget the revealed secret too, not leave it in
+                    // memory until the ViewModel is cleared.
+                    BackHandler(onBack = close)
                     val context = LocalContext.current
                     RecoveryBackupScreen(
                         backup = b,
@@ -863,6 +872,27 @@ fun CruciformNavHost(
                         onPrint = { RecoverySheetPrinter.print(context, b) },
                         stepLabel = "RECOVERY SECRET",
                     )
+                }
+            }
+
+            composable(Routes.RECOVERY_SHARES) {
+                // Memory-only, like the revealed secret: after process death they are gone
+                // and this screen closes. Leaving it (Done, the top bar or the system back)
+                // forgets them; a rotation keeps them (the ViewModel outlives it).
+                // Pops by route, so a recomposition during the exit (shares already
+                // cleared) can't pop Settings as well.
+                val shares by settingsVm.shares.collectAsStateWithLifecycle()
+                val current = shares
+                val close = {
+                    settingsVm.clearShares()
+                    nav.popBackStack(Routes.RECOVERY_SHARES, inclusive = true)
+                    Unit
+                }
+                if (current.isNullOrEmpty()) {
+                    LaunchedEffect(Unit) { nav.popBackStack(Routes.RECOVERY_SHARES, inclusive = true) }
+                } else {
+                    BackHandler(onBack = close)
+                    RecoverySharesScreen(shares = current, onBack = close, onDone = close)
                 }
             }
 

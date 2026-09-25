@@ -31,7 +31,12 @@ import one.rarebit.cruciform.domain.SiteAccent
 import one.rarebit.cruciform.ui.theme.VbColors
 import one.rarebit.cruciform.ui.theme.VbType
 
-/** The identity line: `<device name> · 7C4A 91D2 0E8F` in mono, with an optional copy action. */
+/**
+ * The identity header: the device name on a small line of its own, then the identity
+ * fingerprint (`XXXX XXXX XXXX XXXX`) large and in mono, with an optional copy action.
+ * The fingerprint wraps between its groups rather than being cut off: it is what a
+ * person compares, so every group must stay visible.
+ */
 @Composable
 fun IdentityFingerprint(
     label: String,
@@ -40,14 +45,22 @@ fun IdentityFingerprint(
     onCopy: (() -> Unit)? = null,
 ) {
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = "$label · $fingerprint",
-            style = VbType.FingerprintLarge,
-            color = VbColors.TextPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
+        Column(Modifier.weight(1f, fill = false)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = VbColors.TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // No maxLines/ellipsis: plain spaces sit between the four-character groups,
+            // so a narrow screen wraps between groups, never inside one.
+            Text(
+                text = fingerprint,
+                style = VbType.FingerprintLarge,
+                color = VbColors.TextPrimary,
+            )
+        }
         if (onCopy != null) {
             Spacer(Modifier.width(8.dp))
             IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {

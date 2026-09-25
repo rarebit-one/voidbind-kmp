@@ -94,6 +94,7 @@ private fun titleFor(kind: EngineFailure.Kind): String = when (kind) {
     EngineFailure.Kind.PROTOCOL -> "Pairing didn't verify"
     EngineFailure.Kind.CANCELLED -> "Cancelled"
     EngineFailure.Kind.EXPIRED -> "Expired"
+    EngineFailure.Kind.NOT_YET -> "Not yet"
     EngineFailure.Kind.INTERNAL -> "Something went wrong"
 }
 

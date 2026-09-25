@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import one.rarebit.voidbind.UserIdentity
 import one.rarebit.voidbind.policy.ApprovalPolicy
 import one.rarebit.voidbind.policy.ApprovalPolicyManager
 import one.rarebit.voidbind.policy.InMemoryApprovalAuditLog
@@ -53,6 +54,12 @@ class PreviewVoidbindEngine(initial: IdentityState = SampleData.activeState) : V
     override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> {
         delay(200)
         return EngineResult.Ready(SampleData.recoveryBackup)
+    }
+
+    // A throwaway secret split for real, so the preview shows genuine 33-word shares.
+    override suspend fun splitRecoverySecret(): EngineResult<List<String>> {
+        delay(400)
+        return EngineResult.Ready(UserIdentity.create().recovery.splitShares())
     }
 
     override fun parseScanned(raw: String): ScannedCode = when {
