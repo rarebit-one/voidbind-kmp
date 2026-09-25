@@ -170,12 +170,15 @@ class DeviceVoidbindEngine(
 
     override suspend fun revealRecoverySecret(): EngineResult<RecoveryBackup> =
         ioResult("Couldn't show the recovery secret.") {
-            check(store.hasUserKey()) { "This device keeps no copy of the recovery secret." }
+            if (!store.hasUserKey()) return@ioResult notYetFailure("This device keeps no copy of the recovery secret.")
             when (val genesis = recovery.unsealGenesis("Show recovery secret")) {
                 is EngineResult.Failed -> genesis
                 is EngineResult.Ready -> EngineResult.Ready(backup(genesis.value).copy(keptOnDevice = true))
             }
         }
+
+    override suspend fun splitRecoverySecret(): EngineResult<List<String>> =
+        ioResult("Couldn't split the recovery secret.") { recovery.split() }
 
     override suspend fun verifyRecoverySecret(secret: String): EngineResult<RecoveryCheck> = ioResult(
         "That recovery secret could not be read.",
@@ -307,7 +310,7 @@ class DeviceVoidbindEngine(
     override suspend fun renewMembership(): EngineResult<Unit> = ioResult("Couldn't renew this device.") {
         val persisted = store.load() ?: return@ioResult internalFailure("No identity on this device.")
         val op = withDeviceAuth { renewal.selfRenewal(persisted, onlyIfDue = false) }
-            ?: return@ioResult internalFailure(
+            ?: return@ioResult notYetFailure(
                 "This device is no longer a member, so it can't renew itself. " +
                     "Re-admit it from another device, or restore from the recovery secret.",
             )

@@ -64,15 +64,6 @@ class DeviceVoidbindEngineTest {
 
     private val selfId: String get() = KeyRef.ed25519(keys.publicKey).render()
 
-    private fun active(engine: VoidbindEngine): IdentityState.Active = assertIs(engine.identity.value)
-
-    private fun failure(result: EngineResult<*>): EngineFailure = assertIs<EngineResult.Failed>(result).failure
-
-    private fun <T> ready(result: EngineResult<T>): T = when (result) {
-        is EngineResult.Ready -> result.value
-        is EngineResult.Failed -> throw AssertionError("expected Ready, got $result")
-    }
-
     /** A second member, admitted by genesis (the recovery secret) — as a Restore would admit it. */
     private fun admitSibling(rawSecret: String): String {
         val user = UserIdentity.restore(rawSecret)
@@ -252,7 +243,7 @@ class DeviceVoidbindEngineTest {
 
         val f = failure(engine.revealRecoverySecret())
 
-        assertNotEquals(EngineFailure.Kind.CANCELLED, f.kind)
+        assertEquals(EngineFailure.Kind.NOT_YET, f.kind) // a refusal with a way forward, not a cancel
         assertTrue(f.message.contains("PIN can't authorise it"))
     }
 
@@ -261,6 +252,7 @@ class DeviceVoidbindEngineTest {
         val f = failure(engine().revealRecoverySecret())
 
         assertEquals("This device keeps no copy of the recovery secret.", f.message)
+        assertEquals(EngineFailure.Kind.NOT_YET, f.kind)
         assertTrue(biometric.prompts.isEmpty())
     }
 
@@ -328,6 +320,7 @@ class DeviceVoidbindEngineTest {
 
         val tooEarly = failure(engine.forgetRecoverySecret())
         assertTrue(tooEarly.message.startsWith("Check your written recovery secret first"))
+        assertEquals(EngineFailure.Kind.NOT_YET, tooEarly.kind) // "Not yet", not "Something went wrong"
         assertTrue(store.hasUserKey())
 
         ready(engine.verifyRecoverySecret(backup.rawSecret))
@@ -392,6 +385,7 @@ class DeviceVoidbindEngineTest {
         val f = failure(engine.renewMembership())
 
         assertTrue(f.message.startsWith("This device is no longer a member"))
+        assertEquals(EngineFailure.Kind.NOT_YET, f.kind)
         assertEquals(1, store.knownOps().size)
     }
 

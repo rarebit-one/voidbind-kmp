@@ -9,6 +9,15 @@ internal fun <T> internalFailure(message: String): EngineResult<T> {
     return EngineResult.Failed(failure)
 }
 
+/**
+ * A deliberate refusal the user can resolve ([EngineFailure.Kind.NOT_YET]): the app
+ * titles it "Not yet", not "Something went wrong", and [message] says what to do.
+ */
+internal fun <T> notYetFailure(message: String): EngineResult<T> {
+    val failure = EngineFailure(message, EngineFailure.Kind.NOT_YET, retryable = false)
+    return EngineResult.Failed(failure)
+}
+
 internal fun <T> cancelledFailure(): EngineResult<T> = EngineResult.Failed(CANCELLED_FAILURE)
 
 /**
@@ -17,12 +26,15 @@ internal fun <T> cancelledFailure(): EngineResult<T> = EngineResult.Failed(CANCE
  * (that is the exact hole strong-only closes), so the honest answer is to point
  * the user at recovery. Not retryable — retrying without enrolling a biometric
  * hits the same wall.
+ *
+ * [EngineFailure.Kind.NOT_YET], like the other refusals: nothing went wrong, the
+ * device lacks what the act needs, and the message names the ways forward.
  */
 internal fun <T> strongBiometricRequiredFailure(): EngineResult<T> = EngineResult.Failed(
     EngineFailure(
         "This needs a fingerprint or face unlock — your PIN can't authorise it. " +
             "Enrol a biometric on this device, or use another device or your recovery secret.",
-        EngineFailure.Kind.INTERNAL,
+        EngineFailure.Kind.NOT_YET,
         retryable = false,
     ),
 )

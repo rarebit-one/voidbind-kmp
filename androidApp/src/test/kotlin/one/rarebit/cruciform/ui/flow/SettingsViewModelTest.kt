@@ -113,6 +113,33 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `split shares are held in memory only and cleared when their screen closes`() = runTest {
+        val vm = vm()
+
+        vm.splitIntoShares()
+
+        assertEquals(SettingsViewModel.Event.ShowShares, vm.eventFlow.first())
+        assertEquals(ScriptedEngine.SHARES, vm.shares.value)
+        // Never in the saved-state Bundle.
+        assertTrue(
+            saved.keys().none { key -> ScriptedEngine.SHARES.any { saved.get<Any>(key).toString().contains(it) } },
+        )
+        vm.clearShares()
+        assertNull(vm.shares.value)
+    }
+
+    @Test
+    fun `a refused split is a dialog, not a screen`() {
+        engine.splitResult = ScriptedEngine.failure(EngineFailure.Kind.NOT_YET, "This phone keeps no copy.")
+        val vm = vm()
+
+        vm.splitIntoShares()
+
+        assertEquals(EngineFailure.Kind.NOT_YET, vm.error.value?.failure?.kind)
+        assertNull(vm.shares.value)
+    }
+
+    @Test
     fun `a cancelled reveal is a dialog, not a screen`() {
         engine.revealResult = ScriptedEngine.failure(EngineFailure.Kind.CANCELLED)
         val vm = vm()

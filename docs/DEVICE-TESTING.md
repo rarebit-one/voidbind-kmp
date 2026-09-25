@@ -25,7 +25,7 @@ This is the runbook, plus the map of what still has to be built to reach the ful
 | Same-device app-to-app deep link (`voidbind:login?…` from an RP app) | ✅ approval sheet proven on-device via `adb am start` against a live heyarr node (Test 5) |
 | Reverse same-device handoff (ADR-0006): "Send to `<app>` on this phone" from the invite screen | ✅ buttons resolve per installed RP; **end-to-end (RP joins → SAS on both apps → confirm here) needs the human finger (Test 6)** |
 | Membership op-set (ADR-0005): any member adds the next; Devices list + Remove | ✅ library proven vs live voidbind-go (14/14 vectors, phone→phone through the Go relay, Go RP honours `ops`); **on-device: upgrade-in-place + Devices list proven; a real second-phone pair/remove needs a second phone (Test 4b)** |
-| Recovery shares (SLIP-39, voidbind-go ADR-0011): restore from 2-of-3 shares, typed | ✅ library passes Trezor's 45 vectors + combines Go-made shares (JVM); **on-device restore from Go-made shares: Test 2e** |
+| Recovery shares (SLIP-39, voidbind-go ADR-0011): restore from 2-of-3 shares, typed; split on the phone | ✅ library passes Trezor's 45 vectors + combines Go-made shares (JVM); **on-device restore from Go-made shares: Test 2e; split on the phone and restore elsewhere: Test 2f** |
 
 The commonMain "device brain" (identity derivation, self-enrolment, the
 `LoginApproval` / `DevicePairing` / `DeviceAuthorization` coordinators, the QR
@@ -119,8 +119,10 @@ iOS; the Android onboarding screens).
    Settings reads "Checked <date>".
 4. **Remove the copy.** Settings → Recovery → **Remove the copy on this phone**:
    - before any drill, it refuses and points at the drill;
+   - before any drill, the refusal dialog is titled **Not yet** (not "Something went
+     wrong");
    - after one, it asks for a strong biometric (no PIN option), then the Recovery
-     backup and Remove rows disappear;
+     backup, Split into shares and Remove rows disappear;
    - the phone still signs in and renews itself;
    - adding a device from it still works (member-signed); re-admitting a REMOVED
      device now needs the paper (Restore on that device).
@@ -206,6 +208,31 @@ identity's own secret on a wiped phone.
    ViewModel outlives the rotation). Then enter one share, background the app and
    kill it (`adb shell am kill one.rarebit.cruciform`), reopen: the count is gone, as
    the shares were never saved. Leaving the screen (Back) also forgets them.
+
+## Test 2f — split into shares on the phone; restore from 2 of them elsewhere
+
+The phone splits its kept copy of the recovery secret with the same SLIP-39 profile
+as `voidbind recovery split` (any 2 of 3, no passphrase), so this proves the split
+half on real hardware; Test 2e proved the restore half.
+
+1. **Split.** On a phone that keeps the recovery copy: Settings → Recovery → **Split
+   into shares**. It asks for a strong biometric (no PIN option; declining shows
+   "Cancelled" and nothing opens). Then "Share 1 of 3 · any 2 restore your identity"
+   shows 33 numbered words in two columns. There is no copy button, and a screenshot
+   is blocked. Write it down, tap **Next** for shares 2 and 3, then **Done** returns to
+   Settings. Back, or leaving mid-way, forgets the shares; splitting again gives a new
+   set (shares from different splits don't combine).
+2. **Refusals.** On a phone that keeps no copy (removed in 2c.4, or created with the
+   biometric prompt declined), the row is absent. If the strong biometric can't be
+   used (every fingerprint and face removed since the copy was kept), the split is
+   refused in a dialog titled **Not yet** that points at a biometric or the paper.
+3. **Restore elsewhere.** On a second phone with no identity (or after clearing app
+   data), follow Test 2e.2–2e.4 with any 2 of the 3 shares from step 1. Home must show
+   the first phone's fingerprint (`XXXX XXXX XXXX XXXX`) and user ID. Try a second pair
+   too (e.g. shares 1 and 3) after clearing data again.
+4. **Nothing revoked.** The written recovery secret still passes Settings → **Test
+   recovery secret** on the first phone, and Settings → Devices there is unchanged
+   (splitting signs nothing).
 
 ## Test 2b — membership renewal (a device renews itself before its add lapses)
 

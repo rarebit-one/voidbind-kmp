@@ -28,6 +28,7 @@ class ScriptedEngine : VoidbindEngine {
     var createResult: EngineResult<RecoveryBackup> = EngineResult.Ready(BACKUP)
     var restoreResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var revealResult: EngineResult<RecoveryBackup> = EngineResult.Ready(BACKUP)
+    var splitResult: EngineResult<List<String>> = EngineResult.Ready(SHARES)
     var fetchResult: EngineResult<LoginRequest> = EngineResult.Ready(REQUEST)
     var approveResult: EngineResult<Unit> = EngineResult.Ready(Unit)
     var joinResult: EngineResult<PairSession> = EngineResult.Ready(SESSION)
@@ -60,6 +61,7 @@ class ScriptedEngine : VoidbindEngine {
     }
 
     override suspend fun revealRecoverySecret() = r("revealRecoverySecret", revealResult)
+    override suspend fun splitRecoverySecret() = r("splitRecoverySecret", splitResult)
 
     // Mirrors the real parser's shape closely enough for the flows: login / pair / other.
     override fun parseScanned(raw: String): ScannedCode = when {
@@ -99,6 +101,7 @@ class ScriptedEngine : VoidbindEngine {
             fingerprint = "PYJI XGNZ K7ZH XHEJ",
             userId = "ed25519:00",
         )
+        val SHARES = listOf("share one words", "share two words", "share three words")
         val REQUEST = LoginRequest(
             domain = "rp.example.test",
             appName = "",
