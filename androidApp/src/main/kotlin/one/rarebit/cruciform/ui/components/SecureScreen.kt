@@ -86,8 +86,11 @@ private class ActivityWindow(private val window: Window) : SecureWindow {
 
     override fun setAccessibilityDataSensitive(sensitive: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            window.decorView.accessibilityDataSensitive =
-                if (sensitive) View.ACCESSIBILITY_DATA_SENSITIVE_YES else View.ACCESSIBILITY_DATA_SENSITIVE_AUTO
+            // A plain setter call: the getter is isAccessibilityDataSensitive(): Boolean, so
+            // Kotlin exposes no property for this int-valued setter.
+            window.decorView.setAccessibilityDataSensitive(
+                if (sensitive) View.ACCESSIBILITY_DATA_SENSITIVE_YES else View.ACCESSIBILITY_DATA_SENSITIVE_AUTO,
+            )
         }
     }
 }
