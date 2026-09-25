@@ -17,7 +17,7 @@ import one.rarebit.voidbind.crypto.Hex
  * without also defeating the SAS ([Pairing]).
  *
  * This is the exact wire contract of voidbind-go's `pairflow.EncodeInvite` /
- * `DecodeInvite` — canonical (voidbind-go leads; see CLAUDE.md). [encode]
+ * `DecodeInvite` — canonical (voidbind-go leads; see AGENTS.md). [encode]
  * reproduces Go's `url.Values.Encode()` byte for byte (keys sorted, values
  * query-escaped) so a KMP-rendered invite is indistinguishable from a Go-rendered
  * one; [decode] is tolerant of key order and percent/plus encoding.
