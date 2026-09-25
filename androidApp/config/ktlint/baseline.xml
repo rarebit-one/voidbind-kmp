@@ -118,6 +118,7 @@
         <error line="97" column="5" source="standard:function-naming" />
         <error line="89" column="5" source="standard:function-naming" />
         <error line="92" column="5" source="standard:function-naming" />
+        <error line="97" column="5" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/nav/FlowDialogs.kt">
         <error line="24" column="14" source="standard:function-naming" />
@@ -166,6 +167,8 @@
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/OnboardingScreen.kt">
         <error line="43" column="5" source="standard:function-naming" />
         <error line="113" column="13" source="standard:function-naming" />
+        <error line="44" column="5" source="standard:function-naming" />
+        <error line="123" column="13" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/PairAllowScreen.kt">
         <error line="58" column="5" source="standard:function-naming" />
@@ -191,6 +194,10 @@
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/RestoreScreen.kt">
         <error line="44" column="5" source="standard:function-naming" />
         <error line="38" column="5" source="standard:function-naming" />
+        <error line="40" column="5" source="standard:function-naming" />
+    </file>
+    <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/RestoreSharesScreen.kt">
+        <error line="46" column="5" source="standard:function-naming" />
     </file>
     <file name="src/main/kotlin/one/rarebit/cruciform/ui/screens/ScanScreen.kt">
         <error line="204" column="13" source="standard:function-naming" />

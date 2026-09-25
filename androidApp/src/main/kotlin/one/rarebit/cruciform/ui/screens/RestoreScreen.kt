@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import one.rarebit.cruciform.domain.EngineResult
 import one.rarebit.cruciform.ui.components.AppTopBar
+import one.rarebit.cruciform.ui.components.OutlineButton
 import one.rarebit.cruciform.ui.components.PrimaryButton
 import one.rarebit.cruciform.ui.components.ScanSheetButton
 import one.rarebit.cruciform.ui.components.ScannedSecretEffect
@@ -34,7 +35,8 @@ import one.rarebit.cruciform.ui.theme.VbColors
 /**
  * Restore an identity from a recovery secret. The library refuses a mistyped
  * secret at the bech32m checksum (the engine returns it as a Failed), which surfaces here
- * as an inline error — nothing is provisioned until it parses.
+ * as an inline error — nothing is provisioned until it parses. [onUseShares] switches to
+ * restoring from recovery shares instead.
  *
  * [onScan] opens the scanner for a printed recovery sheet; its result arrives as
  * [scanned], which fills the field (nothing restores until the button is pressed) and is
@@ -45,6 +47,7 @@ fun RestoreScreen(
     onBack: () -> Unit,
     onRestore: suspend (String) -> EngineResult<Unit>,
     onDone: () -> Unit,
+    onUseShares: () -> Unit,
     modifier: Modifier = Modifier,
     onScan: (() -> Unit)? = null,
     scanned: String? = null,
@@ -123,6 +126,14 @@ fun RestoreScreen(
                 },
                 enabled = secret.isNotBlank() && !busy,
                 fill = VbColors.Mint,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            VSpace(10)
+            OutlineButton(
+                text = "I have recovery shares instead",
+                onClick = onUseShares,
+                enabled = !busy,
+                accent = VbColors.TextSecondary,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
