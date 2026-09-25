@@ -29,10 +29,11 @@ import one.rarebit.cruciform.platform.RelayConfig
  *
  * **Survives process death:** the text typed into the relay and push-plane fields
  * that has not been saved yet (a URL — the saved value is in SharedPreferences
- * already). **Deliberately NOT persisted:** the revealed recovery secret — it is held
- * in memory only while its screen is up and is never written to the saved-state
- * Bundle (which the system may store outside the app); after process death the
- * recovery screen closes and the user re-authenticates to see it again. The activity
+ * already). **Deliberately NOT persisted:** the revealed recovery secret and the
+ * recovery shares split from it — each is held in memory only while its screen is up
+ * and is never written to the saved-state Bundle (which the system may store outside
+ * the app); after process death the screen closes and the user re-authenticates to see
+ * it again (a new split gives a new, equally valid set). The activity
  * log and the device list are re-read from the engine when their screens open.
  */
 class SettingsViewModel(
@@ -44,6 +45,7 @@ class SettingsViewModel(
 
     sealed interface Event {
         data object ShowRecovery : Event
+        data object ShowShares : Event
         data object ShowActivity : Event
         data object ShowDevices : Event
     }
@@ -93,6 +95,11 @@ class SettingsViewModel(
 
     /** The recovery secret while its screen is up — memory only, see the class doc. */
     val revealed: StateFlow<RecoveryBackup?> = _revealed.asStateFlow()
+
+    private val _shares = MutableStateFlow<List<String>?>(null)
+
+    /** The recovery shares while their screen is up — memory only, see the class doc. */
+    val shares: StateFlow<List<String>?> = _shares.asStateFlow()
 
     private val _activity = MutableStateFlow<List<ApprovalActivity>>(emptyList())
     val activity: StateFlow<List<ApprovalActivity>> = _activity.asStateFlow()
@@ -159,6 +166,28 @@ class SettingsViewModel(
     }
 
     /**
+     * Split the kept recovery secret into 2-of-3 shares (strong-biometric-gated) and
+     * open their screen; a refusal or a cancelled prompt is a dialog.
+     */
+    fun splitIntoShares() {
+        viewModelScope.launch {
+            when (val result = engine.splitRecoverySecret()) {
+                is EngineResult.Ready -> {
+                    _shares.value = result.value
+                    events.send(Event.ShowShares)
+                }
+
+                is EngineResult.Failed -> fail(result.failure)
+            }
+        }
+    }
+
+    /** Forget the shares (their screen closed). */
+    fun clearShares() {
+        _shares.value = null
+    }
+
+    /**
      * Read the approval log; [open] then shows its screen (a failure is a dialog).
      * Without [open] it just refreshes a screen already up (e.g. after process death).
      */
@@ -208,6 +237,11 @@ class SettingsViewModel(
             val result = engine.renewMembership()
             if (result is EngineResult.Failed) fail(result.failure)
         }
+    }
+
+    override fun onCleared() {
+        clearRecovery()
+        clearShares()
     }
 
     private fun fail(failure: EngineFailure) {

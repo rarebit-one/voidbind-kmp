@@ -255,6 +255,14 @@ data class EngineFailure(
          */
         EXPIRED,
 
+        /**
+         * A deliberate refusal the user can resolve: a step that is not allowed yet
+         * (remove the phone's recovery copy before the paper is checked, renew a lapsed
+         * device) or needs something this device does not have (a kept recovery copy, a
+         * strong biometric). The message says what to do instead; not retryable as is.
+         */
+        NOT_YET,
+
         /** Anything else (a bug, a missing precondition such as no identity). */
         INTERNAL,
     }

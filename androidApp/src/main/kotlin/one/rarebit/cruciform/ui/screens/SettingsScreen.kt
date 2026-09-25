@@ -17,6 +17,7 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Fingerprint
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Info
@@ -100,6 +101,7 @@ fun SettingsScreen(
     onRecoveryBackup: () -> Unit,
     onTestRecovery: () -> Unit,
     onForgetRecovery: () -> Unit,
+    onSplitShares: () -> Unit,
     onApprovalActivity: () -> Unit,
     onDevices: () -> Unit,
     onAbout: () -> Unit,
@@ -385,9 +387,11 @@ fun SettingsScreen(
                 // Only a device that keeps a copy can re-show or remove it.
                 if (state.holdsRecoverySecret) {
                     VbHairline(Modifier.padding(horizontal = 16.dp))
+                    // The biometric requirement sits in the subtitle: a trailing pill took
+                    // the title's width and wrapped it a letter or two per line on-device.
                     RowItem(
                         title = "Recovery backup",
-                        subtitle = "Re-show your recovery secret",
+                        subtitle = "Re-show it · needs your fingerprint or face",
                         onClick = onRecoveryBackup,
                         leading = {
                             IconCircle(
@@ -396,21 +400,21 @@ fun SettingsScreen(
                                 background = VbColors.Amber.copy(alpha = 0.12f),
                             )
                         },
-                        trailing = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                StatusPill(
-                                    "Fingerprint or face",
-                                    accent = VbColors.Amber,
-                                    leadingIcon = Icons.Rounded.Lock,
-                                )
-                                HSpace(8)
-                                Icon(
-                                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    tint = VbColors.Amber,
-                                )
-                            }
+                        trailing = { Chevron(VbColors.Amber) },
+                    )
+                    VbHairline(Modifier.padding(horizontal = 16.dp))
+                    RowItem(
+                        title = "Split into shares",
+                        subtitle = "Give 2-of-3 pieces to people you trust",
+                        onClick = onSplitShares,
+                        leading = {
+                            IconCircle(
+                                Icons.Rounded.Groups,
+                                tint = VbColors.Amber,
+                                background = VbColors.Amber.copy(alpha = 0.12f),
+                            )
                         },
+                        trailing = { Chevron(VbColors.Amber) },
                     )
                     VbHairline(Modifier.padding(horizontal = 16.dp))
                     RowItem(
