@@ -64,7 +64,11 @@ class JvmDeviceKeyStoreTest {
         val explicitThirty = DeviceKeyStore.getOrCreate("window-invariance", userAuthValiditySeconds = 30)
         val longWindow = DeviceKeyStore.getOrCreate("window-invariance", userAuthValiditySeconds = 3600)
         assertEquals(implicitDefault.publicKey(), explicitThirty.publicKey(), "one-arg default is 30 s")
-        assertEquals(implicitDefault.publicKey(), longWindow.publicKey(), "window does not alter key identity per alias")
+        assertEquals(
+            implicitDefault.publicKey(),
+            longWindow.publicKey(),
+            "window does not alter key identity per alias",
+        )
     }
 
     @Test

@@ -18,7 +18,10 @@ class NotifyConfigTest {
         assertEquals(BuildConfig.DEFAULT_NOTIFY_URL.trim(), NotifyConfig.DEFAULT_NOTIFY)
         assertEquals(NotifyConfig.DEFAULT_NOTIFY.isNotEmpty(), NotifyConfig.hasDefault)
         if (NotifyConfig.hasDefault) {
-            assertEquals(Validation.Valid(NotifyConfig.DEFAULT_NOTIFY), NotifyConfig.validate(NotifyConfig.DEFAULT_NOTIFY))
+            assertEquals(
+                Validation.Valid(NotifyConfig.DEFAULT_NOTIFY),
+                NotifyConfig.validate(NotifyConfig.DEFAULT_NOTIFY),
+            )
         }
     }
 
@@ -30,13 +33,19 @@ class NotifyConfigTest {
 
     @Test
     fun `accepts http and https bases with a host`() {
-        assertEquals(Validation.Valid("https://notify.thesim.family"), NotifyConfig.validate("https://notify.thesim.family"))
+        assertEquals(
+            Validation.Valid("https://notify.thesim.family"),
+            NotifyConfig.validate("https://notify.thesim.family"),
+        )
         assertEquals(Validation.Valid("http://192.168.24.1:2587"), NotifyConfig.validate("http://192.168.24.1:2587"))
     }
 
     @Test
     fun `normalises whitespace and trailing slashes so the client's slash-v1 join cannot double up`() {
-        assertEquals(Validation.Valid("http://192.168.16.224:2587"), NotifyConfig.validate("  http://192.168.16.224:2587/  "))
+        assertEquals(
+            Validation.Valid("http://192.168.16.224:2587"),
+            NotifyConfig.validate("  http://192.168.16.224:2587/  "),
+        )
         assertEquals("https://notify.thesim.family", NotifyConfig.normalizeOrNull("https://notify.thesim.family///"))
     }
 

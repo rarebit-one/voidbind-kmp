@@ -118,8 +118,12 @@ class DeviceCredentialTest {
         assertEquals(now + 60, p.expiresAt)
         clock = now + 10
         assertTrue(p !== cred.current(), "re-minted at the custom window")
-        assertFailsWith<IllegalArgumentException> { DeviceCredential(cert, signer, { now }, ttlSeconds = 60, reuseForSeconds = 61) }
-        assertFailsWith<IllegalArgumentException> { DeviceCredential(cert, signer, { now }, ttlSeconds = 60, reuseForSeconds = 0) }
+        assertFailsWith<IllegalArgumentException> {
+            DeviceCredential(cert, signer, { now }, ttlSeconds = 60, reuseForSeconds = 61)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            DeviceCredential(cert, signer, { now }, ttlSeconds = 60, reuseForSeconds = 0)
+        }
         assertFailsWith<IllegalArgumentException> { DeviceCredential("", signer, { now }) }
     }
 }

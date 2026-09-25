@@ -112,19 +112,43 @@ fun LoginApprovalScreen(
         VSpace(18)
         VbCard(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(vertical = 6.dp)) {
-                Text("You're approving", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary, modifier = Modifier.padding(16.dp))
+                Text(
+                    "You're approving",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = VbColors.TextPrimary,
+                    modifier = Modifier.padding(16.dp),
+                )
                 ApprovalRow(Icons.Rounded.VerifiedUser, "Sign in as", request.signInAs)
                 ApprovalRow(Icons.Rounded.Public, "Origin", request.origin)
-                ApprovalRow(Icons.Rounded.Schedule, "Requested", if (remaining > 0) "Now · expires in ${remaining}s" else "Expired")
+                ApprovalRow(
+                    Icons.Rounded.Schedule,
+                    "Requested",
+                    if (remaining >
+                        0
+                    ) {
+                        "Now · expires in ${remaining}s"
+                    } else {
+                        "Expired"
+                    },
+                )
                 ApprovalRow(Icons.Rounded.Lock, "Access", request.access, last = true)
             }
         }
 
         VSpace(12)
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Rounded.VisibilityOff, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(18.dp))
+            Icon(
+                Icons.Rounded.VisibilityOff,
+                contentDescription = null,
+                tint = VbColors.Mint,
+                modifier = Modifier.size(18.dp),
+            )
             HSpace(8)
-            Text("No personal data is shared.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+            Text(
+                "No personal data is shared.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = VbColors.TextSecondary,
+            )
         }
 
         if (policy != null) {
@@ -147,7 +171,13 @@ fun LoginApprovalScreen(
             )
         }
         VSpace(10)
-        Text("Biometric confirmation is required to sign", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text(
+            "Biometric confirmation is required to sign",
+            style = MaterialTheme.typography.bodyMedium,
+            color = VbColors.TextMuted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
         VSpace(14)
         Row(
             modifier = Modifier
@@ -158,7 +188,11 @@ fun LoginApprovalScreen(
         ) {
             Icon(Icons.Rounded.Memory, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(16.dp))
             HSpace(8)
-            Text("Signed by StrongBox key · this device", style = MaterialTheme.typography.labelMedium, color = VbColors.TextSecondary)
+            Text(
+                "Signed by StrongBox key · this device",
+                style = MaterialTheme.typography.labelMedium,
+                color = VbColors.TextSecondary,
+            )
         }
     }
 }
@@ -176,7 +210,12 @@ private fun PolicyControl(policy: SitePolicyView, onSetAlwaysAsk: (Boolean) -> U
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Shield, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Rounded.Shield,
+                    contentDescription = null,
+                    tint = VbColors.Mint,
+                    modifier = Modifier.size(20.dp),
+                )
                 HSpace(12)
                 Column(Modifier.weight(1f)) {
                     Text("Always ask", style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)
@@ -216,7 +255,12 @@ private fun ApprovalRow(icon: ImageVector, label: String, value: String, last: B
         HSpace(12)
         Text(label, style = MaterialTheme.typography.bodyLarge, color = VbColors.TextSecondary)
         Spacer(Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyLarge, color = VbColors.TextPrimary, fontWeight = FontWeight.Medium)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = VbColors.TextPrimary,
+            fontWeight = FontWeight.Medium,
+        )
     }
     if (!last) VbHairline(Modifier.padding(horizontal = 16.dp))
 }

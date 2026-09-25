@@ -66,7 +66,9 @@ public class OffloadPairingResponder(
         t.post(OffloadSlots.REVEAL, OffloadProtocol.encodePhoneReveal(devicePub, deviceEnc).encodeToByteArray())
         val transportPub = OffloadProtocol.parseDesktopRevealSign(t.fetch(OffloadSlots.REVEAL).decodeToString())
 
-        require(Pairing.opens(desktopCommit, transportPub)) { "desktop commitment does not open against its revealed key" }
+        require(Pairing.opens(desktopCommit, transportPub)) {
+            "desktop commitment does not open against its revealed key"
+        }
         val sas = Pairing.deriveSas(Pairing.Keys(transportPub), Pairing.Keys(devicePub, deviceEnc), invite.salt)
         return Handshaken(transportPub, sas)
     }
@@ -78,7 +80,13 @@ public class OffloadPairingResponder(
      * paired terminal.
      */
     public fun confirm(t: OffloadTransport, invite: OffloadDeepLink.PairInvite, h: Handshaken): ByteArray {
-        val transcript = OffloadProtocol.pairConfirmTranscript(invite.session, invite.salt, h.transportPub, devicePub, deviceEnc)
+        val transcript = OffloadProtocol.pairConfirmTranscript(
+            invite.session,
+            invite.salt,
+            h.transportPub,
+            devicePub,
+            deviceEnc,
+        )
         t.post(OffloadSlots.CONFIRM, OffloadProtocol.encodeConfirm(deviceSigner.sign(transcript)).encodeToByteArray())
 
         val desktopSig = OffloadProtocol.parseConfirmSig(t.fetch(OffloadSlots.CONFIRM).decodeToString())

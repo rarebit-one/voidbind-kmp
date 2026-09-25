@@ -28,10 +28,7 @@ import one.rarebit.cruciform.domain.VoidbindEngine
  * deliberately not persisted: after process death the VERIFY screen explains the
  * pairing was interrupted and its Retry re-joins the SAME invite without a rescan.
  */
-class PairViewModel(
-    private val engine: VoidbindEngine,
-    private val saved: SavedStateHandle,
-) : ViewModel() {
+class PairViewModel(private val engine: VoidbindEngine, private val saved: SavedStateHandle) : ViewModel() {
 
     sealed interface Event {
         /** The handshake reached a SAS: show VERIFY. [fromScan] pops the scanner first. */

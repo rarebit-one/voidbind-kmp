@@ -26,10 +26,7 @@ import one.rarebit.cruciform.domain.VoidbindEngine
  * and after process death the flow does not silently create a SECOND identity over the
  * first; it tells the user to back up the secret from Settings instead.
  */
-class OnboardingViewModel(
-    private val engine: VoidbindEngine,
-    private val saved: SavedStateHandle,
-) : ViewModel() {
+class OnboardingViewModel(private val engine: VoidbindEngine, private val saved: SavedStateHandle) : ViewModel() {
 
     sealed interface Event {
         /** Creation failed ([error] is set): leave the create screen. */

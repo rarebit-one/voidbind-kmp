@@ -68,20 +68,44 @@ fun RecoveryBackupScreen(
             VSpace(20)
 
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Rounded.VpnKey, contentDescription = null, tint = VbColors.Amber, modifier = Modifier.size(60.dp))
+                Icon(
+                    Icons.Rounded.VpnKey,
+                    contentDescription = null,
+                    tint = VbColors.Amber,
+                    modifier = Modifier.size(60.dp),
+                )
                 VSpace(12)
-                Text("Save your recovery secret", style = MaterialTheme.typography.headlineSmall, color = VbColors.TextPrimary, textAlign = TextAlign.Center)
+                Text(
+                    "Save your recovery secret",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = VbColors.TextPrimary,
+                    textAlign = TextAlign.Center,
+                )
             }
 
             VSpace(20)
             WashCard(accent = VbColors.Amber, wash = VbColors.AmberWash, modifier = Modifier.fillMaxWidth()) {
                 Row {
-                    Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = VbColors.Amber, modifier = Modifier.size(28.dp))
+                    Icon(
+                        Icons.Rounded.WarningAmber,
+                        contentDescription = null,
+                        tint = VbColors.Amber,
+                        modifier = Modifier.size(28.dp),
+                    )
                     HSpace(12)
                     Column {
-                        Text("Write this down — it is the only way to recover your identity.", style = MaterialTheme.typography.titleMedium, color = VbColors.Amber, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Write this down — it is the only way to recover your identity.",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = VbColors.Amber,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                         VSpace(6)
-                        Text("Cruciform cannot reset it. Anyone with this secret can take over your identity.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+                        Text(
+                            "Cruciform cannot reset it. Anyone with this secret can take over your identity.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = VbColors.TextSecondary,
+                        )
                     }
                 }
             }
@@ -125,7 +149,11 @@ fun RecoveryBackupScreen(
             }
 
             VSpace(12)
-            Text("Store offline. Do not save in screenshots, email, or cloud notes.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextMuted)
+            Text(
+                "Store offline. Do not save in screenshots, email, or cloud notes.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = VbColors.TextMuted,
+            )
 
             VSpace(16)
             AckRow("I wrote down the complete secret", wroteDown) { wroteDown = it }

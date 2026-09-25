@@ -30,10 +30,7 @@ import javax.crypto.spec.GCMParameterSpec
  * [AuthenticationRequiredException]; the app runs a `BiometricPrompt` and
  * retries within the window.
  */
-actual class DeviceKeyStore private constructor(
-    private val alias: String,
-    private val publicKeyBytes: ByteArray,
-) {
+actual class DeviceKeyStore private constructor(private val alias: String, private val publicKeyBytes: ByteArray) {
 
     actual val isHardwareBacked: Boolean = true
 

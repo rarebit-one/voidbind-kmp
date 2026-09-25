@@ -20,11 +20,7 @@ import one.rarebit.cruciform.ui.theme.VbColors
  * scanning; the payload is a `voidbind:pair?…` URI produced by the library.
  */
 @Composable
-fun QrImage(
-    content: String,
-    modifier: Modifier = Modifier,
-    sizePx: Int = 512,
-) {
+fun QrImage(content: String, modifier: Modifier = Modifier, sizePx: Int = 512) {
     val bitmap = remember(content, sizePx) { encodeQr(content, sizePx) }
     Image(
         bitmap = bitmap.asImageBitmap(),

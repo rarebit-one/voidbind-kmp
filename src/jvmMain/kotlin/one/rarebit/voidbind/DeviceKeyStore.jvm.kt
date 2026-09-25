@@ -11,10 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
  * is testable end to end. There is no secure element on a plain JVM, so
  * [isHardwareBacked] is always `false` and the seed is never sealed.
  */
-actual class DeviceKeyStore private constructor(
-    private val seed: ByteArray,
-    private val publicKey: ByteArray,
-) {
+actual class DeviceKeyStore private constructor(private val seed: ByteArray, private val publicKey: ByteArray) {
 
     actual val isHardwareBacked: Boolean = false
 

@@ -301,7 +301,10 @@ fun CruciformNavHost(
                     },
                     relayUrl = st.relayUrl.takeIf {
                         st.phase == InviteCoordinator.Phase.MINT &&
-                            (st.failure.kind == EngineFailure.Kind.UNREACHABLE || st.failure.kind == EngineFailure.Kind.REJECTED)
+                            (
+                                st.failure.kind == EngineFailure.Kind.UNREACHABLE ||
+                                    st.failure.kind == EngineFailure.Kind.REJECTED
+                                )
                     },
                     onDismiss = {
                         clear()
@@ -396,7 +399,13 @@ fun CruciformNavHost(
                     currentRoute = route,
                     onHome = { if (route != Routes.HOME) nav.navigate(Routes.HOME) { launchSingleTop = true } },
                     onScan = { nav.navigate(Routes.SCAN) },
-                    onSettings = { if (route != Routes.SETTINGS) nav.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                    onSettings = {
+                        if (route !=
+                            Routes.SETTINGS
+                        ) {
+                            nav.navigate(Routes.SETTINGS) { launchSingleTop = true }
+                        }
+                    },
                 )
             }
         },
@@ -482,7 +491,9 @@ fun CruciformNavHost(
             composable(Routes.HOME) {
                 val active = identityState as? IdentityState.Active
                 if (active == null) {
-                    LaunchedEffect(Unit) { nav.navigate(Routes.ONBOARDING) { popUpTo(nav.graph.id) { inclusive = true } } }
+                    LaunchedEffect(Unit) {
+                        nav.navigate(Routes.ONBOARDING) { popUpTo(nav.graph.id) { inclusive = true } }
+                    }
                     Loading()
                 } else {
                     HomeScreen(

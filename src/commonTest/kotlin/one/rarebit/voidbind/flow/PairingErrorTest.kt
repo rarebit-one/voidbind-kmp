@@ -28,7 +28,14 @@ import kotlin.test.assertTrue
 class PairingErrorTest {
 
     private val relay = "http://192.168.16.224:7777/pair"
-    private val invite = Invite.Parsed(relay, "deadbeef", ByteArray(32) { 7 }, "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4")
+    private val invite = Invite.Parsed(
+        relay,
+        "deadbeef",
+        ByteArray(32) {
+            7
+        },
+        "ed25519:f947b10c8089aa8fed2d435fae069d0ca1513b33691955ae963dfe8bc5b398c4",
+    )
 
     private fun device(): DeviceIdentity {
         val enc = DeviceIdentity.generateEncryptionKey()
@@ -76,13 +83,26 @@ class PairingErrorTest {
     @Test
     fun joinWithNoRouteToTheRelayIsUnreachableNotACrash() {
         // Mirrors the captured SocketTimeoutException("failed to connect to /192.168.16.224 (port 7777)").
-        val pairing = DevicePairing(ThrowingTransport { RuntimeException("failed to connect to /192.168.16.224 (port 7777)") }, device(), { 1L })
+        val pairing =
+            DevicePairing(
+                ThrowingTransport {
+                    RuntimeException("failed to connect to /192.168.16.224 (port 7777)")
+                },
+                device(),
+                { 1L },
+            )
         val outcome = pairing.beginCatching(invite) // must NOT throw
         val failed = assertIs<PairingOutcome.Failed>(outcome)
         assertEquals(PairingFailureKind.UNREACHABLE, failed.kind)
         assertEquals("192.168.16.224:7777", failed.relayHost)
-        assertEquals("Can't reach the relay at 192.168.16.224:7777. Check Wi-Fi or your VPN and try again.", failed.message)
-        assertTrue("SocketTimeout" !in failed.message && "failed to connect" !in failed.message, "no raw exception text")
+        assertEquals(
+            "Can't reach the relay at 192.168.16.224:7777. Check Wi-Fi or your VPN and try again.",
+            failed.message,
+        )
+        assertTrue(
+            "SocketTimeout" !in failed.message && "failed to connect" !in failed.message,
+            "no raw exception text",
+        )
     }
 
     @Test
@@ -123,7 +143,14 @@ class PairingErrorTest {
 
     @Test
     fun inviteWithNoRouteToTheRelayIsUnreachableNotACrash() {
-        val auth = DeviceAuthorization(ThrowingTransport { RuntimeException("failed to connect") }, UserIdentity.create(), { 1L })
+        val auth =
+            DeviceAuthorization(
+                ThrowingTransport {
+                    RuntimeException("failed to connect")
+                },
+                UserIdentity.create(),
+                { 1L },
+            )
         val failed = assertIs<PairingOutcome.Failed>(auth.inviteCatching("https://relay.thesim.family"))
         assertEquals(PairingFailureKind.UNREACHABLE, failed.kind)
         assertEquals("relay.thesim.family", failed.relayHost)
@@ -142,7 +169,9 @@ class PairingErrorTest {
     @Test
     fun handshakeWhenTheNetworkDropsAfterTheInviteIsUnreachable() {
         val auth = DeviceAuthorization(DropAfterSessionTransport(), UserIdentity.create(), { 1L })
-        val invitation = assertIs<PairingOutcome.Ready<DeviceAuthorization.Invitation>>(auth.inviteCatching(relay)).value
+        val invitation = assertIs<PairingOutcome.Ready<DeviceAuthorization.Invitation>>(
+            auth.inviteCatching(relay),
+        ).value
         val failed = assertIs<PairingOutcome.Failed>(auth.handshakeCatching(invitation))
         assertEquals(PairingFailureKind.UNREACHABLE, failed.kind)
         assertEquals("192.168.16.224:7777", failed.relayHost)
@@ -151,7 +180,9 @@ class PairingErrorTest {
     @Test
     fun handshakeWhenNoDeviceJoinsIsATimeout() {
         val auth = DeviceAuthorization(LonelyTransport(), UserIdentity.create(), { 1L }, pollIntervalMillis = 120_000)
-        val invitation = assertIs<PairingOutcome.Ready<DeviceAuthorization.Invitation>>(auth.inviteCatching(relay)).value
+        val invitation = assertIs<PairingOutcome.Ready<DeviceAuthorization.Invitation>>(
+            auth.inviteCatching(relay),
+        ).value
         val failed = assertIs<PairingOutcome.Failed>(auth.handshakeCatching(invitation))
         assertEquals(PairingFailureKind.TIMEOUT, failed.kind)
     }

@@ -72,7 +72,9 @@ class GoInteropTest {
             val salt = ByteArray(32) { (it * 3 + 2).toByte() }
             val init = PairflowInitiator(
                 RelayClient(http, base, session, RelayClient.ROLE_INITIATOR, pollIntervalMillis = 20),
-                PairflowAuthority.Genesis({ Ed25519Engine.sign(user.privateSeed, it) }, user.publicKey, emptyList(), 7_776_000L),
+                PairflowAuthority.Genesis({
+                    Ed25519Engine.sign(user.privateSeed, it)
+                }, user.publicKey, emptyList(), 7_776_000L),
                 salt,
                 1_724_700_000L,
             )

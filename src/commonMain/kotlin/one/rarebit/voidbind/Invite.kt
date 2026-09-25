@@ -46,7 +46,9 @@ object Invite {
      */
     fun encode(relay: String, session: String, salt: ByteArray, usr: String): String {
         require(relay.isNotEmpty() && session.isNotEmpty()) { "invite needs a relay and a session" }
-        require(salt.size >= Pairing.MIN_SALT_LEN) { "invite salt is too short (${salt.size} < ${Pairing.MIN_SALT_LEN})" }
+        require(salt.size >= Pairing.MIN_SALT_LEN) {
+            "invite salt is too short (${salt.size} < ${Pairing.MIN_SALT_LEN})"
+        }
         requireUser(usr)
         // Go's url.Values.Encode() writes keys in sorted order; match it so the
         // rendered string is byte-identical across the two implementations.
@@ -86,7 +88,9 @@ object Invite {
         val session = fields["session"].orEmpty()
         require(relay.isNotEmpty() && session.isNotEmpty()) { "invite missing relay or session" }
         val salt = Hex.decode(fields["salt"].orEmpty())
-        require(salt.size >= Pairing.MIN_SALT_LEN) { "invite salt is too short (${salt.size} < ${Pairing.MIN_SALT_LEN})" }
+        require(salt.size >= Pairing.MIN_SALT_LEN) {
+            "invite salt is too short (${salt.size} < ${Pairing.MIN_SALT_LEN})"
+        }
         val usr = fields["usr"].orEmpty()
         requireUser(usr)
         return Parsed(relay, session, salt, usr)

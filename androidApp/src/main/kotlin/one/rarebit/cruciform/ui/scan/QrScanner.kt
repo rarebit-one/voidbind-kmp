@@ -37,11 +37,7 @@ import com.google.mlkit.vision.common.InputImage
  * responsible for stopping navigation to this composable once a code is handled.
  */
 @Composable
-fun QrScanner(
-    onQr: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    noPermission: @Composable () -> Unit = {},
-) {
+fun QrScanner(onQr: (String) -> Unit, modifier: Modifier = Modifier, noPermission: @Composable () -> Unit = {}) {
     val context = LocalContext.current
     var granted by remember {
         mutableStateOf(

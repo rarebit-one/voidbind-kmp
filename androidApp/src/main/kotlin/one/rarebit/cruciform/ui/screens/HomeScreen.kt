@@ -132,7 +132,12 @@ fun HomeScreen(
                         .background(VbColors.Blue.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Rounded.Smartphone, contentDescription = null, tint = VbColors.Blue, modifier = Modifier.size(26.dp))
+                    Icon(
+                        Icons.Rounded.Smartphone,
+                        contentDescription = null,
+                        tint = VbColors.Blue,
+                        modifier = Modifier.size(26.dp),
+                    )
                 }
                 HSpace(14)
                 Column(Modifier.weight(1f)) {
@@ -140,7 +145,12 @@ fun HomeScreen(
                     Text(device.label, style = VbType.Mono, color = VbColors.TextSecondary)
                     VSpace(6)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Fingerprint, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Rounded.Fingerprint,
+                            contentDescription = null,
+                            tint = VbColors.Mint,
+                            modifier = Modifier.size(16.dp),
+                        )
                         HSpace(6)
                         Text(
                             if (device.biometricRequired) "Biometric required" else "No biometric gate",
@@ -149,7 +159,11 @@ fun HomeScreen(
                         )
                     }
                 }
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted)
+                Icon(
+                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = VbColors.TextMuted,
+                )
             }
         }
         VSpace(10)
@@ -158,8 +172,20 @@ fun HomeScreen(
                 title = "All devices",
                 subtitle = "Members of this identity · add or remove",
                 onClick = onDevices,
-                leading = { IconCircle(Icons.Rounded.Devices, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f)) },
-                trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
+                leading = {
+                    IconCircle(
+                        Icons.Rounded.Devices,
+                        tint = VbColors.Blue,
+                        background = VbColors.Blue.copy(alpha = 0.12f),
+                    )
+                },
+                trailing = {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = VbColors.TextMuted,
+                    )
+                },
             )
         }
 
@@ -176,7 +202,13 @@ fun HomeScreen(
                         subtitle = "${site.appName} · ${site.lastUsed}",
                         onClick = { onSite(site) },
                         leading = { SiteAvatar(site.accent) },
-                        trailing = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = VbColors.TextMuted) },
+                        trailing = {
+                            Icon(
+                                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = VbColors.TextMuted,
+                            )
+                        },
                     )
                     if (i < trustedSites.lastIndex) VbHairline(Modifier.padding(start = 74.dp))
                 }
@@ -278,7 +310,12 @@ private fun StrongBoxCard(device: DeviceInfo) {
             Icon(Icons.Rounded.Memory, contentDescription = null, tint = accent, modifier = Modifier.size(44.dp))
             HSpace(14)
             Column(Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary, fontWeight = FontWeight.SemiBold)
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = VbColors.TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 Text(
                     if (device.biometricRequired) "Signing key requires biometrics" else "Signing key on this device",
                     style = MaterialTheme.typography.bodyMedium,

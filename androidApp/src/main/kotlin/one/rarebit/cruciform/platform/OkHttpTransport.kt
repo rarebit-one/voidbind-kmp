@@ -14,9 +14,7 @@ import java.util.concurrent.TimeUnit
  * relay poll loop and the RP challenge/approve calls. Returns raw bytes + status;
  * it never parses a body, matching the seam.
  */
-class OkHttpTransport(
-    private val client: OkHttpClient = defaultClient(),
-) : HttpTransport {
+class OkHttpTransport(private val client: OkHttpClient = defaultClient()) : HttpTransport {
 
     override fun get(url: String): HttpResponse = execute(Request.Builder().url(url).get().build())
 

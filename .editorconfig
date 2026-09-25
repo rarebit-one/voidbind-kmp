@@ -8,5 +8,7 @@ insert_final_newline = true
 [*.{kt,kts}]
 indent_style = space
 indent_size = 4
+# Match detekt's MaxLineLength (default 120) so ktlint wraps what detekt flags.
+max_line_length = 120
 # Kotlin coding conventions (IntelliJ style) rather than ktlint_official.
 ktlint_code_style = intellij_idea

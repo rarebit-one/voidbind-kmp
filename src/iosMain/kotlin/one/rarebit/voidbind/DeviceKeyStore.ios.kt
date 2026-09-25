@@ -11,10 +11,7 @@ package one.rarebit.voidbind
  * to produce one signature, then zeroized. See
  * docs/adr/0001-hardware-keystore-mechanism.md.
  */
-actual class DeviceKeyStore private constructor(
-    private val alias: String,
-    private val publicKeyBytes: ByteArray,
-) {
+actual class DeviceKeyStore private constructor(private val alias: String, private val publicKeyBytes: ByteArray) {
 
     actual val isHardwareBacked: Boolean = true
 

@@ -9,8 +9,14 @@ private val aeadKeyDecoder = aeadAlgorithm.keyDecoder()
 
 @OptIn(DelicateCryptographyApi::class)
 internal actual fun aeadIetfSeal(key: ByteArray, nonce12: ByteArray, aad: ByteArray, plaintext: ByteArray): ByteArray =
-    aeadKeyDecoder.decodeFromByteArrayBlocking(ChaCha20Poly1305.Key.Format.RAW, key).cipher().encryptWithIvBlocking(nonce12, plaintext, aad)
+    aeadKeyDecoder.decodeFromByteArrayBlocking(
+        ChaCha20Poly1305.Key.Format.RAW,
+        key,
+    ).cipher().encryptWithIvBlocking(nonce12, plaintext, aad)
 
 @OptIn(DelicateCryptographyApi::class)
 internal actual fun aeadIetfOpen(key: ByteArray, nonce12: ByteArray, aad: ByteArray, ciphertext: ByteArray): ByteArray =
-    aeadKeyDecoder.decodeFromByteArrayBlocking(ChaCha20Poly1305.Key.Format.RAW, key).cipher().decryptWithIvBlocking(nonce12, ciphertext, aad)
+    aeadKeyDecoder.decodeFromByteArrayBlocking(
+        ChaCha20Poly1305.Key.Format.RAW,
+        key,
+    ).cipher().decryptWithIvBlocking(nonce12, ciphertext, aad)

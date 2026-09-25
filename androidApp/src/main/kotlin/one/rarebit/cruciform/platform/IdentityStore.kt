@@ -31,10 +31,7 @@ import one.rarebit.voidbind.crypto.Hex
  *
  * The library never persists anything — this is entirely the app's plumbing.
  */
-class IdentityStore(
-    private val prefs: SharedPreferences,
-    private val sealed: SecretSealer,
-) {
+class IdentityStore(private val prefs: SharedPreferences, private val sealed: SecretSealer) {
 
     constructor(context: Context) : this(
         context.getSharedPreferences("voidbind.identity", Context.MODE_PRIVATE),

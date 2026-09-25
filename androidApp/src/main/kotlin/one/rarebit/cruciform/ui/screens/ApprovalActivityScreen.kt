@@ -37,11 +37,7 @@ import one.rarebit.cruciform.ui.theme.VbColors
  * by the engine as each login is decided (see the commonMain `ApprovalAuditLog`).
  */
 @Composable
-fun ApprovalActivityScreen(
-    activity: List<ApprovalActivity>,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun ApprovalActivityScreen(activity: List<ApprovalActivity>, onBack: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -88,7 +84,12 @@ private fun ActivityRow(entry: ApprovalActivity) {
         )
         HSpace(14)
         Column(Modifier.weight(1f)) {
-            Text(entry.rp, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary, fontWeight = FontWeight.Medium)
+            Text(
+                entry.rp,
+                style = MaterialTheme.typography.titleMedium,
+                color = VbColors.TextPrimary,
+                fontWeight = FontWeight.Medium,
+            )
             val detail = buildString {
                 append(if (entry.approved) "Approved" else "Denied")
                 append(" · ")
@@ -107,7 +108,12 @@ private fun EmptyState() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(Icons.Rounded.History, contentDescription = null, tint = VbColors.TextMuted, modifier = Modifier.size(40.dp))
+        Icon(
+            Icons.Rounded.History,
+            contentDescription = null,
+            tint = VbColors.TextMuted,
+            modifier = Modifier.size(40.dp),
+        )
         VSpace(14)
         Text("No approvals yet", style = MaterialTheme.typography.titleMedium, color = VbColors.TextSecondary)
         VSpace(6)

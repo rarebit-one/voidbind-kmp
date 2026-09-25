@@ -124,12 +124,7 @@ fun VbHairline(modifier: Modifier = Modifier) {
 
 /** A tinted wash card used for the status callouts (StrongBox, recovery warning). */
 @Composable
-fun WashCard(
-    accent: Color,
-    wash: Color,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
+fun WashCard(accent: Color, wash: Color, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),

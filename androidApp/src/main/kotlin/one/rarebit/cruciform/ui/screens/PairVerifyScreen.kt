@@ -59,23 +59,42 @@ fun PairVerifyScreen(
             Text("2 of 2 · VERIFY", style = VbType.SectionLabel, color = VbColors.Mint)
             VSpace(20)
 
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
                 DeviceGlyph(Icons.Rounded.Smartphone, session.thisDeviceName)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Dots()
                     Box(
                         modifier = Modifier.size(36.dp).clip(CircleShape).background(VbColors.SurfaceElevated),
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Rounded.Lock, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(18.dp)) }
+                    ) {
+                        Icon(
+                            Icons.Rounded.Lock,
+                            contentDescription = null,
+                            tint = VbColors.Mint,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                     Dots()
                 }
                 DeviceGlyph(Icons.Rounded.TabletMac, session.peerDeviceName)
             }
 
             VSpace(28)
-            Text("Compare security codes", style = MaterialTheme.typography.headlineMedium, color = VbColors.TextPrimary)
+            Text(
+                "Compare security codes",
+                style = MaterialTheme.typography.headlineMedium,
+                color = VbColors.TextPrimary,
+            )
             VSpace(8)
-            Text("Does this match the code on your other device?", style = MaterialTheme.typography.bodyLarge, color = VbColors.TextSecondary)
+            Text(
+                "Does this match the code on your other device?",
+                style = MaterialTheme.typography.bodyLarge,
+                color = VbColors.TextSecondary,
+            )
 
             VSpace(20)
             Box(
@@ -88,14 +107,27 @@ fun PairVerifyScreen(
                 Column(Modifier.padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(session.securityCode, style = VbType.SecurityCode, color = VbColors.Mint)
                     VSpace(10)
-                    Text("Read every digit aloud or compare side by side.", style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary)
+                    Text(
+                        "Read every digit aloud or compare side by side.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = VbColors.TextSecondary,
+                    )
                 }
             }
 
             VSpace(20)
-            WashCard(accent = VbColors.Coral, wash = VbColors.CoralDim.copy(alpha = 0.4f), modifier = Modifier.fillMaxWidth()) {
+            WashCard(
+                accent = VbColors.Coral,
+                wash = VbColors.CoralDim.copy(alpha = 0.4f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = VbColors.Coral, modifier = Modifier.size(28.dp))
+                    Icon(
+                        Icons.Rounded.WarningAmber,
+                        contentDescription = null,
+                        tint = VbColors.Coral,
+                        modifier = Modifier.size(28.dp),
+                    )
                     HSpace(12)
                     Text(
                         "If the codes differ, someone may be intercepting the pairing. Choose No and start again.",
@@ -107,8 +139,19 @@ fun PairVerifyScreen(
 
             VSpace(24)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                DangerButton("No, cancel", onClick = onCancel, leadingIcon = Icons.Rounded.Close, modifier = Modifier.weight(1f))
-                PrimaryButton("Yes, they match", onClick = onConfirm, leadingIcon = Icons.Rounded.Check, fill = VbColors.Mint, modifier = Modifier.weight(1f))
+                DangerButton(
+                    "No, cancel",
+                    onClick = onCancel,
+                    leadingIcon = Icons.Rounded.Close,
+                    modifier = Modifier.weight(1f),
+                )
+                PrimaryButton(
+                    "Yes, they match",
+                    onClick = onConfirm,
+                    leadingIcon = Icons.Rounded.Check,
+                    fill = VbColors.Mint,
+                    modifier = Modifier.weight(1f),
+                )
             }
             VSpace(12)
             Text(
@@ -124,13 +167,21 @@ fun PairVerifyScreen(
 
 @Composable
 private fun DeviceGlyph(icon: ImageVector, name: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.size(width = 120.dp, height = 120.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.size(width = 120.dp, height = 120.dp),
+    ) {
         Box(
             modifier = Modifier.size(72.dp).clip(CircleShape).background(VbColors.SurfaceElevated),
             contentAlignment = Alignment.Center,
         ) { Icon(icon, contentDescription = null, tint = VbColors.Mint, modifier = Modifier.size(34.dp)) }
         VSpace(8)
-        Text(name, style = MaterialTheme.typography.bodyMedium, color = VbColors.TextSecondary, textAlign = TextAlign.Center)
+        Text(
+            name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = VbColors.TextSecondary,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

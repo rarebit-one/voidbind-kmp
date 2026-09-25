@@ -211,7 +211,8 @@ object Membership {
                 val op = try {
                     MembershipOp.verify(tok, verifier)
                 } catch (ex: MembershipOp.OpException) {
-                    rejected[h] = if (ex.failure == MembershipOp.Failure.BAD_SIGNATURE) Reason.BAD_SIGNATURE else Reason.MALFORMED
+                    rejected[h] =
+                        if (ex.failure == MembershipOp.Failure.BAD_SIGNATURE) Reason.BAD_SIGNATURE else Reason.MALFORMED
                     continue
                 } catch (_: Throwable) {
                     rejected[h] = Reason.MALFORMED
@@ -470,7 +471,8 @@ object Membership {
                     }
                 }
                 if (!op.genesis && !allowed(op)) {
-                    st.ineffective[op.hash] = if (adds[op.by].orEmpty().isNotEmpty()) Reason.OUTRANKED else Reason.UNAUTHORISED
+                    st.ineffective[op.hash] =
+                        if (adds[op.by].orEmpty().isNotEmpty()) Reason.OUTRANKED else Reason.UNAUTHORISED
                     continue
                 }
                 val dev = op.device

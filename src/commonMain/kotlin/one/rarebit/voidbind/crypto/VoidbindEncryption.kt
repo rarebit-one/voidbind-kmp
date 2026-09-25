@@ -63,7 +63,9 @@ public object VoidbindEncryption {
 
     /** Unwrap a 104-byte blob with the recipient's raw 32-byte X25519 seed. */
     fun unwrap(wrapped: ByteArray, recipientSeed: ByteArray): ByteArray {
-        require(wrapped.size == WRAP_OVERHEAD) { "unwrap: wrapped key must be $WRAP_OVERHEAD bytes, got ${wrapped.size}" }
+        require(wrapped.size == WRAP_OVERHEAD) {
+            "unwrap: wrapped key must be $WRAP_OVERHEAD bytes, got ${wrapped.size}"
+        }
         require(recipientSeed.size == 32) { "unwrap: recipient seed must be 32 bytes" }
         val ephPub = wrapped.copyOfRange(0, EPH_PUB_LEN)
         val nonce = wrapped.copyOfRange(EPH_PUB_LEN, EPH_PUB_LEN + WRAP_NONCE_LEN)

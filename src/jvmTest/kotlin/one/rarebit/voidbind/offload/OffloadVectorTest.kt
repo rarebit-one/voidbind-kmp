@@ -58,7 +58,10 @@ class OffloadVectorTest {
         assertEquals(v.str("transcript_hex"), Hex.encode(transcript), "confirm transcript must match Go byte-for-byte")
 
         val verifier = Ed25519Engine.verifier()
-        assertTrue(verifier.verify(transportPub, transcript, v.bytes("transport_sig_hex")), "desktop confirm sig must verify")
+        assertTrue(
+            verifier.verify(transportPub, transcript, v.bytes("transport_sig_hex")),
+            "desktop confirm sig must verify",
+        )
         assertTrue(verifier.verify(phonePub, transcript, v.bytes("phone_sig_hex")), "phone confirm sig must verify")
 
         // The SAS the human compares — derived by the shared Pairing primitive with
@@ -70,10 +73,18 @@ class OffloadVectorTest {
     @Test
     fun unwrapRequestSigningInputAndVerify() {
         val v = section("unwrap_request")
-        val input = OffloadProtocol.requestSigningInput(v.bytes("wrapped_hex"), v.bytes("eph_pub_hex"), v.bytes("nonce_hex"))
+        val input = OffloadProtocol.requestSigningInput(
+            v.bytes("wrapped_hex"),
+            v.bytes("eph_pub_hex"),
+            v.bytes("nonce_hex"),
+        )
         assertEquals(v.str("signing_input_hex"), Hex.encode(input), "request signing input must match Go")
 
-        val req = OffloadProtocol.verifyRequest(Ed25519Engine.verifier(), v.bytes("transport_pub_hex"), v.bytes("request_hex"))
+        val req = OffloadProtocol.verifyRequest(
+            Ed25519Engine.verifier(),
+            v.bytes("transport_pub_hex"),
+            v.bytes("request_hex"),
+        )
         assertTrue(req.wrapped.contentEquals(v.bytes("wrapped_hex")))
         assertTrue(req.ephPub.contentEquals(v.bytes("eph_pub_hex")))
         assertTrue(req.nonce.contentEquals(v.bytes("nonce_hex")))

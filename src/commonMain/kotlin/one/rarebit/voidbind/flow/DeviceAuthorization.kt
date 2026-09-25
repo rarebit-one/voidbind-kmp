@@ -63,7 +63,15 @@ class DeviceAuthorization private constructor(
         maxWaitMillis: Long = RelayClient.DEFAULT_MAX_WAIT_MILLIS,
     ) : this(
         http,
-        { PairflowAuthority.Device(device.asSigner(), device.signPublicKey, device.encPublicKey, admittingOp, knownOps) },
+        {
+            PairflowAuthority.Device(
+                device.asSigner(),
+                device.signPublicKey,
+                device.encPublicKey,
+                admittingOp,
+                knownOps,
+            )
+        },
         clock,
         pollIntervalMillis,
         maxWaitMillis,
