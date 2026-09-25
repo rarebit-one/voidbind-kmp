@@ -33,7 +33,11 @@ class GoInteropTest {
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
     private fun buildCli(): File {
-        val out = File.createTempFile("vb-interop", "").apply { delete() }
+        // The binary is ~11 MB and /tmp is often RAM-backed: remove it when the test JVM exits.
+        val out = File.createTempFile("vb-interop", "").apply {
+            delete()
+            deleteOnExit()
+        }
         val p = ProcessBuilder("go", "build", "-o", out.absolutePath, "./cmd/voidbind")
             .directory(goDir).redirectErrorStream(true).start()
         val log = p.inputStream.readBytes().decodeToString()

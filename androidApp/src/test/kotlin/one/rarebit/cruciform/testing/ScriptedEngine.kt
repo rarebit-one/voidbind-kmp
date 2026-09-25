@@ -58,6 +58,7 @@ class ScriptedEngine : VoidbindEngine {
     override fun parseScanned(raw: String): ScannedCode = when {
         raw.startsWith("voidbind:login") -> ScannedCode.WebLogin("https://rp.example.test", "L1", raw)
         raw.startsWith("voidbind:pair") -> ScannedCode.PairInvite("https://relay.example.test", "s1", raw)
+        raw.lowercase().startsWith("heyarr1") -> ScannedCode.RecoverySecret(raw)
         else -> ScannedCode.Unknown(raw)
     }
 
@@ -88,6 +89,8 @@ class ScriptedEngine : VoidbindEngine {
         val BACKUP = RecoveryBackup(
             groupedSecret = "heya rr1q qqsy qcyq 5rqw zqfp g9sc rgwp ugpz ysnz s23v 9ccr ydpk 8qar c0s6 e0uc u",
             rawSecret = "heyarr1qqqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0s6e0ucu",
+            fingerprint = "PYJI XGNZ K7ZH XHEJ",
+            userId = "ed25519:00",
         )
         val REQUEST = LoginRequest(
             domain = "rp.example.test",
