@@ -164,8 +164,8 @@ fun LoginApprovalScreen(
                 text = "Approve",
                 onClick = onApprove,
                 enabled = remaining > 0,
-                fill = VbColors.BlueSoft,
-                onFill = VbColors.OnBlue,
+                fill = VbColors.FernSoft,
+                onFill = VbColors.OnFern,
                 leadingIcon = Icons.Rounded.Fingerprint,
                 modifier = Modifier.weight(1f),
             )

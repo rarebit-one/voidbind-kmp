@@ -79,7 +79,7 @@ fun OnboardingScreen(
 
         OnboardingAction(
             icon = Icons.Rounded.VpnKey,
-            accent = VbColors.Blue,
+            accent = VbColors.Fern,
             title = "Create a new identity",
             subtitle = "Generate a new identity and recovery secret",
             onClick = onCreate,
@@ -103,7 +103,7 @@ fun OnboardingScreen(
         VSpace(14)
         OnboardingAction(
             icon = Icons.Rounded.PhonelinkRing,
-            accent = VbColors.Blue,
+            accent = VbColors.Fern,
             title = "Add this device",
             subtitle = "Pair with a device you already trust",
             onClick = onAddDevice,

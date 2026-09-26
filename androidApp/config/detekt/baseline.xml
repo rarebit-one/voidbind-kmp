@@ -20,7 +20,7 @@
     <ID>FunctionNaming:Components.kt$@Composable fun SectionLabel( text: String, modifier: Modifier = Modifier, color: Color = VbColors.TextMuted, trailing: (@Composable () -&gt; Unit)? = null, )</ID>
     <ID>FunctionNaming:Components.kt$@Composable fun StatusPill( text: String, modifier: Modifier = Modifier, accent: Color = VbColors.Mint, leadingIcon: ImageVector? = null, )</ID>
     <ID>FunctionNaming:Components.kt$@Composable fun VSpace(dp: Int)</ID>
-    <ID>FunctionNaming:Components.kt$@Composable fun VbCard( modifier: Modifier = Modifier, color: Color = VbColors.Surface, border: BorderStroke? = BorderStroke(1.dp, VbColors.OutlineSoft), shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(20.dp), content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:Components.kt$@Composable fun VbCard( modifier: Modifier = Modifier, color: Color = VbColors.Surface, border: BorderStroke? = BorderStroke(1.dp, VbColors.OutlineSoft), shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(18.dp), content: @Composable () -&gt; Unit, )</ID>
     <ID>FunctionNaming:Components.kt$@Composable fun VbHairline(modifier: Modifier = Modifier)</ID>
     <ID>FunctionNaming:Components.kt$@Composable fun WashCard(accent: Color, wash: Color, modifier: Modifier = Modifier, content: @Composable () -&gt; Unit)</ID>
     <ID>FunctionNaming:CruciformMark.kt$@Composable fun CruciformMark(size: Dp = 32.dp, modifier: Modifier = Modifier)</ID>
@@ -121,28 +121,28 @@
     <ID>MagicNumber:ApprovalPolicyStore.kt$ApprovalPolicyStore$3</ID>
     <ID>MagicNumber:ApprovalPolicyStore.kt$ApprovalPolicyStore$4</ID>
     <ID>MagicNumber:ApprovalPolicyStore.kt$ApprovalPolicyStore$5</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0x143E9BFF</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0x145FE7C7</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0x14F5B301</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF03121F</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0x182E7D5B</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0x187EE0B3</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0x18F4B860</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF071810</ID>
     <ID>MagicNumber:Color.kt$VbColors$0xFF041712</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF060809</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF0B0E11</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF101418</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF161B21</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF1A2026</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF232A31</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF241A00</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF2E5C51</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF3E9BFF</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF0A1410</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF08100C</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF111E18</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF1A2A21</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF1D3026</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF294338</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF241707</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF285D46</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF2E7D5B</ID>
     <ID>MagicNumber:Color.kt$VbColors$0xFF4A2222</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF4A3A0E</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF5FE7C7</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF747E87</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFF8ED0F0</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFFAAB4BD</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFFF4F7FA</ID>
-    <ID>MagicNumber:Color.kt$VbColors$0xFFF5B301</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF55401F</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF7EE0B3</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFF7E9182</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFFB6F0D1</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFFB0BDAF</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFFE6EBD7</ID>
+    <ID>MagicNumber:Color.kt$VbColors$0xFFF4B860</ID>
     <ID>MagicNumber:Color.kt$VbColors$0xFFFF6B6B</ID>
     <ID>MagicNumber:Components.kt$50</ID>
     <ID>MagicNumber:CruciformMark.kt$0.24f</ID>

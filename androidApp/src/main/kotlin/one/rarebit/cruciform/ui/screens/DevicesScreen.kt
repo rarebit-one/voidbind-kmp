@@ -128,8 +128,8 @@ private fun DeviceRow(d: MemberDevice, onRemove: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
         IconCircle(
             Icons.Rounded.Smartphone,
-            tint = if (d.isThisDevice) VbColors.Mint else VbColors.Blue,
-            background = (if (d.isThisDevice) VbColors.Mint else VbColors.Blue).copy(alpha = 0.12f),
+            tint = if (d.isThisDevice) VbColors.Mint else VbColors.Fern,
+            background = (if (d.isThisDevice) VbColors.Mint else VbColors.Fern).copy(alpha = 0.12f),
         )
         HSpace(14)
         Column(Modifier.weight(1f)) {

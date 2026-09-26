@@ -2,28 +2,30 @@ package one.rarebit.cruciform.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
 /**
- * Voidbind is **dark-first** and, for now, dark-only — the mockups are a single
- * committed dark design. The [MaterialTheme] colour scheme maps the two brand
- * accents (mint = primary/security, blue = secondary/brand) onto Material 3 roles;
- * components reach for [VbColors] directly for the brand specifics (amber recovery,
- * coral deny, tint washes) that do not fit a single scheme slot.
+ * Cruciform is **dark-first** and, for now, dark-only. The [MaterialTheme] colour
+ * scheme maps the forest palette (mint = primary/security, fern = secondary) onto
+ * Material 3 roles. Components reach for [VbColors] directly for the brand specifics
+ * (amber recovery, coral deny, tint washes) that do not fit a single scheme slot.
  */
 private val CruciformDarkColorScheme = darkColorScheme(
     primary = VbColors.Mint,
     onPrimary = VbColors.OnMint,
     primaryContainer = VbColors.MintDim,
     onPrimaryContainer = VbColors.Mint,
-    secondary = VbColors.Blue,
-    onSecondary = VbColors.OnBlue,
+    secondary = VbColors.Fern,
+    onSecondary = VbColors.OnFern,
     tertiary = VbColors.Amber,
     onTertiary = VbColors.OnAmber,
     background = VbColors.Background,
@@ -36,6 +38,14 @@ private val CruciformDarkColorScheme = darkColorScheme(
     outlineVariant = VbColors.OutlineSoft,
     error = VbColors.Coral,
     onError = Color(0xFF1A0505),
+)
+
+private val CruciformShapes = Shapes(
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(18.dp),
+    extraLarge = RoundedCornerShape(24.dp),
 )
 
 @Composable
@@ -58,6 +68,7 @@ fun CruciformTheme(
     MaterialTheme(
         colorScheme = CruciformDarkColorScheme,
         typography = CruciformTypography,
+        shapes = CruciformShapes,
         content = content,
     )
 }

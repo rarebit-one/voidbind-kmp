@@ -55,7 +55,7 @@ fun VbCard(
     modifier: Modifier = Modifier,
     color: Color = VbColors.Surface,
     border: BorderStroke? = BorderStroke(1.dp, VbColors.OutlineSoft),
-    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(20.dp),
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(18.dp),
     content: @Composable () -> Unit,
 ) {
     Surface(color = color, shape = shape, border = border, modifier = modifier) {
@@ -127,7 +127,7 @@ fun VbHairline(modifier: Modifier = Modifier) {
 fun WashCard(accent: Color, wash: Color, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         color = wash,
         border = BorderStroke(1.dp, accent.copy(alpha = 0.5f)),
     ) {

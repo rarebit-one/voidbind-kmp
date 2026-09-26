@@ -2,6 +2,6 @@
 <resources>
     <!-- The window background, matching the Compose theme's ground so there is no
          white flash before the first frame. -->
-    <color name="void_black">#FF060809</color>
-    <color name="void_mint">#FF5FE7C7</color>
+    <color name="void_black">#FF0A1410</color>
+    <color name="void_mint">#FF7EE0B3</color>
 </resources>
