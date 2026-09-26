@@ -114,7 +114,7 @@ fun RowItem(
 @Composable
 fun SiteAvatar(accent: SiteAccent, modifier: Modifier = Modifier, diameter: Int = 44) {
     val (bg, tint) = when (accent) {
-        SiteAccent.BLUE -> VbColors.Blue.copy(alpha = 0.18f) to VbColors.Blue
+        SiteAccent.BLUE -> VbColors.Fern.copy(alpha = 0.18f) to VbColors.Fern
         SiteAccent.PURPLE -> Color(0xFF8B5CF6).copy(alpha = 0.20f) to Color(0xFFB794F6)
         SiteAccent.MINT -> VbColors.Mint.copy(alpha = 0.16f) to VbColors.Mint
     }

@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.QrCodeScanner
@@ -35,9 +35,9 @@ fun CruciformBottomBar(currentRoute: String?, onHome: () -> Unit, onScan: () -> 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.SpaceAround,
         ) {
             BarItem(Icons.Rounded.Home, "Home", selected = currentRoute == Routes.HOME, onClick = onHome)
             ScanButton(onScan)
@@ -53,12 +53,13 @@ fun CruciformBottomBar(currentRoute: String?, onHome: () -> Unit, onScan: () -> 
 
 @Composable
 private fun BarItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    val tint = if (selected) VbColors.Blue else VbColors.TextMuted
+    val tint = if (selected) VbColors.Mint else VbColors.TextMuted
     Column(
         modifier = Modifier
-            .clip(CircleShape)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 6.dp),
+            .background(if (selected) VbColors.MintWash else VbColors.Background)
+            .padding(horizontal = 22.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(26.dp))
@@ -76,20 +77,20 @@ private fun ScanButton(onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .border(BorderStroke(2.dp, VbColors.Blue), CircleShape)
-                .background(VbColors.Blue.copy(alpha = 0.10f))
+                .size(52.dp)
+                .clip(RoundedCornerShape(17.dp))
+                .border(BorderStroke(1.dp, VbColors.Mint.copy(alpha = 0.48f)), RoundedCornerShape(17.dp))
+                .background(VbColors.Mint)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 Icons.Rounded.QrCodeScanner,
                 contentDescription = "Scan",
-                tint = VbColors.Blue,
-                modifier = Modifier.size(28.dp),
+                tint = VbColors.OnMint,
+                modifier = Modifier.size(25.dp),
             )
         }
-        Text("Scan", style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = VbColors.Blue)
+        Text("Scan", style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = VbColors.Mint)
     }
 }

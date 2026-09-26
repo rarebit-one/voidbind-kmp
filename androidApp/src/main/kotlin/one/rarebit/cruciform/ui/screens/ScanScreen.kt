@@ -122,7 +122,7 @@ fun ScanScreen(
                 val sw = 8f
                 val stroke = Stroke(width = sw)
                 fun l(x1: Float, y1: Float, x2: Float, y2: Float) =
-                    drawLine(VbColors.Blue, Offset(x1, y1), Offset(x2, y2), strokeWidth = sw)
+                    drawLine(VbColors.Fern, Offset(x1, y1), Offset(x2, y2), strokeWidth = sw)
                 // corner brackets
                 l(0f, 0f, corner, 0f)
                 l(0f, 0f, 0f, corner)

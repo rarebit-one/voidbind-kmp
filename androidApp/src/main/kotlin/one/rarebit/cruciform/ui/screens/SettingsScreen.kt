@@ -184,8 +184,8 @@ fun SettingsScreen(
                     leading = {
                         IconCircle(
                             Icons.Rounded.Fingerprint,
-                            tint = VbColors.Blue,
-                            background = VbColors.Blue.copy(alpha = 0.12f),
+                            tint = VbColors.Fern,
+                            background = VbColors.Fern.copy(alpha = 0.12f),
                         )
                     },
                     trailing = {
@@ -202,8 +202,8 @@ fun SettingsScreen(
                     leading = {
                         IconCircle(
                             Icons.Rounded.Devices,
-                            tint = VbColors.Blue,
-                            background = VbColors.Blue.copy(alpha = 0.12f),
+                            tint = VbColors.Fern,
+                            background = VbColors.Fern.copy(alpha = 0.12f),
                         )
                     },
                     trailing = {
@@ -334,8 +334,8 @@ fun SettingsScreen(
                     leading = {
                         IconCircle(
                             Icons.Rounded.History,
-                            tint = VbColors.Blue,
-                            background = VbColors.Blue.copy(alpha = 0.12f),
+                            tint = VbColors.Fern,
+                            background = VbColors.Fern.copy(alpha = 0.12f),
                         )
                     },
                     trailing = {
@@ -515,7 +515,7 @@ private fun EndpointField(
 
     Column(Modifier.padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconCircle(Icons.Rounded.Hub, tint = VbColors.Blue, background = VbColors.Blue.copy(alpha = 0.12f))
+            IconCircle(Icons.Rounded.Hub, tint = VbColors.Fern, background = VbColors.Fern.copy(alpha = 0.12f))
             HSpace(14)
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = VbColors.TextPrimary)

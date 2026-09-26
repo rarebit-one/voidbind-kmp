@@ -1,5 +1,7 @@
 package one.rarebit.cruciform.ui.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -30,7 +33,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import one.rarebit.cruciform.domain.DeviceInfo
@@ -56,8 +63,8 @@ import one.rarebit.cruciform.ui.theme.VbColors
 import one.rarebit.cruciform.ui.theme.VbType
 
 /**
- * Home / identity dashboard: the identity fingerprint, the StrongBox status card,
- * this device, and the trusted sites. (Mockup 2.)
+ * Home / identity dashboard: an identity-led hero, device protection, this device,
+ * and the trusted sites.
  */
 @Composable
 fun HomeScreen(
@@ -83,22 +90,89 @@ fun HomeScreen(
             .padding(top = 16.dp, bottom = 24.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            CruciformMark(size = 28.dp)
-            HSpace(10)
-            Text("Cruciform", style = MaterialTheme.typography.titleLarge, color = VbColors.TextPrimary)
+            Column {
+                Text("CRUCIFORM", style = VbType.SectionLabel, color = VbColors.Mint)
+                Text("Your identity", style = MaterialTheme.typography.titleLarge, color = VbColors.TextPrimary)
+            }
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onSettings) {
                 Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = VbColors.TextSecondary)
             }
         }
 
-        VSpace(18)
-        SectionLabel("Your identity")
-        VSpace(10)
-        IdentityFingerprint(identity.label, identity.fingerprint, onCopy = onCopyIdentity)
         VSpace(14)
-        if (identity.offlineVerifiable) {
-            StatusPill("Offline-verifiable", accent = VbColors.Mint, leadingIcon = Icons.Rounded.Fingerprint)
+        VbCard(
+            modifier = Modifier.fillMaxWidth(),
+            color = VbColors.Surface,
+            border = BorderStroke(1.dp, VbColors.Outline),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(listOf(VbColors.SurfaceElevated, VbColors.Surface)),
+                        RoundedCornerShape(18.dp),
+                    ),
+            ) {
+                Canvas(Modifier.align(Alignment.TopEnd).size(width = 132.dp, height = 132.dp)) {
+                    val step = 18.dp.toPx()
+                    var x = 0f
+                    while (x <= size.width) {
+                        drawLine(
+                            VbColors.Fern.copy(alpha = 0.12f),
+                            Offset(x, 0f),
+                            Offset(x, size.height),
+                            strokeWidth = 1.dp.toPx(),
+                        )
+                        x += step
+                    }
+                    var y = 0f
+                    while (y <= size.height) {
+                        drawLine(
+                            VbColors.Fern.copy(alpha = 0.12f),
+                            Offset(0f, y),
+                            Offset(size.width, y),
+                            strokeWidth = 1.dp.toPx(),
+                        )
+                        y += step
+                    }
+                    drawRect(
+                        color = VbColors.Amber.copy(alpha = 0.75f),
+                        topLeft = Offset(size.width - 14.dp.toPx(), 12.dp.toPx()),
+                        size = Size(3.dp.toPx(), 3.dp.toPx()),
+                    )
+                }
+                CruciformMark(
+                    size = 112.dp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 18.dp, end = 16.dp)
+                        .graphicsLayer(alpha = 0.12f),
+                )
+                Column(Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("IDENTITY KEY", style = VbType.SectionLabel, color = VbColors.TextMuted)
+                        Spacer(Modifier.weight(1f))
+                        if (identity.offlineVerifiable) {
+                            StatusPill("OFFLINE READY", accent = VbColors.Mint, leadingIcon = Icons.Rounded.Fingerprint)
+                        }
+                    }
+                    VSpace(10)
+                    IdentityFingerprint(identity.label, identity.fingerprint, onCopy = onCopyIdentity)
+                    VSpace(14)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(7.dp).clip(CircleShape).background(VbColors.Mint))
+                        HSpace(8)
+                        Text(
+                            "Held on this device",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VbColors.TextSecondary,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text("YOUR KEY, YOURS", style = MaterialTheme.typography.labelSmall, color = VbColors.Mint)
+                    }
+                }
+            }
         }
 
         VSpace(18)
@@ -129,13 +203,13 @@ fun HomeScreen(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(VbColors.Blue.copy(alpha = 0.12f)),
+                        .background(VbColors.FernWash),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         Icons.Rounded.Smartphone,
                         contentDescription = null,
-                        tint = VbColors.Blue,
+                        tint = VbColors.Mint,
                         modifier = Modifier.size(26.dp),
                     )
                 }
@@ -175,8 +249,8 @@ fun HomeScreen(
                 leading = {
                     IconCircle(
                         Icons.Rounded.Devices,
-                        tint = VbColors.Blue,
-                        background = VbColors.Blue.copy(alpha = 0.12f),
+                        tint = VbColors.Fern,
+                        background = VbColors.Fern.copy(alpha = 0.12f),
                     )
                 },
                 trailing = {
